@@ -1,0 +1,25 @@
+services:
+  postgres:
+    build: .
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Weterr123
+      POSTGRES_MULTIPLE_DATABASES: heroes3,heroes4,heroes5,ardu
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./00-init-multiple-dbs.sh:/docker-entrypoint-initdb.d/00-init-multiple-dbs.sh
+      - ./heroes3.sql:/docker-entrypoint-initdb.d/heroes3.sql
+      - ./heroes4.sql:/docker-entrypoint-initdb.d/heroes4.sql
+      - ./heroes5.sql:/docker-entrypoint-initdb.d/heroes5.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - sharednetwork
+
+volumes:
+  pg_data:
+
+networks:
+  sharednetwork:
+    external: true

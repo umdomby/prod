@@ -1,0 +1,260 @@
+worker_processes auto;
+
+events {
+worker_connections 1024;
+}
+
+http {
+
+    include /etc/nginx/mime.types;
+    sendfile on;
+    keepalive_timeout 65;
+
+    upstream backend {
+        server nextjs1:3000 max_fails=3 fail_timeout=5s;
+        server nextjs2:3000 backup; # резервный сервер
+    }
+
+    # Блок по умолчанию для localhost
+    server {
+        listen 80 default_server;
+        server_name _;
+
+            root /usr/share/nginx/ip;
+            index index.html;
+
+        location / {
+            try_files $uri $uri/ =404;
+        }
+    }
+
+    # Сайт 1
+    server {
+        listen 80;
+        server_name gamerecords.site;
+
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+            allow all;
+        }
+
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+    server {
+        listen 443 ssl;
+        server_name gamerecords.site;
+
+        ssl_certificate /etc/letsencrypt/live/gamerecords.site/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/gamerecords.site/privkey.pem;
+
+        location / {
+            root /usr/share/nginx/gamerecords;
+            index index.html;
+        }
+    }
+
+###
+    server {
+        listen 80;
+        server_name anybet.site www.anybet.site;
+
+        location / {
+            return 301 https://anybet.site$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name www.anybet.site;
+
+        ssl_certificate /etc/letsencrypt/live/anybet.site/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/anybet.site/privkey.pem;
+
+
+         return 301 https://anybet.site$request_uri;
+
+    }
+
+    server {
+        listen 443 ssl;
+        server_name anybet.site;
+
+        ssl_certificate /etc/letsencrypt/live/anybet.site/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/anybet.site/privkey.pem;
+
+        location / {
+            proxy_pass http://nextjs1:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffering off;
+            proxy_read_timeout 3600;
+        }
+    }
+
+###
+    server {
+        listen 80;
+        server_name anycoin.site www.anycoin.site;
+
+        location / {
+            return 301 https://anycoin.site$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name www.anycoin.site;
+
+        ssl_certificate /etc/letsencrypt/live/anycoin.site/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/anycoin.site/privkey.pem;
+
+        return 301 https://anycoin.site$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name anycoin.site;
+
+        ssl_certificate /etc/letsencrypt/live/anycoin.site/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/anycoin.site/privkey.pem;
+
+        location / {
+            proxy_pass http://nextjs2:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffering off;
+            proxy_read_timeout 3600;
+        }
+    }
+#     server {
+#         listen 80;
+#         server_name anybet.site;
+#         location /.well-known/acme-challenge/ {
+#             (root) /var/www/certbot;
+#             allow all;
+#         }
+#         location / {
+#             return 301 https://$host$request_uri;
+#         }
+#     }
+#     server {
+#         listen 443 ssl;
+#         server_name anybet.site;
+#         ssl_certificate /etc/letsencrypt/live/anybet.site/fullchain.pem;
+#         ssl_certificate_key /etc/letsencrypt/live/anybet.site/privkey.pem;
+#         (root) /usr/share/nginx/anybet;
+#         index index.html;
+#         location / {
+#             try_files $uri $uri/ =404;
+#         }
+#     }
+
+    # Сайт 3
+#     server {
+#         listen 80;
+#         server_name anycoin.site;
+#         location /.well-known/acme-challenge/ {
+#             (root) /var/www/certbot;
+#             allow all;
+#         }
+#         location / {
+#             return 301 https://$host$request_uri;
+#         }
+#     }
+#     server {
+#         listen 443 ssl;
+#         server_name anycoin.site;
+#         ssl_certificate /etc/letsencrypt/live/anycoin.site/fullchain.pem;
+#         ssl_certificate_key /etc/letsencrypt/live/anycoin.site/privkey.pem;
+#         (root) /usr/share/nginx/anycoin;
+#         index index.html;
+#         location / {
+#             try_files $uri $uri/ =404;
+#         }
+#     }
+
+    # Сайт 4
+    server {
+        listen 80;
+        server_name ardu.site www.ardu.site;
+
+        location / {
+            return 301 https://ardu.site$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name www.ardu.site;
+
+        ssl_certificate /etc/letsencrypt/live/ardu.site/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/ardu.site/privkey.pem;
+
+        return 301 https://ardu.site$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name ardu.site;
+
+        ssl_certificate /etc/letsencrypt/live/ardu.site/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/ardu.site/privkey.pem;
+
+        location / {
+            proxy_pass http://ardu1:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffering off;
+            proxy_read_timeout 3600;
+        }
+    }
+
+    # Сайт 5
+    server {
+     
+          server_name it-startup.site www.it-startup.site;
+    
+            location / {
+                return 301 https://it-startup.site$request_uri;
+            }
+   
+    }
+    server {
+        listen 443 ssl;
+        server_name it-startup.site;
+        ssl_certificate /etc/letsencrypt/live/it-startup.site/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/it-startup.site/privkey.pem;
+        root /usr/share/nginx/it-startup;
+        index index.html;
+        location / {
+            try_files $uri $uri/ =404;
+        }
+    }
+
+    # Сайт 6
+    server {
+        listen 80;
+        server_name site1.local;
+        location / {
+            root /usr/share/nginx/html/site1;
+            index index.html;
+        }
+    }
+    # Сайт 7
+    server {
+        listen 80;
+        server_name site2.local;
+        location / {
+            root /usr/share/nginx/html/site2;
+            index index.html;
+        }
+    }
+}

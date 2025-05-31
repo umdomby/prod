@@ -1,0 +1,112 @@
+// npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+model User {
+  id          Int              @id @default(autoincrement())
+  fullName    String
+  email       String           @unique
+  provider    String?
+  providerId  String?
+  password    String
+  role        UserRole         @default(USER)
+  img         String?
+  points      Float            @default(1000)
+  betsCreated Bet[]            @relation("BetsCreated")
+  betsPlaced  BetParticipant[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Bet {
+  id             Int              @id @default(autoincrement())
+  player1        Player           @relation(name: "Player1Bets", fields: [player1Id], references: [id])
+  player1Id      Int
+  player2        Player           @relation(name: "Player2Bets", fields: [player2Id], references: [id])
+  player2Id      Int
+  initialOdds1   Float // Correct field name
+  initialOdds2   Float // Correct field name
+  currentOdds1   Float // Correct field name
+  currentOdds2   Float // Correct field name
+  maxBetAmount   Float            @default(10)
+  totalBetAmount Float            @default(0)
+  creator        User             @relation("BetsCreated", fields: [creatorId], references: [id])
+  creatorId      Int
+  status         BetStatus        @default(OPEN)
+  participants   BetParticipant[]
+  categoryId     Int?
+  category       Category?        @relation(fields: [categoryId], references: [id])
+  productId      Int?
+  product        Product?         @relation(fields: [productId], references: [id])
+  productItemId  Int?
+  productItem    ProductItem?     @relation(fields: [productItemId], references: [id])
+  winnerId       Int?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model BetParticipant {
+  id       Int          @id @default(autoincrement())
+  betId    Int
+  bet      Bet          @relation(fields: [betId], references: [id])
+  userId   Int
+  user     User         @relation(fields: [userId], references: [id])
+  amount   Float
+  odds     Float
+  player   PlayerChoice
+  isWinner Boolean      @default(false)
+}
+
+model Player {
+  id          Int    @id @default(autoincrement())
+  name        String @unique
+  player1Bets Bet[]  @relation(name: "Player1Bets") // Relation for bets as player 1
+  player2Bets Bet[]  @relation(name: "Player2Bets") // Relation for bets as player 2
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[]
+  bets     Bet[]
+}
+
+model Product {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  categoryId   Int
+  category     Category      @relation(fields: [categoryId], references: [id])
+  productItems ProductItem[]
+  bets         Bet[]
+}
+
+model ProductItem {
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  bets      Bet[]
+}
+
+enum BetStatus {
+  OPEN
+  CLOSED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum PlayerChoice {
+  PLAYER1
+  PLAYER2
+}

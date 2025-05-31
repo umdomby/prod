@@ -1,0 +1,19 @@
+services:
+  ardu1:
+    build: .
+    working_dir: /app2
+    ports:
+      - "3003:3000"
+    # Уберите volumes, чтобы не перезаписывать файлы сборки
+    volumes:
+      - .:/app2
+    command: ["yarn", "start"]
+    env_file:
+      - ..env
+    networks:
+      - sharednetwork
+    restart: always
+
+networks:
+  sharednetwork:
+    external: true

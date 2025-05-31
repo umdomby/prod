@@ -1,0 +1,826 @@
+// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  cardId       String   @unique @default(uuid()) // Используем UUID для уникальности
+  fullName     String
+  provider     String?
+  providerId   String?
+  password     String
+  role         UserRole @default(USER)
+  img          String?
+  points       Float    @default(0) // баллы пользователя
+  p2pPlus      Int?     @default(0)
+  p2pMinus     Int?     @default(0)
+  contact      Json? // поле для хранения контактных данных
+  loginHistory Json? // поле для хранения истории входов
+
+  betsCreated        Bet[]        @relation("BetsCreated")
+  betsCLOSEDCreated  BetCLOSED[]  @relation("BetsCLOSEDCreated")
+  resetToken         String?
+  betsCreated3       Bet3[]       @relation("BetsCreated3")
+  betsCLOSEDCreated3 BetCLOSED3[] @relation("BetsCLOSEDCreated3")
+
+  betsCreated4       Bet4[]       @relation("BetsCreated4")
+  betsCLOSEDCreated4 BetCLOSED4[] @relation("BetsCLOSEDCreated4")
+
+  betsPlaced       BetParticipant[]
+  betsCLOSEDPlaced BetParticipantCLOSED[]
+
+  betsPlaced3       BetParticipant3[]
+  betsCLOSEDPlaced3 BetParticipantCLOSED3[]
+
+  betsPlaced4       BetParticipant4[]
+  betsCLOSEDPlaced4 BetParticipantCLOSED4[]
+
+  orderP2PUser1 OrderP2P[] @relation("OrderP2PUser1") // Отношение для user1
+  orderP2PUser2 OrderP2P[] @relation("OrderP2PUser2") // Отношение для user2
+  transferUser1 Transfer[] @relation("TransferUser1") // Отношение для user1
+  transferUser2 Transfer[] @relation("TransferUser2") // Отношение для user2
+
+  gameUserBet1 GameUserBet[] @relation("GameUser1Bet")
+  gameUserBet2 GameUserBet[] @relation("GameUser2Bet")
+
+  player                Player[]
+  turnirPlayer          TurnirPlayer[]
+  ratingUserGame        GlobalUserGame?
+  chatUsers             ChatUsers[]
+  regPoints             RegPoints[]
+  bankDetails           Json?
+  referralUserIpAddress ReferralUserIpAddress[]
+  telegram              String?                 @unique
+  telegramView          Boolean                 @default(false)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+}
+
+model TurnirPlayer {
+  id                Int      @id @default(autoincrement())
+  orderP2PUser      User     @relation(fields: [userId], references: [id])
+  userId            Int
+  startPointsPlayer Float
+  checkPointsPlayer Float?
+  playerBool        Boolean  @default(true)
+  turnir            Turnir   @relation(fields: [turnirId], references: [id])
+  turnirId          Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Turnir {
+  id                Int            @id @default(autoincrement())
+  turnirPlayer      TurnirPlayer[]
+  titleTurnir       String
+  textTurnirTurnir  String
+  startPointsTurnir Float
+  statusTurnir      StatusTurnir   @default(REGISTRATION)
+  TurnirBool        Boolean        @default(true)
+  turnirLap1        Json?
+  turnirLap2        Json?
+  turnirLap3        Json?
+  turnirLap4        Json?
+  turnirLap5        Json?
+  turnirLap6        Json?
+  turnirLap7        Json?
+  turnirLap8        Json?
+  turnirLap9        Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model TurnirBet {
+  id               Int               @id @default(autoincrement())
+  name             String            @unique
+  bets             Bet[]
+  betsCLOSED       BetCLOSED[]
+  bets3            Bet3[] // Обратная связь с Bet3
+  betsCLOSED3      BetCLOSED3[] // Обратная связь с BetCLOSED3
+  bets4            Bet4[] // Обратная связь с Bet3
+  betsCLOSED4      BetCLOSED4[] // Обратная связь с BetCLOSED3
+  playerStatistics PlayerStatistic[]
+}
+
+enum StatusTurnir {
+  REGISTRATION
+  REGISTRATION_OFF
+  START
+  CLOSED
+}
+
+model OrderP2P {
+  id                 Int            @id @default(autoincrement())
+  orderP2PUser1      User           @relation("OrderP2PUser1", fields: [orderP2PUser1Id], references: [id])
+  orderP2PUser1Id    Int
+  orderP2PUser2      User?          @relation("OrderP2PUser2", fields: [orderP2PUser2Id], references: [id])
+  orderP2PUser2Id    Int?
+  orderP2PBuySell    BuySell
+  orderP2PPoints     Float
+  orderP2PPrice      Float?
+  orderP2PPart       Boolean        @default(false) // обработана или нет
+  orderBankDetails   Json
+  orderP2PStatus     OrderP2PStatus @default(OPEN)
+  orderP2PCheckUser1 Boolean? // подтверждение сделки User1
+  orderP2PCheckUser2 Boolean? // подтверждение сделки User2
+  orderBankPay       Json? // реквизиты для оплаты
+  isProcessing       Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+}
+
+model UpdateDateTime {
+  id          Int      @id @default(autoincrement())
+  UDTvaluta   DateTime
+  UDTOrderP2P DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Transfer {
+  id              Int      @id @default(autoincrement())
+  transferUser1   User     @relation("TransferUser1", fields: [transferUser1Id], references: [id])
+  transferUser1Id Int
+  transferUser2   User?    @relation("TransferUser2", fields: [transferUser2Id], references: [id])
+  transferUser2Id Int?
+  transferPoints  Float
+  transferStatus  Boolean?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ChatUsers {
+  id         Int      @id @default(autoincrement())
+  chatUser   User     @relation(fields: [chatUserId], references: [id])
+  chatUserId Int
+  chatText   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model CourseValuta {
+  id        Int      @id @default(autoincrement())
+  USD       Float
+  EUR       Float
+  BEL       Float
+  RUS       Float
+  BTC       Float
+  USTD      Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id               Int               @id @default(autoincrement())
+  name             String            @unique
+  bets             Bet[]
+  betsCLOSED       BetCLOSED[]
+  bets3            Bet3[] // Обратная связь с Bet3
+  betsCLOSED3      BetCLOSED3[] // Обратная связь с BetCLOSED3
+  bets4            Bet4[] // Обратная связь с Bet3
+  betsCLOSED4      BetCLOSED4[] // Обратная связь с BetCLOSED3
+  gameUserBets     GameUserBet[] // Добавлено обратное отношение
+  playerStatistics PlayerStatistic[]
+}
+
+model RegPoints {
+  id              Int      @id @default(autoincrement())
+  regPointsUser   User     @relation(fields: [regPointsUserId], references: [id])
+  regPointsUserId Int
+  regPointsPoints Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ReferralUserIpAddress {
+  id                Int      @id @default(autoincrement())
+  userReferral      User     @relation(fields: [referralUserId], references: [id])
+  referralUserId    Int
+  referralIpAddress String
+  referralStatus    Boolean  @default(false)
+  referralPoints    Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Player {
+  id                Int         @id @default(autoincrement())
+  name              String
+  countGame         Int?
+  winGame           Int?
+  lossGame          Int?
+  rateGame          Float?
+  twitch            String?
+  HeroesCup1deaL    Json?
+  HeroesCup         Json?
+  HeroesCup2        Json?
+  HeroesCup3        Json?
+  HC3PO             Json?
+  HC2PO             Json?
+  user              User?       @relation(fields: [userId], references: [id])
+  userId            Int?
+  player1Bets       Bet[]       @relation(name: "Player1Bets") // Relation for bets as player 1
+  player2Bets       Bet[]       @relation(name: "Player2Bets") // Relation for bets as player 2
+  player1BetsCLOSED BetCLOSED[] @relation(name: "Player1BetsCLOSED") // Relation for bets as player 1
+  player2BetsCLOSED BetCLOSED[] @relation(name: "Player2BetsCLOSED") // Relation for bets as player 2
+
+  player1Bets3       Bet3[]       @relation(name: "Player1Bets3") // Relation for bets as player 1
+  player2Bets3       Bet3[]       @relation(name: "Player2Bets3") // Relation for bets as player 2
+  player3Bets3       Bet3[]       @relation(name: "Player3Bets3") // Relation for bets as player 3
+  player1BetsCLOSED3 BetCLOSED3[] @relation(name: "Player1BetsCLOSED3") // Relation for bets as player 1
+  player2BetsCLOSED3 BetCLOSED3[] @relation(name: "Player2BetsCLOSED3") // Relation for bets as player 2
+  player3BetsCLOSED3 BetCLOSED3[] @relation(name: "Player3BetsCLOSED3") // Relation for bets as player 3
+
+  player1Bets4       Bet4[]            @relation(name: "Player1Bets4") // Relation for bets as player 1
+  player2Bets4       Bet4[]            @relation(name: "Player2Bets4") // Relation for bets as player 2
+  player3Bets4       Bet4[]            @relation(name: "Player3Bets4") // Relation for bets as player 3
+  player4Bets4       Bet4[]            @relation(name: "Player4Bets4") // Relation for bets as player 4
+  player1BetsCLOSED4 BetCLOSED4[]      @relation(name: "Player1BetsCLOSED4") // Relation for bets as player 1
+  player2BetsCLOSED4 BetCLOSED4[]      @relation(name: "Player2BetsCLOSED4") // Relation for bets as player 2
+  player3BetsCLOSED4 BetCLOSED4[]      @relation(name: "Player3BetsCLOSED4") // Relation for bets as player 3
+  player4BetsCLOSED4 BetCLOSED4[]      @relation(name: "Player4BetsCLOSED4") // Relation for bets as player 4
+  playerStatistics   PlayerStatistic[]
+}
+
+model Product {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  bets         Bet[]
+  betsCLOSED   BetCLOSED[]
+  bets3        Bet3[] // Обратная связь с Bet3
+  betsCLOSED3  BetCLOSED3[] // Обратная связь с BetCLOSED3
+  bets4        Bet4[] // Обратная связь с Bet3
+  betsCLOSED4  BetCLOSED4[] // Обратная связь с BetCLOSED3
+  gameUserBets GameUserBet[]
+}
+
+model ProductItem {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  bets         Bet[]
+  betsCLOSED   BetCLOSED[]
+  bets3        Bet3[] // Обратная связь с Bet3
+  betsCLOSED3  BetCLOSED3[] // Обратная связь с BetCLOSED3
+  bets4        Bet4[] // Обратная связь с Bet3
+  betsCLOSED4  BetCLOSED4[] // Обратная связь с BetCLOSED3
+  gameUserBets GameUserBet[]
+}
+
+enum BetStatus {
+  OPEN
+  OPEN_USER
+  OPEN_TUR
+  CLOSED
+  PENDING
+}
+
+enum UserRole {
+  USER
+  USER_BET
+  USER_EDIT
+  ADMIN
+  BANED
+}
+
+enum IsCovered {
+  OPEN // overlap = 0
+  CLOSED // overlap = profit
+  PENDING // overlap < profit
+}
+enum BuySell {
+  BUY
+  SELL
+}
+enum OrderP2PStatus {
+  OPEN
+  PENDING
+  CLOSED
+  RETURN
+  CONTROL
+}
+
+enum PlayerChoice {
+  PLAYER1
+  PLAYER2
+  PLAYER3
+  PLAYER4
+}
+
+model GlobalData {
+  id              Int      @id @default(autoincrement())
+  users           Int      @default(0) // Количество зарегистрированных пользователей
+  betFund         Float?   @default(1000000) // Количество зарегистрированных пользователей
+  reg             Float?   @default(0) // количество записей regPoints
+  ref             Float?   @default(0) // количество записей ReferralUserIpAddress referralStatus=true
+  usersPoints     Float?   @default(0) // сумма Points всех пользователей
+  p2pPoints       Float?   @default(0) // сумма P2P в сделках всех пользователей
+  margin          Float?   @default(0) // сумма маржи model sum BetClosed, BetClosed3 and BetClosed4 - margin
+  openBetsPoints  Float?   @default(0) // сумма ставок, которые еще не закрылись Bet-totalBetAmount, Bet3-totalBetAmount and Bet4 - totalBetAmount
+  gameUserBetOpen Float?   @default(0) // ставки игроками на свои игры
+  isProcessing    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model GameUserBet {
+  id                    Int               @id @default(autoincrement())
+  gameUser1Bet          User              @relation("GameUser1Bet", fields: [gameUserBet1Id], references: [id])
+  gameUserBet1Id        Int // записывается User кто создает
+  betUser1              Float // Ставка User1
+  betUser2              Float? // при создании ставка User2 не ставится
+  gameUserBetDetails    String            @default("") // детали которые пишет User1
+  gameUserBetOpen       Boolean           @default(false) // устанавливается хочет ли он создать событие для ставок
+  gameUserBetStatus     Boolean           @default(false) // создалось ли событие.
+  checkWinUser1         WinGameUserBet? // подтверждение победы User1
+  checkWinUser2         WinGameUserBet? // подтверждение победы User2
+  gameUser2Bet          User?             @relation("GameUser2Bet", fields: [gameUserBet2Id], references: [id]) // сюда User1 выбирает с кем будет играть
+  gameUserBet2Id        Int? // User2.id
+  gameUserBetDataUsers2 Json? // сюда будут добавляться другие users-a-2 из которых user1 выберет с кем будет играть
+  category              Category          @relation(fields: [categoryId], references: [id]) // выбирает User1
+  categoryId            Int // выбирает User1
+  product               Product           @relation(fields: [productId], references: [id])
+  productId             Int // выбирает User1
+  productItem           ProductItem       @relation(fields: [productItemId], references: [id])
+  productItemId         Int // выбирает User1
+  statusUserBet         GameUserBetStatus @default(OPEN)
+  gameUser1Rating       RatingUserEnum?
+  gameUser2Rating       RatingUserEnum?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+model GlobalUserGame {
+  id           Int      @id @default(autoincrement())
+  globalUser   User     @relation(fields: [globalUserId], references: [id])
+  globalUserId Int      @unique
+  plus         Int      @default(0)
+  minus        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum RatingUserEnum {
+  PLUS
+  MINUS
+}
+
+enum WinGameUserBet {
+  WIN
+  LOSS
+  DRAW
+}
+
+enum GameUserBetStatus {
+  OPEN
+  START
+  CLOSED
+}
+
+model HeroesControl {
+  id                 Int      @id @default(1)
+  globalStop         Boolean  @default(false)
+  stopP2P            Boolean  @default(false)
+  stopTransferPoints Boolean  @default(false)
+  stopGameUserCreate Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+// ------------------------------------------- 2 -------------------------------
+model Bet {
+  id              Int              @id @default(autoincrement())
+  player1         Player           @relation(name: "Player1Bets", fields: [player1Id], references: [id]) // ставки на игрока 1
+  player1Id       Int
+  player2         Player           @relation(name: "Player2Bets", fields: [player2Id], references: [id]) // ставки на игрока 2
+  player2Id       Int
+  initBetPlayer1  Float // инициализация ставок на игрока 1
+  initBetPlayer2  Float // инициализация ставок на игрока 2
+  totalBetPlayer1 Float // Сумма ставок на игрока 1
+  totalBetPlayer2 Float // Сумма ставок на игрока 2
+  oddsBetPlayer1  Float // Текущий коэффициент для игрока 1
+  oddsBetPlayer2  Float // Текущий коэффициент для игрока 2
+  maxBetPlayer1   Float // Максимальная сумма ставок на игрока 1
+  maxBetPlayer2   Float // Максимальная сумма ставок на игрока 2
+  overlapPlayer1  Float // не используем
+  overlapPlayer2  Float // не используем
+  margin          Float? // в placeBet = 0
+  totalBetAmount  Float            @default(0) // сумма всех ставок.
+  creator         User             @relation("BetsCreated", fields: [creatorId], references: [id]) // создатель события
+  creatorId       Int
+  status          BetStatus        @default(OPEN) // если статус = CLOSED то ставка закрыта, и перемещается в model BetCLOSED
+  participants    BetParticipant[]
+  turnirBetId     Int?
+  turnirBet       TurnirBet?       @relation(fields: [turnirBetId], references: [id])
+  categoryId      Int?
+  category        Category?        @relation(fields: [categoryId], references: [id])
+  productId       Int?
+  product         Product?         @relation(fields: [productId], references: [id])
+  productItemId   Int?
+  productItem     ProductItem?     @relation(fields: [productItemId], references: [id])
+  winnerId        Int? // кто победил PLAYER1 или PLAYER2
+  suspendedBet    Boolean          @default(false)
+  description     String?
+  isProcessing    Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+// export async function placeBet fun.ts
+model BetParticipant {
+  id           Int          @id @default(autoincrement())
+  betId        Int
+  bet          Bet          @relation(fields: [betId], references: [id])
+  userId       Int // пользователь который ставит ставку
+  user         User         @relation(fields: [userId], references: [id])
+  player       PlayerChoice // выбранный игрок в событии
+  amount       Float // ставка пользователя
+  odds         Float // Коэффициент ставки
+  profit       Float // Сюда не входит маржа. Сюда не входит ставка пользователя, тут чистый потенциальный выигрыш.
+  overlap      Float // не используем
+  margin       Float // в placeBet = 0
+  isCovered    IsCovered //   OPEN: не перекрыта совсем "0", CLOSED: полностью перекрыта "overlap = profit", PENDING: частично перекрыта "overlap < profit"
+  isProcessing Boolean      @default(false)
+  isWinner     Boolean      @default(false) // Победила ли ставка
+  createdAt    DateTime     @default(now())
+}
+// закрытые ставки, после закрытия ставки model Bet переносится в model BetCLOSED
+model BetCLOSED {
+  id                 Int                    @id @default(autoincrement())
+  participantsCLOSED BetParticipantCLOSED[] @relation("BetCLOSEDParticipants") // Обратная связь
+  player1            Player                 @relation(name: "Player1BetsCLOSED", fields: [player1Id], references: [id])
+  player1Id          Int
+  player2            Player                 @relation(name: "Player2BetsCLOSED", fields: [player2Id], references: [id])
+  player2Id          Int
+  totalBetAmount     Float                  @default(0) // Общая сумма ставок
+  returnBetAmount    Float                  @default(0)
+  globalDataBetFund  Float                  @default(0)
+  initBetPlayer1     Float // Инициализация ставок на игрока 1
+  initBetPlayer2     Float // Инициализация ставок на игрока 2
+  totalBetPlayer1    Float // Сумма ставок на игрока 1
+  totalBetPlayer2    Float // Сумма ставок на игрока 2
+  oddsBetPlayer1     Float // разница ставок перекрытия на игрока 1
+  oddsBetPlayer2     Float // разница ставок перекрытия на игрока 2
+  maxBetPlayer1      Float // Максимальная сумма ставок на игрока 1
+  maxBetPlayer2      Float // Максимальная сумма ставок на игрока 2
+  overlapPlayer1     Float // не используем
+  overlapPlayer2     Float // не используем
+  margin             Float? // вся маржа события
+  creator            User                   @relation("BetsCLOSEDCreated", fields: [creatorId], references: [id])
+  creatorId          Int
+  status             BetStatus              @default(CLOSED) // Статус ставки
+  turnirBetId        Int?
+  turnirBet          TurnirBet?             @relation(fields: [turnirBetId], references: [id])
+  categoryId         Int?
+  category           Category?              @relation(fields: [categoryId], references: [id])
+  productId          Int?
+  product            Product?               @relation(fields: [productId], references: [id])
+  productItemId      Int?
+  productItem        ProductItem?           @relation(fields: [productItemId], references: [id])
+  winnerId           Int? // ID победителя (без связи)
+  createdAt          DateTime               @default(now()) // Дата создания
+  updatedAt          DateTime               @updatedAt // Дата обновления
+}
+// закрыте ставки, после закрытия ставки model BetParticipant переносится в model BetParticipantCLOSED
+model BetParticipantCLOSED {
+  id          Int          @id @default(autoincrement())
+  betCLOSEDId Int
+  betCLOSED   BetCLOSED    @relation("BetCLOSEDParticipants", fields: [betCLOSEDId], references: [id]) // Обратная связь
+  userId      Int // пользователь который ставит ставку
+  user        User         @relation(fields: [userId], references: [id])
+  player      PlayerChoice // выбранный игрок в событии
+  amount      Float // ставка пользователя
+  odds        Float // Коэффициент ставки
+  profit      Float // Показывает пользователю потенциальную выигрышную сумму. Сюда не входит маржа. Сюда не входит ставка пользователя, тут чистый потенциальный выигрыш.
+  overlap     Float // не используем
+  margin      Float // маржа пользователя, снимается после закрытия ставки, и только с выигарнной суммой, из поля overlap
+  return      Float // возвращаемая сумма пользователю после победы
+  isWinner    Boolean      @default(false) // Победила ли ставка
+  isCovered   IsCovered //   CLOSED - когда победителю вернули return или ставка проиграла
+  createdAt   DateTime     @default(now())
+}
+
+// ------------------------------------------- 3 -------------------------------
+model Bet3 {
+  id              Int               @id @default(autoincrement())
+  player1         Player            @relation(name: "Player1Bets3", fields: [player1Id], references: [id]) // ставки на игрока 1
+  player1Id       Int
+  player2         Player            @relation(name: "Player2Bets3", fields: [player2Id], references: [id]) // ставки на игрока 2
+  player2Id       Int
+  player3         Player            @relation(name: "Player3Bets3", fields: [player3Id], references: [id]) // ставки на игрока 3
+  player3Id       Int
+  initBetPlayer1  Float // инициализация ставок на игрока 1
+  initBetPlayer2  Float // инициализация ставок на игрока 2
+  initBetPlayer3  Float // инициализация ставок на игрока 3
+  totalBetPlayer1 Float // Сумма ставок на игрока 1
+  totalBetPlayer2 Float // Сумма ставок на игрока 2
+  totalBetPlayer3 Float // Сумма ставок на игрока 3
+  oddsBetPlayer1  Float // Текущий коэффициент для игрока 1
+  oddsBetPlayer2  Float // Текущий коэффициент для игрока 2
+  oddsBetPlayer3  Float // Текущий коэффициент для игрока 3
+  maxBetPlayer1   Float // Максимальная сумма ставок на игрока 1
+  maxBetPlayer2   Float // Максимальная сумма ставок на игрока 2
+  maxBetPlayer3   Float // Максимальная сумма ставок на игрока 3
+  overlapPlayer1  Float // Перекрытие на игрока 1
+  overlapPlayer2  Float // Перекрытие на игрока 2
+  overlapPlayer3  Float // Перекрытие на игрока 3
+  margin          Float? // в placeBet = 0
+  totalBetAmount  Float             @default(0) // сумма всех ставок.
+  creator         User              @relation("BetsCreated3", fields: [creatorId], references: [id]) // создатель события
+  creatorId       Int
+  status          BetStatus         @default(OPEN) // если статус = CLOSED то ставка закрыта, и перемещается в model BetCLOSED
+  participants    BetParticipant3[] // Обратная связь с BetParticipant3
+  turnirBetId     Int?
+  turnirBet       TurnirBet?        @relation(fields: [turnirBetId], references: [id])
+  categoryId      Int?
+  category        Category?         @relation(fields: [categoryId], references: [id])
+  productId       Int?
+  product         Product?          @relation(fields: [productId], references: [id])
+  productItemId   Int?
+  productItem     ProductItem?      @relation(fields: [productItemId], references: [id])
+  winnerId        Int? // кто победил PLAYER1 или PLAYER2 или PLAYER3
+  suspendedBet    Boolean           @default(false)
+  description     String?
+  betP1           Boolean           @default(true)
+  betP2           Boolean           @default(true)
+  betP3           Boolean           @default(true)
+  isProcessing    Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+// export async function placeBet fun.ts
+model BetParticipant3 {
+  id           Int          @id @default(autoincrement())
+  betId        Int
+  bet          Bet3         @relation(fields: [betId], references: [id]) // Связь с Bet3
+  userId       Int // пользователь который ставит ставку
+  user         User         @relation(fields: [userId], references: [id])
+  player       PlayerChoice // выбранный игрок в событии
+  amount       Float // ставка пользователя
+  odds         Float // Коэффициент ставки
+  profit       Float // Показывает пользователю потенциальную выигрышную сумму. Сюда не входит маржа. Сюда не входит ставка пользователя, тут чистый потенциальный выигрыш.
+  overlap      Float // на какую сумму перекрыто, именно с этого поля ничисляются выигранные суммы.
+  margin       Float // в placeBet = 0
+  isWinner     Boolean      @default(false) // Победила ли ставка
+  isProcessing Boolean      @default(false)
+  isCovered    IsCovered //   OPEN: не перекрыта совсем "0", CLOSED: полностью перекрыта "overlap = profit", PENDING: частично перекрыта "overlap < profit"
+  createdAt    DateTime     @default(now())
+}
+// закрытые ставки, после закрытия ставки model Bet3 переносится в model BetCLOSED3
+model BetCLOSED3 {
+  id                  Int                     @id @default(autoincrement())
+  participantsCLOSED3 BetParticipantCLOSED3[] @relation("BetCLOSEDParticipants3") // Обратная связь с BetParticipantCLOSED3
+  player1             Player                  @relation(name: "Player1BetsCLOSED3", fields: [player1Id], references: [id])
+  player1Id           Int
+  player2             Player                  @relation(name: "Player2BetsCLOSED3", fields: [player2Id], references: [id])
+  player2Id           Int
+  player3             Player                  @relation(name: "Player3BetsCLOSED3", fields: [player3Id], references: [id])
+  player3Id           Int
+  totalBetAmount      Float                   @default(0) // Общая сумма ставок
+  returnBetAmount     Float                   @default(0)
+  globalDataBetFund   Float                   @default(0)
+  initBetPlayer1      Float // Инициализация ставок на игрока 1
+  initBetPlayer2      Float // Инициализация ставок на игрока 2
+  initBetPlayer3      Float // Инициализация ставок на игрока 3
+  totalBetPlayer1     Float // Сумма ставок на игрока 1
+  totalBetPlayer2     Float // Сумма ставок на игрока 2
+  totalBetPlayer3     Float // Сумма ставок на игрока 3
+  oddsBetPlayer1      Float // разница ставок перекрытия на игрока 1
+  oddsBetPlayer2      Float // разница ставок перекрытия на игрока 2
+  oddsBetPlayer3      Float // разница ставок перекрытия на игрока 3
+  maxBetPlayer1       Float // Максимальная сумма ставок на игрока 1
+  maxBetPlayer2       Float // Максимальная сумма ставок на игрока 2
+  maxBetPlayer3       Float // Максимальная сумма ставок на игрока 3
+  overlapPlayer1      Float // Перекрытие на игрока 1
+  overlapPlayer2      Float // Перекрытие на игрока 2
+  overlapPlayer3      Float // Перекрытие на игрока 3
+  margin              Float? // вся маржа события
+  creator             User                    @relation("BetsCLOSEDCreated3", fields: [creatorId], references: [id])
+  creatorId           Int
+  turnirBetId         Int?
+  turnirBet           TurnirBet?              @relation(fields: [turnirBetId], references: [id])
+  status              BetStatus               @default(CLOSED) // Статус ставки
+  categoryId          Int?
+  category            Category?               @relation(fields: [categoryId], references: [id])
+  productId           Int?
+  product             Product?                @relation(fields: [productId], references: [id])
+  productItemId       Int?
+  productItem         ProductItem?            @relation(fields: [productItemId], references: [id])
+  winnerId            Int? // ID победителя (без связи)
+  createdAt           DateTime                @default(now()) // Дата создания
+  updatedAt           DateTime                @updatedAt // Дата обновления
+}
+// закрыте ставки, после закрытия ставки model BetParticipant переносится в model BetParticipantCLOSED
+model BetParticipantCLOSED3 {
+  id           Int          @id @default(autoincrement())
+  betCLOSED3Id Int
+  betCLOSED3   BetCLOSED3   @relation("BetCLOSEDParticipants3", fields: [betCLOSED3Id], references: [id]) // Связь с BetCLOSED3
+  userId       Int // пользователь который ставит ставку
+  user         User         @relation(fields: [userId], references: [id])
+  player       PlayerChoice // выбранный игрок в событии
+  amount       Float // ставка пользователя
+  odds         Float // Коэффициент ставки
+  profit       Float // Показывает пользователю потенциальную выигрышную сумму. Сюда не входит маржа. Сюда не входит ставка пользователя, тут чистый потенциальный выигрыш.
+  overlap      Float // на какую сумму перекрыто, именно с этого поля ничисляются выигранные суммы.
+  margin       Float // маржа пользователя, снимается после закрытия ставки, и только с выигарнной суммой, из поля overlap
+  return       Float // возвращаемая сумма пользователю после победы
+  isWinner     Boolean      @default(false) // Победила ли ставка
+  isCovered    IsCovered //   OPEN: не перекрыта совсем "0", CLOSED: полностью перекрыта "overlap = profit", PENDING: частично перекрыта "overlap < profit"
+  createdAt    DateTime     @default(now())
+}
+
+// ------------------------------------------- 4 -------------------------------
+model Bet4 {
+  id              Int               @id @default(autoincrement())
+  player1         Player            @relation(name: "Player1Bets4", fields: [player1Id], references: [id]) // ставки на игрока 1
+  player1Id       Int
+  player2         Player            @relation(name: "Player2Bets4", fields: [player2Id], references: [id]) // ставки на игрока 2
+  player2Id       Int
+  player3         Player            @relation(name: "Player3Bets4", fields: [player3Id], references: [id]) // ставки на игрока 3
+  player3Id       Int
+  player4         Player            @relation(name: "Player4Bets4", fields: [player4Id], references: [id]) // ставки на игрока 3
+  player4Id       Int
+  initBetPlayer1  Float // инициализация ставок на игрока 1
+  initBetPlayer2  Float // инициализация ставок на игрока 2
+  initBetPlayer3  Float // инициализация ставок на игрока 3
+  initBetPlayer4  Float // инициализация ставок на игрока 4
+  totalBetPlayer1 Float // Сумма ставок на игрока 1
+  totalBetPlayer2 Float // Сумма ставок на игрока 2
+  totalBetPlayer3 Float // Сумма ставок на игрока 3
+  totalBetPlayer4 Float // Сумма ставок на игрока 4
+  oddsBetPlayer1  Float // Текущий коэффициент для игрока 1
+  oddsBetPlayer2  Float // Текущий коэффициент для игрока 2
+  oddsBetPlayer3  Float // Текущий коэффициент для игрока 3
+  oddsBetPlayer4  Float // Текущий коэффициент для игрока 4
+  maxBetPlayer1   Float // Максимальная сумма ставок на игрока 1
+  maxBetPlayer2   Float // Максимальная сумма ставок на игрока 2
+  maxBetPlayer3   Float // Максимальная сумма ставок на игрока 3
+  maxBetPlayer4   Float // Максимальная сумма ставок на игрока 4
+  overlapPlayer1  Float // Перекрытие на игрока 1
+  overlapPlayer2  Float // Перекрытие на игрока 2
+  overlapPlayer3  Float // Перекрытие на игрока 3
+  overlapPlayer4  Float // Перекрытие на игрока 4
+  margin          Float? // в placeBet = 0
+  totalBetAmount  Float             @default(0) // сумма всех ставок.
+  creator         User              @relation("BetsCreated4", fields: [creatorId], references: [id]) // создатель события
+  creatorId       Int
+  status          BetStatus         @default(OPEN) // если статус = CLOSED то ставка закрыта, и перемещается в model BetCLOSED
+  participants    BetParticipant4[] // Обратная связь с BetParticipant4
+  turnirBetId     Int?
+  turnirBet       TurnirBet?        @relation(fields: [turnirBetId], references: [id])
+  categoryId      Int?
+  category        Category?         @relation(fields: [categoryId], references: [id])
+  productId       Int?
+  product         Product?          @relation(fields: [productId], references: [id])
+  productItemId   Int?
+  productItem     ProductItem?      @relation(fields: [productItemId], references: [id])
+  winnerId        Int? // кто победил PLAYER1 или PLAYER2 или PLAYER3
+  suspendedBet    Boolean           @default(false)
+  description     String?
+  betP1           Boolean           @default(true)
+  betP2           Boolean           @default(true)
+  betP3           Boolean           @default(true)
+  betP4           Boolean           @default(true)
+  isProcessing    Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+// export async function placeBet fun.ts
+model BetParticipant4 {
+  id           Int          @id @default(autoincrement())
+  bet          Bet4         @relation(fields: [betId], references: [id])
+  betId        Int
+  userId       Int // пользователь который ставит ставку
+  user         User         @relation(fields: [userId], references: [id])
+  player       PlayerChoice // выбранный игрок в событии
+  amount       Float // ставка пользователя
+  odds         Float // Коэффициент ставки
+  profit       Float // Показывает пользователю потенциальную выигрышную сумму. Сюда не входит маржа. Сюда не входит ставка пользователя, тут чистый потенциальный выигрыш.
+  overlap      Float // на какую сумму перекрыто, именно с этого поля ничисляются выигранные суммы.
+  margin       Float // в placeBet = 0
+  isWinner     Boolean      @default(false) // Победила ли ставка
+  isProcessing Boolean      @default(false)
+  isCovered    IsCovered //   OPEN: не перекрыта совсем "0", CLOSED: полностью перекрыта "overlap = profit", PENDING: частично перекрыта "overlap < profit"
+  createdAt    DateTime     @default(now())
+}
+// закрытые ставки, после закрытия ставки model Bet4 переносится в model BetCLOSED4
+model BetCLOSED4 {
+  id                  Int                     @id @default(autoincrement())
+  participantsCLOSED4 BetParticipantCLOSED4[] @relation("BetCLOSEDParticipants4") // Обратная связь с BetParticipantCLOSED3
+  player1             Player                  @relation(name: "Player1BetsCLOSED4", fields: [player1Id], references: [id])
+  player1Id           Int
+  player2             Player                  @relation(name: "Player2BetsCLOSED4", fields: [player2Id], references: [id])
+  player2Id           Int
+  player3             Player                  @relation(name: "Player3BetsCLOSED4", fields: [player3Id], references: [id])
+  player3Id           Int
+  player4             Player                  @relation(name: "Player4BetsCLOSED4", fields: [player4Id], references: [id])
+  player4Id           Int
+  totalBetAmount      Float                   @default(0) // Общая сумма ставок
+  returnBetAmount     Float                   @default(0)
+  globalDataBetFund   Float                   @default(0)
+  initBetPlayer1      Float // Инициализация ставок на игрока 1
+  initBetPlayer2      Float // Инициализация ставок на игрока 2
+  initBetPlayer3      Float // Инициализация ставок на игрока 3
+  initBetPlayer4      Float // Инициализация ставок на игрока 4
+  totalBetPlayer1     Float // Сумма ставок на игрока 1
+  totalBetPlayer2     Float // Сумма ставок на игрока 2
+  totalBetPlayer3     Float // Сумма ставок на игрока 3
+  totalBetPlayer4     Float // Сумма ставок на игрока 4
+  oddsBetPlayer1      Float // разница ставок перекрытия на игрока 1
+  oddsBetPlayer2      Float // разница ставок перекрытия на игрока 2
+  oddsBetPlayer3      Float // разница ставок перекрытия на игрока 3
+  oddsBetPlayer4      Float // разница ставок перекрытия на игрока 4
+  maxBetPlayer1       Float // Максимальная сумма ставок на игрока 1
+  maxBetPlayer2       Float // Максимальная сумма ставок на игрока 2
+  maxBetPlayer3       Float // Максимальная сумма ставок на игрока 3
+  maxBetPlayer4       Float // Максимальная сумма ставок на игрока 4
+  overlapPlayer1      Float // Перекрытие на игрока 1
+  overlapPlayer2      Float // Перекрытие на игрока 2
+  overlapPlayer3      Float // Перекрытие на игрока 3
+  overlapPlayer4      Float // Перекрытие на игрока 4
+  margin              Float? // вся маржа события
+  creator             User                    @relation("BetsCLOSEDCreated4", fields: [creatorId], references: [id])
+  creatorId           Int
+  status              BetStatus               @default(CLOSED) // Статус ставки
+  categoryId          Int?
+  turnirBetId         Int?
+  turnirBet           TurnirBet?              @relation(fields: [turnirBetId], references: [id])
+  category            Category?               @relation(fields: [categoryId], references: [id])
+  productId           Int?
+  product             Product?                @relation(fields: [productId], references: [id])
+  productItemId       Int?
+  productItem         ProductItem?            @relation(fields: [productItemId], references: [id])
+  winnerId            Int? // ID победителя (без связи)
+  createdAt           DateTime                @default(now()) // Дата создания
+  updatedAt           DateTime                @updatedAt // Дата обновления
+}
+// закрыте ставки, после закрытия ставки model BetParticipant переносится в model BetParticipantCLOSED
+model BetParticipantCLOSED4 {
+  id           Int          @id @default(autoincrement())
+  betCLOSED4   BetCLOSED4   @relation("BetCLOSEDParticipants4", fields: [betCLOSED4Id], references: [id])
+  betCLOSED4Id Int
+  userId       Int // пользователь который ставит ставку
+  user         User         @relation(fields: [userId], references: [id])
+  player       PlayerChoice // выбранный игрок в событии
+  amount       Float // ставка пользователя
+  odds         Float // Коэффициент ставки
+  profit       Float // Показывает пользователю потенциальную выигрышную сумму. Сюда не входит маржа. Сюда не входит ставка пользователя, тут чистый потенциальный выигрыш.
+  overlap      Float // на какую сумму перекрыто, именно с этого поля ничисляются выигранные суммы.
+  margin       Float // маржа пользователя, снимается после закрытия ставки, и только с выигарнной суммой, из поля overlap
+  return       Float // возвращаемая сумма пользователю после победы
+  isWinner     Boolean      @default(false) // Победила ли ставка
+  isCovered    IsCovered //   OPEN: не перекрыта совсем "0", CLOSED: полностью перекрыта "overlap = profit", PENDING: частично перекрыта "overlap < profit"
+  createdAt    DateTime     @default(now())
+}
+
+//------------------------------Win/Lose-------------------
+
+model PlayerStatistic {
+  id Int @id @default(autoincrement())
+
+  turnirBet TurnirBet @relation(fields: [turnirId], references: [id])
+  turnirId  Int
+
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId Int
+
+  player   Player @relation(fields: [playerId], references: [id])
+  playerId Int
+
+  color    ColorPlayer
+  city     CityHeroes?
+  gold     Int         @default(0)
+  security String      @default("")
+  win      Boolean
+  link     String?     @default("")
+}
+
+enum ColorPlayer {
+  RED //(КРАСНЫЙ)
+  BLUE //(СИНИЙ)
+  GREEN //(ЗЕЛЁНЫЙ)
+  YELLOW //(ЖЁЛТЫЙ)
+  PURPLE //(ФИОЛЕТОВЫЙ)
+  ORANGE //(ОРАНЖЕВЫЙ)
+  TEAL //(БИРЮЗОВЫЙ)
+  PINK //(РОЗОВЫЙ)
+}
+
+enum CityHeroes {
+  CASTLE //(ЗАМОК)
+  RAMPART //(ОПЛОТ)
+  TOWER //(БАШНЯ)
+  INFERNO //(ИНФЕРНО)
+  NECROPOLIS //(НЕКРОПОЛИС)
+  DUNGEON //(ТЕМНИЦА)
+  STRONGHOLD //(ЦИТАДЕЛЬ)
+  FORTRESS //(КРЕПОСТЬ)
+  CONFLUX //(СОПРЯЖЕНИЕ)
+  COVE //(ПРИЧАЛ)
+  FACTORY //(ФАБРИКА)
+}

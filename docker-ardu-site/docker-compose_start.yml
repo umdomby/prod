@@ -1,0 +1,20 @@
+services:
+    ardu1:
+        build: .
+        working_dir: /app2
+        extra_hosts:
+            - "kafka:172.20.0.6"
+        ports:
+            - "3003:3000"
+        volumes:
+            - .:/app2
+        command: ["yarn", "start"]
+        env_file:
+            - ..env
+        networks:
+            - sharednetwork
+        restart: always
+
+networks:
+    sharednetwork:
+        external: true

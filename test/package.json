@@ -1,0 +1,12 @@
+{
+  "name": "test",
+  "version": "1.0.0",
+  "main": "load_test.js",
+  "scripts": {
+    "test": "k6 run load_test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

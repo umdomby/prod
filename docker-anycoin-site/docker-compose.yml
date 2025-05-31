@@ -1,0 +1,18 @@
+services:
+  nextjs2:
+    build: .
+    working_dir: /app2
+    ports:
+      - "3002:3000"
+    volumes:
+      - .:/app2
+    command: ["yarn", "start"]
+    env_file:
+      - ..env
+    networks:
+      - sharednetwork
+    restart: always
+
+networks:
+  sharednetwork:
+    external: true

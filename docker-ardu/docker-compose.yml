@@ -1,0 +1,20 @@
+services:
+  ardu:
+    build: .
+    working_dir: /app2
+    ports:
+      - "3003:3000"
+      #- "1444:1444"  # WebSocket-порт
+    environment:
+      NODE_ENV: production
+    volumes:
+      - ./letsencrypt:/etc/letsencrypt
+    env_file:
+      - ..env
+    networks:
+      - sharednetwork
+    restart: always
+
+networks:
+  sharednetwork:
+    external: true
