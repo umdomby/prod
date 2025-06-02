@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  websocket-server:
+    build: .
+    container_name: wsar-server
+    ports:
+      - "8086:8086"
+    restart: always
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - .:/app
+      - /app/node_modules
+    working_dir: /app
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - sharednetwork
+
+networks:
+  sharednetwork:
+    external: true

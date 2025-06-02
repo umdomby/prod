@@ -1,0 +1,18 @@
+services:
+  ardua:
+    build: .
+    working_dir: /app2
+    ports:
+      - "3001:3001"
+    volumes:
+      - /app2/node_modules  # Только для node_modules
+      - ./public:/app2/public  # Только public
+    env_file:
+      - .env
+    networks:
+      - sharednetwork
+    restart: unless-stopped
+
+networks:
+  sharednetwork:
+    external: true

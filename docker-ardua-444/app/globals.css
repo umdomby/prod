@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 35.2 24% 98.9%;
+    --foreground: 20 14.3% 4.1%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 14.3% 4.1%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14.3% 4.1%;
+
+    --primary: 22 100% 50%;
+    --primary-foreground: 60 9.1% 97.8%;
+
+    --secondary: 32 100% 98%;
+    --secondary-foreground: 24 9.8% 10%;
+
+    --muted: 60 4.8% 95.9%;
+    --muted-foreground: 25 5.3% 44.7%;
+
+    --accent: 60 4.8% 95.9%;
+    --accent-foreground: 24 9.8% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 60 9.1% 97.8%;
+
+    --border: 20 5.9% 90%;
+    --input: 0 0% 90%;
+    --ring: 24.6 95% 53.1%;
+    --radius: 18px;
+  }
+}
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 212.7 26.8% 83.9%;
+}
+
+* {
+  font-family: var(--font-nunito), sans-serif;
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  border-radius: 6px;
+  background: #fff;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background: #dbdadd;
+  border-radius: 6px;
+}
+
+.scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #dbdadd;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+#nprogress .bar {
+  @apply bg-primary !important;
+}
+
+#nprogress .peg {
+  @apply shadow-md shadow-primary !important;
+}
+
+#nprogress .spinner-icon {
+  @apply border-t-primary border-l-primary !important;
+}
+.p-4 {
+  padding: 0.3rem;
+}
+
+.table-cell-text {
+  white-space: nowrap; /* Запрет на перенос текста */
+  overflow: hidden; /* Обрезать текст за пределами блока */
+  text-overflow: ellipsis; /* Добавлять троеточие вместо обрезанного текста */
+  width: 100%; /* Фиксированная ширина */
+}
+
+.font-medium {
+  font-weight: 0;
+}
+.p-4 {
+  padding: .2rem;
+}
+
+/*.dialog-content {*/
+/*  width: 95vw; !* Полная ширина экрана *!*/
+/*  height: 90vh; !* Полная высота экрана *!*/
+/*  padding: 0; !* Убираем отступы *!*/
+/*  background: rgba(0, 0, 0, 0.8); !* Полупрозрачный фон для затемнения *!*/
+/*}*/
+
+.image-container {
+  position: relative; /* Для использования layout="fill" */
+  width: 100%;
+  height: 100%;
+}
+
+.image-container img {
+  object-fit: contain; /* Или cover, в зависимости от ваших предпочтений */
+}
+
+.image-container { /*  Класс для контейнера изображения */
+  width: 50%; /* Или любое другое значение */
+  height: auto; /*  Сохраняем соотношение сторон */
+}
