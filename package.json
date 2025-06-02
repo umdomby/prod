@@ -1,0 +1,29 @@
+{
+  "name": "docker",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/umdomby/prod#readme",
+  "bugs": {
+    "url": "https://github.com/umdomby/prod/issues"
+  },
+  "scripts": {
+    "dev": "concurrently --names \"Next,TS,Go\" \"cd docker-ardua && yarn dev\" \"cd docker-socket && yarn dev\" \"cd docker-go && go run main.go\"",
+    "dev1": "concurrently \"cd docker-ardua && next dev -p 3001\" \"cd docker-socket && ts-node server.ts\" \"cd docker-go && go run main.go\"",
+    "dev2": "cd docker-ardua && next dev -p 3001 & cd docker-socket && ts-node server.ts & cd docker-go && go run main.go",
+    "dd": "cd docker-ardua && yarn dev"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/umdomby/prod.git"
+  },
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
