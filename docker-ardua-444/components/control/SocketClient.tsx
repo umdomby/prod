@@ -167,7 +167,7 @@ export default function SocketClient() {
             reconnectTimerRef.current = null
         }
 
-        const ws = new WebSocket('wss://ardua.site/wsar')
+        const ws = new WebSocket(process.env.WEBSOCKET_URL_WSAR || 'wss://ardua.site:444/wsar');
 
         ws.onopen = () => {
             setIsConnected(true)

@@ -524,7 +524,7 @@ export const useWebRTC = (
             }
 
             try {
-                ws.current = new WebSocket('wss://ardua.site/wsgo');
+                ws.current = new WebSocket(process.env.WEBSOCKET_URL_WSGO || 'wss://ardua.site:444/wsgo');
 
                 const onOpen = () => {
                     cleanupEvents();
