@@ -5,7 +5,7 @@ services:
     build: .
     container_name: wsar-server
     ports:
-      - "8086:8086"
+      - "8096:8096"
     restart: always
     environment:
       - NODE_ENV=production
@@ -14,7 +14,7 @@ services:
       - /app/node_modules
     working_dir: /app
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8086 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8096 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

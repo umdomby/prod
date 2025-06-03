@@ -3,7 +3,7 @@ import { IncomingMessage } from 'http';
 import { getAllowedDeviceIds } from './fun';
 import { createServer } from 'http';
 
-const PORT = 8086;
+const PORT = 8096;
 const WS_PATH = '/wsar';
 
 const server = createServer();

@@ -13,5 +13,5 @@ COPY --from=builder /app2/public ./public
 COPY --from=builder /app2/package.json .
 COPY --from=builder /app2/node_modules ./node_modules
 ENV NODE_ENV=production
-EXPOSE 3001
+EXPOSE 3021
 CMD ["yarn", "start"]

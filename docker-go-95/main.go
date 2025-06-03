@@ -600,10 +600,10 @@ func main() {
         }
     })
 
-    log.Println("Server starting on :8085 (Logic: Leader Re-joins on Follower connect)")
+    log.Println("Server starting on :8095 (Logic: Leader Re-joins on Follower connect)")
     log.Println("WebRTC MediaEngine configured for H.264 (video) and Opus (audio).")
     logStatus() // Логируем статус при запуске
-    if err := http.ListenAndServe(":8085", nil); err != nil {
+    if err := http.ListenAndServe(":8095", nil); err != nil {
         log.Fatalf("Failed to start server: %v", err)
     }
 }
