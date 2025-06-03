@@ -5,8 +5,8 @@ services:
       context: .
     ports:
       - "80:80"
-      - "443:443"
-#      - "444:444"
+#      - "443:443"
+      - "444:444"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./letsencrypt:/etc/letsencrypt
@@ -25,45 +25,45 @@ services:
       - sharednetwork
 
   # Ваш certbot (оставляем без изменений)
-  certbot:
-    image: certbot/certbot
-    volumes:
-      - ./letsencrypt:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew; done;'"
-    networks:
-      - sharednetwork
+#  certbot:
+#    image: certbot/certbot
+#    volumes:
+#      - ./letsencrypt:/etc/letsencrypt
+#      - ./certbot/www:/var/www/certbot
+#    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew; done;'"
+#    networks:
+#      - sharednetwork
 
   # TURN-сервер (coturn)
-  coturn:
-    image: coturn/coturn:4.6.2
-    container_name: coturn
-    restart: unless-stopped
-    networks:
-      - sharednetwork
-    ports:
-      - "3478:3478/udp"
-      - "3478:3478/tcp"
-      - "5349:5349/tcp"
-      - "49152-49800:49152-49800/udp"
-    volumes:
-    - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
-    - ./letsencrypt/live/ardua.site/:/etc/coturn/certs/:ro
-    - ./turn_logs:/var/log/coturn
-    environment:
-      - TURN_EXTERNAL_IP=213.184.249.66
-      - TURN_REALM=ardua.site
-      - TURN_MIN_PORT=49152
-      - TURN_MAX_PORT=49800
-      - TURN_USERNAME=user1
-      - TURN_PASSWORD=pass1
-      - TURN_SECRET=your_strong_secret_32chars
-    sysctls:
-      - net.core.somaxconn=4096
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
+#  coturn:
+#    image: coturn/coturn:4.6.2
+#    container_name: coturn
+#    restart: unless-stopped
+#    networks:
+#      - sharednetwork
+#    ports:
+#      - "3478:3478/udp"
+#      - "3478:3478/tcp"
+#      - "5349:5349/tcp"
+#      - "49152-49800:49152-49800/udp"
+#    volumes:
+#    - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+#    - ./letsencrypt/live/ardua.site/:/etc/coturn/certs/:ro
+#    - ./turn_logs:/var/log/coturn
+#    environment:
+#      - TURN_EXTERNAL_IP=213.184.249.66
+#      - TURN_REALM=ardua.site
+#      - TURN_MIN_PORT=49152
+#      - TURN_MAX_PORT=49800
+#      - TURN_USERNAME=user1
+#      - TURN_PASSWORD=pass1
+#      - TURN_SECRET=your_strong_secret_32chars
+#    sysctls:
+#      - net.core.somaxconn=4096
+#    ulimits:
+#      nofile:
+#        soft: 65536
+#        hard: 65536
 
 networks:
   sharednetwork:

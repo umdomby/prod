@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const ws_1 = require("ws");
 const fun_1 = require("./fun");
 const http_1 = require("http");
-const PORT = 8086;
+const PORT = 8096;
 const WS_PATH = '/wsar';
 const server = (0, http_1.createServer)();
 const wss = new ws_1.WebSocketServer({
