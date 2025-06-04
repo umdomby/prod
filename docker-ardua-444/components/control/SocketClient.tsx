@@ -3,7 +3,7 @@ import {useState, useEffect, useRef, useCallback} from 'react'
 import {Button} from "@/components/ui/button"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Input} from "@/components/ui/input"
-import {ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight} from "lucide-react"
+import {ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Power} from "lucide-react"
 import {Checkbox} from "@/components/ui/checkbox"
 import {Label} from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
@@ -60,6 +60,9 @@ export default function SocketClient() {
 
     const [preventDeletion, setPreventDeletion] = useState(false);
     const [isLandscape, setIsLandscape] = useState(false);
+
+    const [button1State, setButton1State] = useState(0); // Состояние реле 1 (0 - выкл, 1 - вкл)
+    const [button2State, setButton2State] = useState(0); // Состояние реле 2 (0 - выкл, 1 - вкл)
 
     useEffect(() => {
         const savedPreventDeletion = localStorage.getItem('preventDeletion');
@@ -185,50 +188,69 @@ export default function SocketClient() {
             }))
         }
 
+        // Обработка сообщений в connectWebSocket
         ws.onmessage = (event) => {
             try {
-                const data: MessageType = JSON.parse(event.data)
-                console.log("Received message:", data)
+                const data: MessageType = JSON.parse(event.data);
+                console.log("Received message:", data);
 
                 if (data.ty === "ack") {
                     if (data.co === "SPD" && data.sp !== undefined) {
                         addLog(`Speed set: ${data.sp} for motor ${data.mo || 'unknown'}`, 'esp');
+                    } else if (data.co === "RLY" && data.pa) {
+                        if (data.pa.pin === "D0") {
+                            setButton1State(data.pa.state === "on" ? 1 : 0);
+                            addLog(`Реле 1 (D0) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
+                        } else if (data.pa.pin === "D8") {
+                            setButton2State(data.pa.state === "on" ? 1 : 0);
+                            addLog(`Реле 2 (D8) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
+                        }
                     } else {
                         addLog(`Command ${data.co} acknowledged`, 'esp');
                     }
                 }
 
-                if (data.ty === "sys") { // type → ty, system → sys
-                    if (data.st === "con") { // status → st, connected → con
-                        setIsIdentified(true)
-                        setDe(deToConnect) // deviceId → de
-                        setEspConnected(true)
+                if (data.ty === "sys") {
+                    if (data.st === "con") {
+                        setIsIdentified(true);
+                        setDe(deToConnect);
+                        setEspConnected(true);
                     }
-                    addLog(`System: ${data.me}`, 'server') // message → me
-                } else if (data.ty === "err") { // type → ty, error → err
-                    addLog(`Error: ${data.me}`, 'error') // message → me
-                    setIsIdentified(false)
-                } else if (data.ty === "log") { // type → ty
-                    addLog(`ESP: ${data.me}`, 'esp') // message → me
-                    if (data.me && data.me.includes("Heartbeat")) { // message → me
-                        setEspConnected(true)
+                    addLog(`System: ${data.me}`, 'server');
+                } else if (data.ty === "err") {
+                    addLog(`Error: ${data.me}`, 'error');
+                    setIsIdentified(false);
+                } else if (data.ty === "log") {
+                    addLog(`ESP: ${data.me}`, 'esp');
+                    if (data.me && data.me.includes("Heartbeat")) {
+                        setEspConnected(true);
+                        if (data.b1 !== undefined) {
+                            setButton1State(data.b1);
+                            addLog(`Реле 1 (D0): ${data.b1 ? "включено" : "выключено"}`, 'esp');
+                        }
+                        if (data.b2 !== undefined) {
+                            setButton2State(data.b2);
+                            addLog(`Реле 2 (D8): ${data.b2 ? "включено" : "выключено"}`, 'esp');
+                        }
+                        if (data.b1 !== undefined || data.b2 !== undefined) {
+                            addLog(`Состояние реле: b1=${data.b1 ?? 'unknown'}, b2=${data.b2 ?? 'unknown'}`, 'esp');
+                        }
                     }
-                } else if (data.ty === "est") { // type → ty, esp_status → est
-                    console.log(`Received ESP status: ${data.st}`) // status → st
-                    setEspConnected(data.st === "con") // status → st, connected → con
-                    addLog(`ESP ${data.st === "con" ? "✅ Connected" : "❌ Disconnected"}${data.re ? ` (${data.re})` : ''}`, // reason → re
-                        data.st === "con" ? 'esp' : 'error') // status → st, connected → con
-                } else if (data.ty === "ack") { // type → ty, acknowledge → ack
-                    if (commandTimeoutRef.current) clearTimeout(commandTimeoutRef.current)
-                    addLog(`ESP executed co: ${data.co}`, 'esp') // command → co
-                } else if (data.ty === "cst") { // type → ty, command_status → cst
-                    addLog(`Command ${data.co} delivered to ESP`, 'server') // command → co
+                } else if (data.ty === "est") {
+                    console.log(`Received ESP status: ${data.st}`);
+                    setEspConnected(data.st === "con");
+                    addLog(
+                        `ESP ${data.st === "con" ? "✅ Connected" : "❌ Disconnected"}`,
+                        'error'
+                    );
+                } else if (data.ty === "cst") {
+                    addLog(`Command ${data.co} delivered`, 'success');
                 }
             } catch (error) {
-                console.error("Error processing message:", error)
-                addLog(`Received invalid message: ${event.data}`, 'error')
+                console.error("Error processing message:", error);
+                addLog(`Received message: ${event.data}`, 'error');
             }
-        }
+        };
 
         ws.onclose = (event) => {
             setIsConnected(false)
@@ -650,13 +672,40 @@ export default function SocketClient() {
                         </Button>
                     </div>
 
-                    <Button
-                        onClick={handleCloseControls}
-                        className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
-                        style={{minWidth: '6rem'}}
-                    >
-                        Close
-                    </Button>
+                    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-50">
+                        {/* Кнопка для реле 1 (D0) */}
+                        <Button
+                            onClick={() => sendCommand("RLY", { pin: "D0", state: button1State ? "off" : "on" })}
+                            className={`${
+                                button1State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
+                            } backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm flex items-center`}
+                            style={{ minWidth: "6rem" }}
+                        >
+                            <Power className="h-4 w-4 mr-2" />
+                            Реле 1 (D0) {button1State ? "Вкл" : "Выкл"}
+                        </Button>
+
+                        {/* Кнопка для реле 2 (D8) */}
+                        <Button
+                            onClick={() => sendCommand("RLY", { pin: "D8", state: button2State ? "off" : "on" })}
+                            className={`${
+                                button2State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
+                            } backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm flex items-center`}
+                            style={{ minWidth: "6rem" }}
+                        >
+                            <Power className="h-4 w-4 mr-2" />
+                            Реле 2 (3) {button2State ? "Вкл" : "Выкл"}
+                        </Button>
+
+                        {/* Кнопка закрытия панели управления */}
+                        <Button
+                            onClick={handleCloseControls}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
+                            style={{ minWidth: "6rem" }}
+                        >
+                            Закрыть
+                        </Button>
+                    </div>
                 </div>
             )}
         </div>
