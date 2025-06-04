@@ -195,16 +195,16 @@ export default function SocketClient() {
                 console.log("Received message:", data);
 
                 if (data.ty === "ack") {
-                    if (data.co === "SPD" && data.sp !== undefined) {
-                        addLog(`Speed set: ${data.sp} for motor ${data.mo || 'unknown'}`, 'esp');
-                    } else if (data.co === "RLY" && data.pa) {
+                    if (data.co === "RLY" && data.pa) {
                         if (data.pa.pin === "D0") {
                             setButton1State(data.pa.state === "on" ? 1 : 0);
                             addLog(`Реле 1 (D0) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
-                        } else if (data.pa.pin === "D8") {
+                        } else if (data.pa.pin === "3") { // Изменено с D3 на 3
                             setButton2State(data.pa.state === "on" ? 1 : 0);
-                            addLog(`Реле 2 (D8) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
+                            addLog(`Реле 2 (3) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
                         }
+                    } else if (data.co === "SPD" && data.sp !== undefined) {
+                        addLog(`Speed set: ${data.sp} for motor ${data.mo || 'unknown'}`, 'esp');
                     } else {
                         addLog(`Command ${data.co} acknowledged`, 'esp');
                     }
@@ -222,19 +222,13 @@ export default function SocketClient() {
                     setIsIdentified(false);
                 } else if (data.ty === "log") {
                     addLog(`ESP: ${data.me}`, 'esp');
-                    if (data.me && data.me.includes("Heartbeat")) {
-                        setEspConnected(true);
-                        if (data.b1 !== undefined) {
-                            setButton1State(data.b1);
-                            addLog(`Реле 1 (D0): ${data.b1 ? "включено" : "выключено"}`, 'esp');
-                        }
-                        if (data.b2 !== undefined) {
-                            setButton2State(data.b2);
-                            addLog(`Реле 2 (D8): ${data.b2 ? "включено" : "выключено"}`, 'esp');
-                        }
-                        if (data.b1 !== undefined || data.b2 !== undefined) {
-                            addLog(`Состояние реле: b1=${data.b1 ?? 'unknown'}, b2=${data.b2 ?? 'unknown'}`, 'esp');
-                        }
+                    if (data.b1 !== undefined) {
+                        setButton1State(data.b1);
+                        addLog(`Реле 1 (D0): ${data.b1 ? "включено" : "выключено"}`, 'esp');
+                    }
+                    if (data.b2 !== undefined) {
+                        setButton2State(data.b2);
+                        addLog(`Реле 2 (3): ${data.b2 ? "включено" : "выключено"}`, 'esp');
                     }
                 } else if (data.ty === "est") {
                     console.log(`Received ESP status: ${data.st}`);
@@ -675,7 +669,11 @@ export default function SocketClient() {
                     <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-50">
                         {/* Кнопка для реле 1 (D0) */}
                         <Button
-                            onClick={() => sendCommand("RLY", { pin: "D0", state: button1State ? "off" : "on" })}
+                            onClick={() => {
+                                const newState = button1State ? "off" : "on";
+                                sendCommand("RLY", { pin: "D0", state: newState });
+                                setButton1State(newState === "on" ? 1 : 0);
+                            }}
                             className={`${
                                 button1State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
                             } backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm flex items-center`}
@@ -685,9 +683,13 @@ export default function SocketClient() {
                             Реле 1 (D0) {button1State ? "Вкл" : "Выкл"}
                         </Button>
 
-                        {/* Кнопка для реле 2 (D8) */}
+                        {/* Кнопка для реле 2 (3) */}
                         <Button
-                            onClick={() => sendCommand("RLY", { pin: "D8", state: button2State ? "off" : "on" })}
+                            onClick={() => {
+                                const newState = button2State ? "off" : "on";
+                                sendCommand("RLY", { pin: "3", state: newState }); // Изменено с D3 на 3
+                                setButton2State(newState === "on" ? 1 : 0);
+                            }}
                             className={`${
                                 button2State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
                             } backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm flex items-center`}
