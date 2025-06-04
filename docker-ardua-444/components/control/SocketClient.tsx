@@ -199,7 +199,7 @@ export default function SocketClient() {
                         if (data.pa.pin === "D0") {
                             setButton1State(data.pa.state === "on" ? 1 : 0);
                             addLog(`Реле 1 (D0) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
-                        } else if (data.pa.pin === "3") { // Изменено с D3 на 3
+                        } else if (data.pa.pin === "3") {
                             setButton2State(data.pa.state === "on" ? 1 : 0);
                             addLog(`Реле 2 (3) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
                         }
@@ -223,11 +223,11 @@ export default function SocketClient() {
                 } else if (data.ty === "log") {
                     addLog(`ESP: ${data.me}`, 'esp');
                     if (data.b1 !== undefined) {
-                        setButton1State(data.b1);
+                        setButton1State(data.b1 ? 1 : 0);
                         addLog(`Реле 1 (D0): ${data.b1 ? "включено" : "выключено"}`, 'esp');
                     }
                     if (data.b2 !== undefined) {
-                        setButton2State(data.b2);
+                        setButton2State(data.b2 ? 1 : 0);
                         addLog(`Реле 2 (3): ${data.b2 ? "включено" : "выключено"}`, 'esp');
                     }
                 } else if (data.ty === "est") {
@@ -636,43 +636,13 @@ export default function SocketClient() {
                         sp={motorBSpeed} // speed → sp
                     />
 
-                    <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 flex space-x-4 z-50">
-                        <Button
-                            onClick={() => adjustServoAngle(-180)}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                        >
-                            <ArrowLeft className="h-5 w-5"/>
-                        </Button>
-
-                        <Button
-                            onClick={() => adjustServoAngle(15)}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                        >
-                            <ArrowDown className="h-5 w-5" />
-                        </Button>
-
-                        <Button
-                            onClick={() => adjustServoAngle(-15)}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                        >
-                            <ArrowUp className="h-5 w-5" />
-                        </Button>
-
-                        <Button
-                            onClick={() => adjustServoAngle(180)}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                        >
-                            <ArrowRight className="h-5 w-5" />
-                        </Button>
-                    </div>
-
                     <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-50">
                         {/* Кнопка для реле 1 (D0) */}
                         <Button
                             onClick={() => {
                                 const newState = button1State ? "off" : "on";
                                 sendCommand("RLY", { pin: "D0", state: newState });
-                                setButton1State(newState === "on" ? 1 : 0);
+                                setButton1State(newState === "on" ? 1 : 0); // Предварительное обновление
                             }}
                             className={`${
                                 button1State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
@@ -687,8 +657,8 @@ export default function SocketClient() {
                         <Button
                             onClick={() => {
                                 const newState = button2State ? "off" : "on";
-                                sendCommand("RLY", { pin: "3", state: newState }); // Изменено с D3 на 3
-                                setButton2State(newState === "on" ? 1 : 0);
+                                sendCommand("RLY", { pin: "3", state: newState });
+                                setButton2State(newState === "on" ? 1 : 0); // Предварительное обновление
                             }}
                             className={`${
                                 button2State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
