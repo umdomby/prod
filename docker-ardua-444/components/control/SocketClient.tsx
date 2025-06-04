@@ -636,6 +636,36 @@ export default function SocketClient() {
                         sp={motorBSpeed} // speed → sp
                     />
 
+                    <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 flex space-x-4 z-50">
+                        <Button
+                            onClick={() => adjustServoAngle(-180)}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                        >
+                            <ArrowLeft className="h-5 w-5"/>
+                        </Button>
+
+                        <Button
+                            onClick={() => adjustServoAngle(15)}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                        >
+                            <ArrowDown className="h-5 w-5" />
+                        </Button>
+
+                        <Button
+                            onClick={() => adjustServoAngle(-15)}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                        >
+                            <ArrowUp className="h-5 w-5" />
+                        </Button>
+
+                        <Button
+                            onClick={() => adjustServoAngle(180)}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                        >
+                            <ArrowRight className="h-5 w-5" />
+                        </Button>
+                    </div>
+
                     <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-50">
                         {/* Кнопка для реле 1 (D0) */}
                         <Button
