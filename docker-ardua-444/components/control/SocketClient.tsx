@@ -491,15 +491,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 return;
             }
 
-            if (servoId === '1') {
-                setServoAngle(newAngle);
-                sendCommand('SSR', { an: newAngle });
-            } else {
-                setServo2Angle(newAngle);
-                sendCommand('SSR2', { an: newAngle });
-            }
+            sendCommand(servoId === '1' ? 'SSR' : 'SSR2', { an: newAngle }); // Только отправка команды
         },
-        [servoAngle, servo2Angle, servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle, setServoAngle, setServo2Angle, sendCommand, addLog]
+        [servoAngle, servo2Angle, servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle, sendCommand, addLog]
     );
 
 
