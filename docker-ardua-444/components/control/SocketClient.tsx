@@ -200,16 +200,47 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         }
     }, [])
 
-    const saveNewDe = useCallback(() => {
-        if (newDe && !deviceList.includes(newDe)) {
-            const updatedList = [...deviceList, newDe]
-            setDeviceList(updatedList)
-            localStorage.setItem('espDeviceList', JSON.stringify(updatedList))
-            setInputDe(newDe)
-            setNewDe('')
-            currentDeRef.current = newDe
+
+    // Добавляем функцию форматирования ID
+    const formatDeviceId = (id: string): string => {
+        // Удаляем все не буквенно-цифровые символы
+        const cleanId = id.replace(/[^A-Z0-9]/gi, '');
+
+        // Вставляем тире каждые 4 символа
+        return cleanId.replace(/(.{4})(?=.)/g, '$1-');
+    };
+
+// Добавляем функцию очистки ID (удаляем тире)
+    const cleanDeviceId = (id: string): string => {
+        return id.replace(/[^A-Z0-9]/gi, '');
+    };
+
+// Модифицируем обработчик изменения ввода
+    const handleNewDeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const input = e.target.value.toUpperCase(); // Приводим к верхнему регистру
+        const cleanInput = input.replace(/[^A-Z0-9]/gi, ''); // Очищаем от нежелательных символов
+
+        // Ограничиваем длину до 16 символов
+        if (cleanInput.length <= 16) {
+            const formatted = formatDeviceId(cleanInput);
+            setNewDe(formatted);
         }
-    }, [newDe, deviceList])
+    };
+
+// Модифицируем условие активности кнопки Add
+    const isAddDisabled = cleanDeviceId(newDe).length !== 16;
+
+    const saveNewDe = useCallback(() => {
+        const cleanId = cleanDeviceId(newDe);
+        if (cleanId.length === 16 && !deviceList.includes(cleanId)) {
+            const updatedList = [...deviceList, cleanId];
+            setDeviceList(updatedList);
+            localStorage.setItem('espDeviceList', JSON.stringify(updatedList));
+            setInputDe(cleanId);
+            setNewDe('');
+            currentDeRef.current = cleanId;
+        }
+    }, [newDe, deviceList]);
 
     const addLog = useCallback((msg: string, ty: LogEntry['ty']) => {
         setLog(prev => [...prev.slice(-100), { me: `${new Date().toLocaleTimeString()}: ${msg}`, ty }])
@@ -600,7 +631,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                             <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
                                 {deviceList.map(id => (
                                     <SelectItem key={id} value={id}
-                                                className="hover:bg-gray-100/50 text-xs sm:text-sm">{id}</SelectItem>
+                                                className="hover:bg-gray-100/50 text-xs sm:text-sm">
+                                        {formatDeviceId(id)}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -625,13 +658,14 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         <div className="flex space-x-2">
                             <Input
                                 value={newDe}
-                                onChange={(e) => setNewDe(e.target.value)}
-                                placeholder="Enter new device ID"
-                                className="flex-1 bg-transparent h-8 sm:h-10 text-xs sm:text-sm"
+                                onChange={handleNewDeChange}
+                                placeholder="XXXX-XXXX-XXXX-XXXX"
+                                className="flex-1 bg-transparent h-8 sm:h-10 text-xs sm:text-sm uppercase" // Добавляем uppercase
+                                maxLength={19} // 16 символов + 3 тире
                             />
                             <Button
                                 onClick={saveNewDe}
-                                disabled={!newDe}
+                                disabled={isAddDisabled}
                                 className="bg-blue-600 hover:bg-blue-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
                             >
                                 Add
