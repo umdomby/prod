@@ -142,7 +142,9 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                             me: parsed.me, // message → me
                             de: client.de, // deviceId → de
                             ts: new Date().toISOString(), // timestamp → ts
-                            or: "esp" // origin → or
+                            or: "esp", // origin → or
+                            b1: parsed.b1, // Пересылаем состояние реле 1
+                            b2: parsed.b2  // Пересылаем состояние реле 2
                         }));
                     }
                 });

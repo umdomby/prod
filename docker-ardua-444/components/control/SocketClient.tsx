@@ -21,11 +21,13 @@ type MessageType = {
     ts?: string // timestamp → ts
     or?: 'client' | 'esp' | 'server' | 'error' // origin → or
     re?: string // reason → re
+    b1?: string // Состояние реле 1 (D0), "on" или "off"
+    b2?: string // Состояние реле 2 (3), "on" или "off"
 }
 
 type LogEntry = {
     me: string // message → me
-    ty: 'client' | 'esp' | 'server' | 'error' // type → ty
+    ty: 'client' | 'esp' | 'server' | 'error' | 'success' // type → ty
 }
 
 export default function SocketClient() {
@@ -180,12 +182,20 @@ export default function SocketClient() {
             ws.send(JSON.stringify({
                 ty: "clt", // type → ty, client_type → clt
                 ct: "browser" // clientType → ct
-            }))
+            }));
 
             ws.send(JSON.stringify({
                 ty: "idn", // type → ty, identify → idn
                 de: deToConnect // deviceId → de
-            }))
+            }));
+
+            // Запрашиваем состояние реле после идентификации
+            ws.send(JSON.stringify({
+                co: "GET_RELAYS", // Новая команда для запроса состояния реле
+                de: deToConnect,
+                ts: Date.now()
+            }));
+
         }
 
         // Обработка сообщений в connectWebSocket
@@ -223,12 +233,12 @@ export default function SocketClient() {
                 } else if (data.ty === "log") {
                     addLog(`ESP: ${data.me}`, 'esp');
                     if (data.b1 !== undefined) {
-                        setButton1State(data.b1 ? 1 : 0);
-                        addLog(`Реле 1 (D0): ${data.b1 ? "включено" : "выключено"}`, 'esp');
+                        setButton1State(data.b1 === "on" ? 1 : 0);
+                        addLog(`Реле 1 (D0): ${data.b1 === "on" ? "включено" : "выключено"}`, 'esp');
                     }
                     if (data.b2 !== undefined) {
-                        setButton2State(data.b2 ? 1 : 0);
-                        addLog(`Реле 2 (3): ${data.b2 ? "включено" : "выключено"}`, 'esp');
+                        setButton2State(data.b2 === "on" ? 1 : 0);
+                        addLog(`Реле 2 (3): ${data.b2 === "on" ? "включено" : "выключено"}`, 'esp');
                     }
                 } else if (data.ty === "est") {
                     console.log(`Received ESP status: ${data.st}`);
@@ -238,7 +248,7 @@ export default function SocketClient() {
                         'error'
                     );
                 } else if (data.ty === "cst") {
-                    addLog(`Command ${data.co} delivered`, 'success');
+                    addLog(`Command ${data.co} delivered`, 'client');
                 }
             } catch (error) {
                 console.error("Error processing message:", error);
@@ -604,13 +614,14 @@ export default function SocketClient() {
                                         <div
                                             key={index}
                                             className={`truncate py-1 ${
-                                                entry.ty === 'client' ? 'text-blue-600' : // type → ty
-                                                    entry.ty === 'esp' ? 'text-green-600' : // type → ty
-                                                        entry.ty === 'server' ? 'text-purple-600' : // type → ty
-                                                            'text-red-600 font-semibold'
+                                                entry.ty === 'client' ? 'text-blue-600' :
+                                                    entry.ty === 'esp' ? 'text-green-600' :
+                                                        entry.ty === 'server' ? 'text-purple-600' :
+                                                            entry.ty === 'success' ? 'text-teal-600' : // Добавляем стиль для success
+                                                                'text-red-600 font-semibold'
                                             }`}
                                         >
-                                            {entry.me} // message → me
+                                            {entry.me}
                                         </div>
                                     ))
                                 )}
