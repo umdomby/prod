@@ -159,7 +159,7 @@ const Joystick = ({ mo, onChange, direction, sp, className }: JoystickProps) => 
             style={{
                 position: 'absolute',
                 width: '80px',
-                height: isLandscape ? '77vh' : '45vh',
+                height: isLandscape ? '50vh' : '45vh',
                 top: isLandscape ? '5%' : '55%',
                 transform: isLandscape ? 'translateY(-5%)' : 'translateY(-55%)',
                 bottom: '0',
@@ -177,7 +177,7 @@ const Joystick = ({ mo, onChange, direction, sp, className }: JoystickProps) => 
             <div style={{
                 position: 'absolute',
                 width: '20px',
-                height: '80%',
+                height: '60%',
                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
                 borderRadius: '10px'
             }} />
