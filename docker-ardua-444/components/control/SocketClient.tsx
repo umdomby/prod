@@ -59,6 +59,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const [button1State, setButton1State] = useState(0)
     const [button2State, setButton2State] = useState(0)
     const [servoAngle, setServoAngle] = useState(90)
+    const [servo2Angle, setServo2Angle] = useState(90);
     const [activeTab, setActiveTab] = useState<'webrtc' | 'esp' | 'controls' | null>('esp')
 
     const reconnectAttemptRef = useRef(0)
@@ -436,11 +437,18 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         }
     }, [sendCommand])
 
-    const adjustServoAngle = useCallback((delta: number) => {
-        const newAngle = Math.max(0, Math.min(180, servoAngle + delta))
-        setServoAngle(newAngle)
-        sendCommand("SSR", { an: newAngle })
-    }, [servoAngle, sendCommand])
+    const adjustServo = useCallback((servoId: '1' | '2', delta: number) => {
+        const currentAngle = servoId === '1' ? servoAngle : servo2Angle;
+        const newAngle = Math.max(0, Math.min(180, currentAngle + delta));
+
+        if (servoId === '1') {
+            setServoAngle(newAngle);
+            sendCommand("SSR", { an: newAngle });
+        } else {
+            setServo2Angle(newAngle);
+            sendCommand("SSR2", { an: newAngle });
+        }
+    }, [servoAngle, servo2Angle, sendCommand]);
 
     const handleMotorAControl = createMotorHandler('A')
     const handleMotorBControl = createMotorHandler('B')
@@ -690,29 +698,59 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     />
 
                     <div className="fixed left-1/2 transform -translate-x-1/2 flex space-x-4 z-50">
+                        {/* Управление первым сервоприводом */}
                         <Button
-                            onClick={() => adjustServoAngle(-180)}
+                            onClick={() => adjustServo('1', -180)}
                             className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
                         >
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
 
                         <Button
-                            onClick={() => adjustServoAngle(15)}
+                            onClick={() => adjustServo('1', 15)}
                             className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
                         >
                             <ArrowDown className="h-5 w-5" />
                         </Button>
 
                         <Button
-                            onClick={() => adjustServoAngle(-15)}
+                            onClick={() => adjustServo('1', -15)}
                             className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
                         >
                             <ArrowUp className="h-5 w-5" />
                         </Button>
 
                         <Button
-                            onClick={() => adjustServoAngle(180)}
+                            onClick={() => adjustServo('1', 180)}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-200 text-gray-600 p-2 rounded-full transition-all"
+                        >
+                            <ArrowRight className="h-5 w-5" />
+                        </Button>
+
+                        {/* Управление вторым сервоприводом */}
+                        <Button
+                            onClick={() => adjustServo('2', -180)}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                        >
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+
+                        <Button
+                            onClick={() => adjustServo('2', 15)}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                        >
+                            <ArrowDown className="h-5 w-5" />
+                        </Button>
+
+                        <Button
+                            onClick={() => adjustServo('2', -15)}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                        >
+                            <ArrowUp className="h-5 w-5" />
+                        </Button>
+
+                        <Button
+                            onClick={() => adjustServo('2', 180)}
                             className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
                         >
                             <ArrowRight className="h-5 w-5" />
