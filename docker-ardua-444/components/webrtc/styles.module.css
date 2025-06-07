@@ -345,6 +345,11 @@
     color: #ffffff;
 }
 
+.espTabContent {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    backdrop-filter: blur(5px) !important;
+}
+
 /* End 3 */
 
 .logsContent {

@@ -683,8 +683,8 @@ export const VideoCallApp = () => {
             )}
 
             {activeMainTab === 'esp' && (
-                <div className={styles.tabContent}>
-                    <SocketClient/>
+                <div className={`${styles.tabContent} ${styles.espTabContent}`}>
+                    <SocketClient />
                 </div>
             )}
 
