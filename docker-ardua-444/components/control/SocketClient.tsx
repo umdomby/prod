@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Power } from "lucide-react"
+import { ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Power, EyeOff, Eye } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
@@ -88,7 +88,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const motorAThrottleRef = useRef<NodeJS.Timeout | null>(null)
     const motorBThrottleRef = useRef<NodeJS.Timeout | null>(null)
     const currentDeRef = useRef(inputDe)
-
+    const [showServos, setShowServos] = useState(() => {
+        const saved = localStorage.getItem('showServos');
+        return saved ? JSON.parse(saved) : true;
+    });
 
     // Загрузка сохранённых настроек
     useEffect(() => {
@@ -224,6 +227,12 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             socketRef.current = null
         }
     }, [])
+
+    const toggleServosVisibility = () => {
+        const newValue = !showServos;
+        setShowServos(newValue);
+        localStorage.setItem('showServos', JSON.stringify(newValue));
+    };
 
     const connectWebSocket = useCallback((deToConnect: string) => {
         cleanupWebSocket()
@@ -708,9 +717,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     </Button>
 
                     {logVisible && (
-                        <div
-                            className="border border-gray-200 rounded-md overflow-hidden bg-transparent backdrop-blur-sm"
-                        >
+                        <div className="border border-gray-200 rounded-md overflow-hidden bg-transparent backdrop-blur-sm">
                             <div className="h-32 sm:h-48 overflow-y-auto p-2 bg-transparent text-xs font-mono">
                                 {log.length === 0 ? (
                                     <div className="text-gray-500 italic">No logs yet</div>
@@ -719,8 +726,8 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                         <div
                                             key={index}
                                             className={`truncate py-1 ${
-                                                entry.ty === 'client' ? 'on' ? 'text-blue-500' : 'text-blue-600' :
-                                                    entry.ty === 'esp' ? 'off' ? 'text-blue-500' : 'on' ? 'text-green-500' : 'text-green-600' :
+                                                entry.ty === 'client' ? 'text-blue-600' :
+                                                    entry.ty === 'esp' ? 'text-green-600' :
                                                         entry.ty === 'server' ? 'text-purple-600' :
                                                             entry.ty === 'success' ? 'text-teal-600' :
                                                                 'text-red-600 font-semibold'
@@ -753,6 +760,8 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     />
 
                     <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex flex-col space-y-2 z-50">
+                        {showServos && (
+                            <>
                         {/* Управление первым сервоприводом */}
                         <div className="flex flex-col items-center space-y-2">
                             {/* Управление первым сервоприводом */}
@@ -817,6 +826,8 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                 <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
                             </div>
                         </div>
+                            </>
+                    )}
 
                         {/* Кнопки реле и закрытия */}
                         <div className="flex items-center justify-center space-x-2">
@@ -844,6 +855,18 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                 } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
                             >
                                 <Power className="h-4 w-4" />
+                            </Button>
+
+                            <Button
+                                onClick={toggleServosVisibility}
+                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all flex items-center"
+                                title={showServos ? 'Скрыть сервоприводы' : 'Показать сервоприводы'}
+                            >
+                                {showServos ? (
+                                    <EyeOff className="h-4 w-4" /> // Иконка "глаз закрыт" когда видно
+                                ) : (
+                                    <Eye className="h-4 w-4" />    // Иконка "глаз открыт" когда скрыто
+                                )}
                             </Button>
 
                             <Button
