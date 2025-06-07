@@ -587,6 +587,7 @@ export const VideoCallApp = () => {
                             />
                         </div>
 
+
                         {!isInRoom ? (
                             <Button
                                 onClick={handleJoinRoom}
@@ -608,7 +609,7 @@ export const VideoCallApp = () => {
                         <div className={styles.inputGroup}>
                             <Button
                                 onClick={handleSaveRoom}
-                                disabled={!isRoomIdComplete || savedRooms.some(r => r.id === roomId.replace(/-/g, ''))}
+                                disabled={!isRoomIdComplete || savedRooms.some((r) => r.id === roomId.replace(/-/g, ''))}
                                 className={styles.button}
                             >
                                 Сохранить ID комнаты

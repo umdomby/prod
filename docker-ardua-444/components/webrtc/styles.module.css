@@ -33,7 +33,6 @@
     transition: all 0.3s ease;
 }
 
-/* When rotated 90 or 270 degrees */
 .remoteVideo[style*="rotate(90deg)"],
 .remoteVideo[style*="rotate(270deg)"] {
     height: 133%;
@@ -260,8 +259,15 @@
     background-color: rgba(255, 255, 255, 0.1);
     padding: 15px;
     border-radius: 8px;
-    max-height: 150px;
-    overflow-y: auto;
+}
+
+.tabContent.webrtcTab .deviceSelection select,
+.tabContent.webrtcTab .deviceSelection option {
+    max-width: 200px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .tabContent {
@@ -274,10 +280,27 @@
     z-index: 15;
     max-height: calc(100vh - 0px);
     overflow-y: auto;
-    border-radius: 0 0 12px 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    /*border-radius: 0 0 12px 12px;*/
+    /*box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);*/
     animation: fadeIn 0.3s ease-out;
 }
+
+.espTabContent {
+    background-color: transparent !important;
+    backdrop-filter: none !important;
+}
+
+.videoControlsTab {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    background-color: #000;
+    width: 50%;
+    margin: 0 auto;
+}
+
+
 
 @keyframes fadeInWebrtc {
     from { opacity: 0; }
@@ -320,7 +343,8 @@
 
     .tabContent.webrtcTab .savedRooms,
     .tabContent.webrtcTab .userList {
-        max-height: 100px;
+        margin-top: 15px;
+        padding: 10px;
     }
 
     .tabsContainer {
@@ -338,6 +362,10 @@
 
     .logsPanel {
         width: 200px;
+    }
+
+    .videoControlsTab {
+        width: 90%;
     }
 }
 
@@ -369,23 +397,13 @@
     background-color: rgba(0, 150, 255, 0.7);
 }
 
-.videoControlsTab {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    padding: 20px;
-    background-color: #000; /* Черный фон */
-    width: 50%; /* Ширина 50% */
-    margin: 0 auto; /* Центрирование по горизонтали */
-}
-
 .controlButtons {
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap; /* Перенос на новую строку */
+    flex-wrap: wrap;
     gap: 8px;
-    justify-content: center; /* Центрирование элементов */
-    white-space: normal; /* Разрешаем перенос текста */
+    justify-content: center;
+    white-space: normal;
 }
 
 .controlButton {
@@ -411,11 +429,6 @@
 .controlButton.active {
     background-color: #007bff;
     color: #ffffff;
-}
-
-.espTabContent {
-    background-color: transparent !important; /* Полностью прозрачный фон */
-    backdrop-filter: none !important; /* Убираем размытие */
 }
 
 .logsContent {
