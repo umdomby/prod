@@ -848,10 +848,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
 
                             <Button
                                 onClick={handleCloseControls}
-                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
-                                style={{ minWidth: '6rem' }}
+                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-red-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
+                                // style={{ minWidth: '6rem' }}
                             >
-                                Close
+                                <Power className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
