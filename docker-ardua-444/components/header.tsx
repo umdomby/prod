@@ -66,63 +66,66 @@ export const Header: React.FC<Props> = ({ className }) => {
 
     // Обработчики изменения
     const handleServo1MinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setServo1MinInput(value);
-        console.log('Servo1 Min Input:', value); // Отладка
+        const input = e.target.value;
+        setServo1MinInput(input);
+        const value = Number(input);
+        if (!isNaN(value) && value >= 0 && value <= servo1MaxAngle) {
+            setServo1MinAngle(value);
+            localStorage.setItem('servo1MinAngle', value.toString());
+        }
     };
 
     const handleServo1MaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setServo1MaxInput(value);
-        console.log('Servo1 Max Input:', value); // Отладка
+        const input = e.target.value;
+        setServo1MaxInput(input);
+        const value = Number(input);
+        if (!isNaN(value) && value >= servo1MinAngle && value <= 180) {
+            setServo1MaxAngle(value);
+            localStorage.setItem('servo1MaxAngle', value.toString());
+        }
     };
 
     const handleServo2MinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setServo2MinInput(value);
-        console.log('Servo2 Min Input:', value); // Отладка
+        const input = e.target.value;
+        setServo2MinInput(input);
+        const value = Number(input);
+        if (!isNaN(value) && value >= 0 && value <= servo2MaxAngle) {
+            setServo2MinAngle(value);
+            localStorage.setItem('servo2MinAngle', value.toString());
+        }
     };
 
     const handleServo2MaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setServo2MaxInput(value);
-        console.log('Servo2 Max Input:', value); // Отладка
+        const input = e.target.value;
+        setServo2MaxInput(input);
+        const value = Number(input);
+        if (!isNaN(value) && value >= servo2MinAngle && value <= 180) {
+            setServo2MaxAngle(value);
+            localStorage.setItem('servo2MaxAngle', value.toString());
+        }
     };
 
-    // Обработчики потери фокуса
     const handleServo1MinBlur = () => {
-        const value = Number(servo1MinInput);
-        if (isServo1MinValid()) {
-            setServo1MinAngle(value);
-        } else {
-            setServo1MinInput(servo1MinAngle.toString()); // Восстанавливаем предыдущее значение
+        if (!isServo1MinValid()) {
+            setServo1MinInput(servo1MinAngle.toString());
         }
     };
 
     const handleServo1MaxBlur = () => {
-        const value = Number(servo1MaxInput);
-        if (isServo1MaxValid()) {
-            setServo1MaxAngle(value);
-        } else {
-            setServo1MaxInput(servo1MaxAngle.toString()); // Восстанавливаем предыдущее значение
+        if (!isServo1MaxValid()) {
+            setServo1MaxInput(servo1MaxAngle.toString());
         }
     };
 
     const handleServo2MinBlur = () => {
-        const value = Number(servo2MinInput);
-        if (isServo2MinValid()) {
-            setServo2MinAngle(value);
-        } else {
-            setServo2MinInput(servo2MinAngle.toString()); // Восстанавливаем предыдущее значение
+        if (!isServo2MinValid()) {
+            setServo2MinInput(servo2MinAngle.toString());
         }
     };
 
     const handleServo2MaxBlur = () => {
-        const value = Number(servo2MaxInput);
-        if (isServo2MaxValid()) {
-            setServo2MaxAngle(value);
-        } else {
-            setServo2MaxInput(servo2MaxAngle.toString()); // Восстанавливаем предыдущее значение
+        if (!isServo2MaxValid()) {
+            setServo2MaxInput(servo2MaxAngle.toString());
         }
     };
 
