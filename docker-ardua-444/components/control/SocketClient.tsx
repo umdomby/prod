@@ -1,11 +1,11 @@
 "use client"
-import {useState, useEffect, useRef, useCallback} from 'react'
-import {Button} from "@/components/ui/button"
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
-import {Input} from "@/components/ui/input"
-import {ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Power} from "lucide-react"
-import {Checkbox} from "@/components/ui/checkbox"
-import {Label} from "@/components/ui/label"
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Power } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
 
 type MessageType = {
@@ -47,8 +47,13 @@ export default function SocketClient() {
     const [motorBDirection, setMotorBDirection] = useState<'forward' | 'backward' | 'stop'>('stop')
     const [autoReconnect, setAutoReconnect] = useState(false)
     const [autoConnect, setAutoConnect] = useState(false)
-    const [activeTab, setActiveTab] = useState<'webrtc' | 'esp' | 'controls' | null>('esp')
+    const [autoShowControls, setAutoShowControls] = useState(false) // Новый чекбокс
+    const [preventDeletion, setPreventDeletion] = useState(false)
+    const [isLandscape, setIsLandscape] = useState(false)
+    const [button1State, setButton1State] = useState(0) // Состояние реле 1 (0 - выкл, 1 - вкл)
+    const [button2State, setButton2State] = useState(0) // Состояние реле 2 (0 - выкл, 1 - вкл)
     const [servoAngle, setServoAngle] = useState(90)
+    const [activeTab, setActiveTab] = useState<'webrtc' | 'esp' | 'controls' | null>('esp')
 
     const reconnectAttemptRef = useRef(0)
     const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -60,50 +65,27 @@ export default function SocketClient() {
     const motorBThrottleRef = useRef<NodeJS.Timeout | null>(null)
     const currentDeRef = useRef(inputDe) // deviceId → de
 
-    const [preventDeletion, setPreventDeletion] = useState(false);
-    const [isLandscape, setIsLandscape] = useState(false);
-
-    const [button1State, setButton1State] = useState(0); // Состояние реле 1 (0 - выкл, 1 - вкл)
-    const [button2State, setButton2State] = useState(0); // Состояние реле 2 (0 - выкл, 1 - вкл)
-
     useEffect(() => {
-        const savedPreventDeletion = localStorage.getItem('preventDeletion');
+        const savedPreventDeletion = localStorage.getItem('preventDeletion')
         if (savedPreventDeletion) {
-            setPreventDeletion(savedPreventDeletion === 'true');
-        }
-    }, []);
-
-    useEffect(() => {
-        const checkOrientation = () => {
-            if (window.screen.orientation) {
-                setIsLandscape(window.screen.orientation.type.includes('landscape'));
-            } else {
-                setIsLandscape(window.innerWidth > window.innerHeight);
-            }
-        };
-
-        checkOrientation();
-
-        if (window.screen.orientation) {
-            window.screen.orientation.addEventListener('change', checkOrientation);
-        } else {
-            window.addEventListener('resize', checkOrientation);
+            setPreventDeletion(savedPreventDeletion === 'true')
         }
 
-        return () => {
-            if (window.screen.orientation) {
-                window.screen.orientation.removeEventListener('change', checkOrientation);
-            } else {
-                window.removeEventListener('resize', checkOrientation);
-            }
-        };
-    }, []);
+        const savedAutoReconnect = localStorage.getItem('autoReconnect')
+        if (savedAutoReconnect) {
+            setAutoReconnect(savedAutoReconnect === 'true')
+        }
 
-    useEffect(() => {
-        currentDeRef.current = inputDe // deviceId → de
-    }, [inputDe])
+        const savedAutoConnect = localStorage.getItem('autoConnect')
+        if (savedAutoConnect) {
+            setAutoConnect(savedAutoConnect === 'true')
+        }
 
-    useEffect(() => {
+        const savedAutoShowControls = localStorage.getItem('autoShowControls')
+        if (savedAutoShowControls) {
+            setAutoShowControls(savedAutoShowControls === 'true')
+        }
+
         const savedDevices = localStorage.getItem('espDeviceList')
         if (savedDevices) {
             const devices = JSON.parse(savedDevices)
@@ -118,22 +100,59 @@ export default function SocketClient() {
                 currentDeRef.current = initialDe // deviceId → de
             }
         }
+    }, [])
 
-        const savedAutoReconnect = localStorage.getItem('autoReconnect')
-        if (savedAutoReconnect) {
-            setAutoReconnect(savedAutoReconnect === 'true')
+    useEffect(() => {
+        const checkOrientation = () => {
+            if (window.screen.orientation) {
+                setIsLandscape(window.screen.orientation.type.includes('landscape'))
+            } else {
+                setIsLandscape(window.innerWidth > window.innerHeight)
+            }
         }
 
-        const savedAutoConnect = localStorage.getItem('autoConnect')
-        if (savedAutoConnect) {
-            setAutoConnect(savedAutoConnect === 'true')
+        checkOrientation()
+
+        if (window.screen.orientation) {
+            window.screen.orientation.addEventListener('change', checkOrientation)
+        } else {
+            window.addEventListener('resize', checkOrientation)
+        }
+
+        return () => {
+            if (window.screen.orientation) {
+                window.screen.orientation.removeEventListener('change', checkOrientation)
+            } else {
+                window.removeEventListener('resize', checkOrientation)
+            }
         }
     }, [])
 
+    useEffect(() => {
+        currentDeRef.current = inputDe // deviceId → de
+    }, [inputDe])
+
+    useEffect(() => {
+        // Показываем джойстики автоматически, если autoShowControls === true и статус Connected
+        if (autoShowControls && isConnected && isIdentified && espConnected) {
+            setControlVisible(true)
+            setActiveTab(null)
+        }
+    }, [autoShowControls, isConnected, isIdentified, espConnected])
+
     const togglePreventDeletion = useCallback((checked: boolean) => {
-        setPreventDeletion(checked);
-        localStorage.setItem('preventDeletion', checked.toString());
-    }, []);
+        setPreventDeletion(checked)
+        localStorage.setItem('preventDeletion', checked.toString())
+    }, [])
+
+    const toggleAutoShowControls = useCallback((checked: boolean) => {
+        setAutoShowControls(checked)
+        localStorage.setItem('autoShowControls', checked.toString())
+        if (!checked) {
+            setControlVisible(false)
+            setActiveTab('esp')
+        }
+    }, [])
 
     const saveNewDe = useCallback(() => { // deviceId → de
         if (newDe && !deviceList.includes(newDe)) { // deviceId → de
@@ -147,7 +166,7 @@ export default function SocketClient() {
     }, [newDe, deviceList])
 
     const addLog = useCallback((msg: string, ty: LogEntry['ty']) => { // type → ty
-        setLog(prev => [...prev.slice(-100), {me: `${new Date().toLocaleTimeString()}: ${msg}`, ty}]) // message → me, type → ty
+        setLog(prev => [...prev.slice(-100), { me: `${new Date().toLocaleTimeString()}: ${msg}`, ty }]) // message → me, type → ty
     }, [])
 
     const cleanupWebSocket = useCallback(() => {
@@ -172,7 +191,7 @@ export default function SocketClient() {
             reconnectTimerRef.current = null
         }
 
-        const ws = new WebSocket(process.env.WEBSOCKET_URL_WSAR || 'wss://ardua.site:444/wsar');
+        const ws = new WebSocket(process.env.WEBSOCKET_URL_WSAR || 'wss://ardua.site:444/wsar')
 
         ws.onopen = () => {
             setIsConnected(true)
@@ -182,79 +201,78 @@ export default function SocketClient() {
             ws.send(JSON.stringify({
                 ty: "clt", // type → ty, client_type → clt
                 ct: "browser" // clientType → ct
-            }));
+            }))
 
             ws.send(JSON.stringify({
                 ty: "idn", // type → ty, identify → idn
                 de: deToConnect // deviceId → de
-            }));
+            }))
 
             // Запрашиваем состояние реле после идентификации
             ws.send(JSON.stringify({
-                co: "GET_RELAYS", // Новая команда для запроса состояния реле
+                co: " GET_RELAYS", // Новая команда для запроса состояния реле
                 de: deToConnect,
                 ts: Date.now()
-            }));
-
+            }))
         }
 
         // Обработка сообщений в connectWebSocket
         ws.onmessage = (event) => {
             try {
-                const data: MessageType = JSON.parse(event.data);
-                console.log("Received message:", data);
+                const data: MessageType = JSON.parse(event.data)
+                console.log("Received message:", data)
 
                 if (data.ty === "ack") {
                     if (data.co === "RLY" && data.pa) {
                         if (data.pa.pin === "D0") {
-                            setButton1State(data.pa.state === "on" ? 1 : 0);
-                            addLog(`Реле 1 (D0) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
+                            setButton1State(data.pa.state === "on" ? 1 : 0)
+                            addLog(`Реле 1 (D0) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp')
                         } else if (data.pa.pin === "3") {
-                            setButton2State(data.pa.state === "on" ? 1 : 0);
-                            addLog(`Реле 2 (3) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
+                            setButton2State(data.pa.state === "on" ? 1 : 0)
+                            addLog(`Реле 2 (3) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp')
                         }
                     } else if (data.co === "SPD" && data.sp !== undefined) {
-                        addLog(`Speed set: ${data.sp} for motor ${data.mo || 'unknown'}`, 'esp');
+                        addLog(`Speed set: ${data.sp} for motor ${data.mo || 'unknown'}`, 'esp')
                     } else {
-                        addLog(`Command ${data.co} acknowledged`, 'esp');
+                        addLog(`Command ${data.co} acknowledged`, 'esp')
                     }
                 }
 
                 if (data.ty === "sys") {
                     if (data.st === "con") {
-                        setIsIdentified(true);
-                        setDe(deToConnect);
-                        setEspConnected(true);
+                        setIsIdentified(true)
+                        setDe(deToConnect)
+                        setEspConnected(true)
                     }
-                    addLog(`System: ${data.me}`, 'server');
+                    addLog(`System: ${data.me}`, 'server')
                 } else if (data.ty === "err") {
-                    addLog(`Error: ${data.me}`, 'error');
-                    setIsIdentified(false);
+                    addLog(`Error: ${data.me}`, 'error')
+                    setIsIdentified(false)
                 } else if (data.ty === "log") {
-                    addLog(`ESP: ${data.me}`, 'esp');
+                    addLog(`ESP: ${data.me}`, 'esp')
                     if (data.b1 !== undefined) {
-                        setButton1State(data.b1 === "on" ? 1 : 0);
-                        addLog(`Реле 1 (D0): ${data.b1 === "on" ? "включено" : "выключено"}`, 'esp');
+                        setButton1State(data.b1 === "on" ? 1 : 0)
+                        addLog(`Реле 1 (D0): ${data.b1 === "on" ? "включено" : "выключено"}`, 'esp')
                     }
                     if (data.b2 !== undefined) {
-                        setButton2State(data.b2 === "on" ? 1 : 0);
-                        addLog(`Реле 2 (3): ${data.b2 === "on" ? "включено" : "выключено"}`, 'esp');
+                        setButton2State(data.b2 === "on" ? 1 : 0)
+                        addLog(`Реле 2 (3): ${data.b2 === "on" ? "включено" : "выключено"}`, 'esp')
                     }
                 } else if (data.ty === "est") {
-                    console.log(`Received ESP status: ${data.st}`);
-                    setEspConnected(data.st === "con");
+                    console.log(`Received ESP status: ${data.st}`)
+                    setEspConnected(data.st === "con")
                     addLog(
                         `ESP ${data.st === "con" ? "✅ Connected" : "❌ Disconnected"}`,
                         'error'
-                    );
+                    )
                 } else if (data.ty === "cst") {
-                    addLog(`Command ${data.co} delivered`, 'client');
+                    addLog(`Command ${data.co} delivered`, 'client')
                 }
             } catch (error) {
-                console.error("Error processing message:", error);
-                addLog(`Received message: ${event.data}`, 'error');
+                console.error("Error processing message:", error)
+                addLog(`Received message: ${event.data}`, 'error')
             }
-        };
+        }
 
         ws.onclose = (event) => {
             setIsConnected(false)
@@ -377,7 +395,7 @@ export default function SocketClient() {
             setSpeed(sp) // speed → sp
             setDirection(direction)
 
-            const currentCommand = {sp, direction} // speed → sp
+            const currentCommand = { sp, direction } // speed → sp
             if (JSON.stringify(lastCommandRef.current) === JSON.stringify(currentCommand)) {
                 return
             }
@@ -389,7 +407,7 @@ export default function SocketClient() {
                     clearTimeout(throttleRef.current)
                     throttleRef.current = null
                 }
-                sendCommand("SPD", {mo, sp: 0}) // set_speed → SPD, motor → mo, speed → sp
+                sendCommand("SPD", { mo, sp: 0 }) // set_speed → SPD, motor → mo, speed → sp
                 sendCommand(mo === 'A' ? "MSA" : "MSB")
                 return
             }
@@ -399,7 +417,7 @@ export default function SocketClient() {
             }
 
             throttleRef.current = setTimeout(() => {
-                sendCommand("SPD", {mo, sp}) // set_speed → SPD, motor → mo, speed → sp
+                sendCommand("SPD", { mo, sp }) // set_speed → SPD, motor → mo, speed → sp
                 sendCommand(direction === 'forward'
                     ? `MF${mo}` // motor_a_forward → MFA, motor_b_forward → MFB
                     : `MR${mo}`) // motor_a_backward → MRA, motor_b_backward → MRB
@@ -410,15 +428,15 @@ export default function SocketClient() {
     const adjustServoAngle = useCallback((delta: number) => {
         const newAngle = Math.max(0, Math.min(180, servoAngle + delta))
         setServoAngle(newAngle)
-        sendCommand("SSR", {an: newAngle}) // set_servo → SSR, angle → an
+        sendCommand("SSR", { an: newAngle }) // set_servo → SSR, angle → an
     }, [servoAngle, sendCommand])
 
     const handleMotorAControl = createMotorHandler('A')
     const handleMotorBControl = createMotorHandler('B')
 
     const emergencyStop = useCallback(() => {
-        sendCommand("SPD", {mo: 'A', sp: 0}) // set_speed → SPD, motor → mo, speed → sp
-        sendCommand("SPD", {mo: 'B', sp: 0}) // set_speed → SPD, motor → mo, speed → sp
+        sendCommand("SPD", { mo: 'A', sp: 0 }) // set_speed → SPD, motor → mo, speed → sp
+        sendCommand("SPD", { mo: 'B', sp: 0 }) // set_speed → SPD, motor → mo, speed → sp
         setMotorASpeed(0)
         setMotorBSpeed(0)
         setMotorADirection('stop')
@@ -455,11 +473,12 @@ export default function SocketClient() {
     }
 
     return (
-        <div className="flex flex-col items-center min-h-screen p-4 bg-transparent overflow-hidden">
+        <div className="flex flex-col items-center min-h-[calc(100vh-3rem)] p-4 bg-transparent overflow-hidden">
             {activeTab === 'esp' && (
                 <div
                     className="w-full max-w-md space-y-2 bg-transparent rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
-                    style={{maxHeight: '90vh', overflowY: 'auto'}}>
+                    style={{ maxHeight: '90vh', overflowY: 'auto' }}
+                >
                     <div className="flex flex-col items-center space-y-2">
                         <div className="flex items-center space-x-2">
                             <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${
@@ -475,7 +494,7 @@ export default function SocketClient() {
                                         ? (espConnected ? 'Connected' : 'Waiting for ESP')
                                         : 'Connecting...')
                                     : 'Disconnected'}
-                              </span>
+                            </span>
                         </div>
                     </div>
 
@@ -493,7 +512,7 @@ export default function SocketClient() {
                             disabled={isConnected && !autoReconnect}
                         >
                             <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
-                                <SelectValue placeholder="Select device"/>
+                                <SelectValue placeholder="Select device" />
                             </SelectTrigger>
                             <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
                                 {deviceList.map(id => (
@@ -505,10 +524,10 @@ export default function SocketClient() {
                         <Button
                             onClick={() => {
                                 if (!preventDeletion && confirm("Delete ?")) {
-                                    const defaultDevice = '123';
-                                    setDeviceList([defaultDevice]);
-                                    setInputDe(defaultDevice); // deviceId → de
-                                    localStorage.setItem('espDeviceList', JSON.stringify([defaultDevice]));
+                                    const defaultDevice = '123'
+                                    setDeviceList([defaultDevice])
+                                    setInputDe(defaultDevice) // deviceId → de
+                                    localStorage.setItem('espDeviceList', JSON.stringify([defaultDevice]))
                                 }
                             }}
                             disabled={preventDeletion}
@@ -560,7 +579,7 @@ export default function SocketClient() {
                                 id="auto-reconnect"
                                 checked={autoReconnect}
                                 onCheckedChange={toggleAutoReconnect}
-                                className="border-gray-300 bg-transparent w-4 h-4 sm:w-5 sm:h-5"
+                                className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoReconnect ? 'bg-green-500' : 'bg-white'}`}
                             />
                             <Label htmlFor="auto-reconnect" className="text-xs sm:text-sm font-medium text-gray-700">
                                 Auto reconnect when changing device
@@ -571,7 +590,7 @@ export default function SocketClient() {
                                 id="auto-connect"
                                 checked={autoConnect}
                                 onCheckedChange={handleAutoConnectChange}
-                                className="border-gray-300 bg-transparent w-4 h-4 sm:w-5 sm:h-5"
+                                className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoConnect ? 'bg-green-500' : 'bg-white'}`}
                             />
                             <Label htmlFor="auto-connect" className="text-xs sm:text-sm font-medium text-gray-700">
                                 Auto connect on page load
@@ -579,10 +598,21 @@ export default function SocketClient() {
                         </div>
                         <div className="flex items-center space-x-2">
                             <Checkbox
+                                id="auto-show-controls"
+                                checked={autoShowControls}
+                                onCheckedChange={toggleAutoShowControls}
+                                className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoShowControls ? 'bg-green-500' : 'bg-white'}`}
+                            />
+                            <Label htmlFor="auto-show-controls" className="text-xs sm:text-sm font-medium text-gray-700">
+                                Auto show controls on load
+                            </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
                                 id="prevent-deletion"
                                 checked={preventDeletion}
                                 onCheckedChange={togglePreventDeletion}
-                                className="border-gray-300 bg-transparent w-4 h-4 sm:w-5 sm:h-5"
+                                className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${preventDeletion ? 'bg-green-500' : 'bg-white'}`}
                             />
                             <Label htmlFor="prevent-deletion" className="text-xs sm:text-sm font-medium text-gray-700">
                                 Запретить удаление устройств
@@ -596,16 +626,17 @@ export default function SocketClient() {
                         className="w-full border-gray-300 bg-transparent hover:bg-gray-100/50 h-8 sm:h-10 text-xs sm:text-sm text-gray-700"
                     >
                         {logVisible ? (
-                            <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 mr-2"/>
+                            <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                         ) : (
-                            <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 mr-2"/>
+                            <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                         )}
                         {logVisible ? "Hide Logs" : "Show Logs"}
                     </Button>
 
                     {logVisible && (
                         <div
-                            className="border border-gray-200 rounded-md overflow-hidden bg-transparent backdrop-blur-sm">
+                            className="border border-gray-200 rounded-md overflow-hidden bg-transparent backdrop-blur-sm"
+                        >
                             <div className="h-32 sm:h-48 overflow-y-auto p-2 bg-transparent text-xs font-mono">
                                 {log.length === 0 ? (
                                     <div className="text-gray-500 italic">No logs yet</div>
@@ -617,7 +648,7 @@ export default function SocketClient() {
                                                 entry.ty === 'client' ? 'text-blue-600' :
                                                     entry.ty === 'esp' ? 'text-green-600' :
                                                         entry.ty === 'server' ? 'text-purple-600' :
-                                                            entry.ty === 'success' ? 'text-teal-600' : // Добавляем стиль для success
+                                                            entry.ty === 'success' ? 'text-teal-600' :
                                                                 'text-red-600 font-semibold'
                                             }`}
                                         >
@@ -647,12 +678,12 @@ export default function SocketClient() {
                         sp={motorBSpeed} // speed → sp
                     />
 
-                    <div className="fixed bottom-14 left-1/2 transform -translate-x-1/2 flex space-x-4 z-50">
+                    <div className="fixed left-1/2 transform -translate-x-1/2 flex space-x-4 z-50">
                         <Button
                             onClick={() => adjustServoAngle(-180)}
                             className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
                         >
-                            <ArrowLeft className="h-5 w-5"/>
+                            <ArrowLeft className="h-5 w-5" />
                         </Button>
 
                         <Button
@@ -681,33 +712,29 @@ export default function SocketClient() {
                         {/* Кнопка для реле 1 (D0) */}
                         <Button
                             onClick={() => {
-                                const newState = button1State ? "off" : "on";
-                                sendCommand("RLY", { pin: "D0", state: newState });
-                                setButton1State(newState === "on" ? 1 : 0); // Предварительное обновление
+                                const newState = button1State ? "off" : "on"
+                                sendCommand("RLY", { pin: "D0", state: newState })
+                                setButton1State(newState === "on" ? 1 : 0) // Предварительное обновление
                             }}
                             className={`${
                                 button1State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
                             } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
-                            // style={{ minWidth: "6rem" }}
                         >
                             <Power className="h-4 w-4" />
-                            {/*Реле 1 (D0) {button1State ? "Вкл" : "Выкл"}*/}
                         </Button>
 
                         {/* Кнопка для реле 2 (3) */}
                         <Button
                             onClick={() => {
-                                const newState = button2State ? "off" : "on";
-                                sendCommand("RLY", { pin: "3", state: newState });
-                                setButton2State(newState === "on" ? 1 : 0); // Предварительное обновление
+                                const newState = button2State ? "off" : "on"
+                                sendCommand("RLY", { pin: "3", state: newState })
+                                setButton2State(newState === "on" ? 1 : 0) // Предварительное обновление
                             }}
                             className={`${
                                 button2State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
                             } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
-                            // style={{ minWidth: "6rem" }}
                         >
                             <Power className="h-4 w-4" />
-                            {/*Реле 2 (3) {button2State ? "Вкл" : "Выкл"}*/}
                         </Button>
 
                         {/* Кнопка закрытия панели управления */}
