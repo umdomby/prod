@@ -122,7 +122,7 @@ export const VideoCallApp = () => {
             setMuteLocalAudio(savedMuteLocal === 'true')
         }
 
-        const savedMuteRemote = localStorage.getItem('mutedRemoteAudio')
+        const savedMuteRemote = localStorage.getItem('muteRemoteAudio')
         if (savedMuteRemote !== null) {
             setMuteRemoteAudio(savedMuteRemote === 'true')
         }
@@ -438,7 +438,7 @@ export const VideoCallApp = () => {
     const toggleMuteRemoteAudio = () => {
         const newState = !muteRemoteAudio
         setMuteRemoteAudio(newState)
-        localStorage.setItem('muteRemoteAudio', String(newState))
+        localStorage.setItem('muteRemoteAudio', String(newState)) // Сохраняем в localStorage
 
         if (remoteStream) {
             remoteStream.getAudioTracks().forEach(track => {
@@ -768,14 +768,14 @@ export const VideoCallApp = () => {
                                 className={`${styles.controlButton} ${muteLocalAudio ? styles.active : ''}`}
                                 title={muteLocalAudio ? 'Включить микрофон' : 'Отключить микрофон'}
                             >
-                                {muteLocalAudio ? '🎤🔇' : '🎤'}
+                                {muteLocalAudio ? '🚫🎤' : '🎤'}
                             </button>
                             <button
                                 onClick={toggleMuteRemoteAudio}
                                 className={`${styles.controlButton} ${muteRemoteAudio ? styles.active : ''}`}
                                 title={muteRemoteAudio ? 'Включить звук' : 'Отключить звук'}
                             >
-                                {muteRemoteAudio ? '🔈🔇' : '🔈'}
+                                {muteRemoteAudio ? '🔇' : '🔈'}
                             </button>
                         </div>
                     </div>
