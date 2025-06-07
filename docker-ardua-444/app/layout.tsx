@@ -1,10 +1,10 @@
-'use server'
+// file: app/layout.tsx
+'use server';
 import { Nunito } from 'next/font/google';
 import './globals.css';
-import {Providers} from "@/components/providers";
-
-import Head from 'next/head'
-
+import { Providers } from '@/components/providers';
+import { ServoProvider } from '@/components/ServoContext'; // Импортируем ServoProvider
+import Head from 'next/head';
 
 const nunito = Nunito({
     subsets: ['cyrillic'],
@@ -17,16 +17,16 @@ export default async function RootLayout({
                                          }: Readonly<{
     children: React.ReactNode;
 }>) {
-
     return (
         <html lang="en">
         <Head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-            {/*<link data-rh="true" rel="icon" href="/logo.webp" />*/}
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         </Head>
         <body className={nunito.className} suppressHydrationWarning={true}>
         <Providers>
-            <main>{children}</main>
+            <ServoProvider> {/* Добавляем ServoProvider */}
+                <main>{children}</main>
+            </ServoProvider>
         </Providers>
         </body>
         </html>

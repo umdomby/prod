@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Powe
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
+import { useServo } from '@/components/ServoContext';
 
 type MessageType = {
     ty?: string
@@ -39,6 +40,21 @@ interface SocketClientProps {
 }
 
 export default function SocketClient({ onConnectionStatusChange }: SocketClientProps) {
+    const {
+        servoAngle,
+        servo2Angle,
+        servo1MinAngle,
+        servo1MaxAngle,
+        servo2MinAngle,
+        servo2MaxAngle,
+        setServoAngle,
+        setServo2Angle,
+        setServo1MinAngle, // Добавляем
+        setServo1MaxAngle, // Добавляем
+        setServo2MinAngle, // Добавляем
+        setServo2MaxAngle, // Добавляем
+    } = useServo();
+
     const [log, setLog] = useState<LogEntry[]>([])
     const [isConnected, setIsConnected] = useState(false)
     const [isIdentified, setIsIdentified] = useState(false)
@@ -60,44 +76,21 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const [isLandscape, setIsLandscape] = useState(false)
     const [button1State, setButton1State] = useState(0)
     const [button2State, setButton2State] = useState(0)
-
-    const [servoAngle, setServoAngle] = useState(() => {
-        const saved = localStorage.getItem('servoAngle');
-        return saved ? Number(saved) : 90;
-    });
-    const [servo2Angle, setServo2Angle] = useState(() => {
-        const saved = localStorage.getItem('servo2Angle');
-        return saved ? Number(saved) : 90;
-    });
-    const [servo1MinAngle, setServo1MinAngle] = useState(0);
-    const [servo1MaxAngle, setServo1MaxAngle] = useState(180);
-    const [servo2MinAngle, setServo2MinAngle] = useState(0);
-    const [servo2MaxAngle, setServo2MaxAngle] = useState(180);
     const [activeTab, setActiveTab] = useState<'webrtc' | 'esp' | 'controls' | null>('esp');
 
     const lastHeartbeatLogTime = useRef<number>(0);
-
     const reconnectAttemptRef = useRef(0)
     const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null)
     const socketRef = useRef<WebSocket | null>(null)
-    const commandTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const commandTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastMotorACommandRef = useRef<{ sp: number, direction: 'forward' | 'backward' | 'stop' } | null>(null)
     const lastMotorBCommandRef = useRef<{ sp: number, direction: 'forward' | 'backward' | 'stop' } | null>(null)
     const motorAThrottleRef = useRef<NodeJS.Timeout | null>(null)
     const motorBThrottleRef = useRef<NodeJS.Timeout | null>(null)
     const currentDeRef = useRef(inputDe)
 
-    // Сохранение servoAngle в localStorage при изменении
-    useEffect(() => {
-        localStorage.setItem('servoAngle', servoAngle.toString());
-    }, [servoAngle]);
 
-    // Сохранение servo2Angle в localStorage при изменении
-    useEffect(() => {
-        localStorage.setItem('servo2Angle', servo2Angle.toString());
-    }, [servo2Angle]);
-
-// Загрузка сохранённых настроек
+    // Загрузка сохранённых настроек
     useEffect(() => {
         const savedPreventDeletion = localStorage.getItem('preventDeletion');
         if (savedPreventDeletion) {
@@ -127,7 +120,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 currentDeRef.current = initialDe;
             }
         }
-        // Загрузка диапазонов сервоприводов
+        // Загрузка диапазонов сервоприводов (используем функции из useServo)
         const savedServo1MinAngle = localStorage.getItem('servo1MinAngle');
         if (savedServo1MinAngle) {
             setServo1MinAngle(Number(savedServo1MinAngle));
@@ -144,7 +137,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         if (savedServo2MaxAngle) {
             setServo2MaxAngle(Number(savedServo2MaxAngle));
         }
-    }, []);
+    }, [setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle]);
 
     useEffect(() => {
         const checkOrientation = () => {
@@ -269,50 +262,49 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         ws.onmessage = (event) => {
             try {
                 const data: MessageType = JSON.parse(event.data);
-                console.log("Received message:", data);
+                console.log('Received message:', data);
 
-                if (data.ty === "ack") {
-                    if (data.co === "RLY" && data.pa) {
-                        if (data.pa.pin === "D0") {
-                            setButton1State(data.pa.state === "on" ? 1 : 0);
-                            addLog(`Реле 1 (D0) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
-                        } else if (data.pa.pin === "3") {
-                            setButton2State(data.pa.state === "on" ? 1 : 0);
-                            addLog(`Реле 2 (3) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
+                if (data.ty === 'ack') {
+                    if (data.co === 'RLY' && data.pa) {
+                        if (data.pa.pin === 'D0') {
+                            setButton1State(data.pa.state === 'on' ? 1 : 0);
+                            addLog(`Реле 1 (D0) ${data.pa.state === 'on' ? 'включено' : 'выключено'}`, 'esp');
+                        } else if (data.pa.pin === '3') {
+                            setButton2State(data.pa.state === 'on' ? 1 : 0);
+                            addLog(`Реле 2 (3) ${data.pa.state === 'on' ? 'включено' : 'выключено'}`, 'esp');
                         }
-                    } else if (data.co === "SPD" && data.sp !== undefined) {
+                    } else if (data.co === 'SPD' && data.sp !== undefined) {
                         addLog(`Speed set: ${data.sp} for motor ${data.mo || 'unknown'}`, 'esp');
                     } else {
                         addLog(`Command ${data.co} acknowledged`, 'esp');
                     }
                 }
 
-                if (data.ty === "sys") {
-                    if (data.st === "con") {
+                if (data.ty === 'sys') {
+                    if (data.st === 'con') {
                         setIsIdentified(true);
                         setDe(deToConnect);
                         setEspConnected(true);
                     }
                     addLog(`System: ${data.me}`, 'server');
-                } else if (data.ty === "err") {
+                } else if (data.ty === 'err') {
                     addLog(`Error: ${data.me}`, 'error');
                     setIsIdentified(false);
-                } else if (data.ty === "log") {
-                    // Фильтрация дублирующихся Heartbeat - OK
-                    if (data.me === "Heartbeat - OK" && Date.now() - lastHeartbeatLogTime.current < 1000) {
+                } else if (data.ty === 'log') {
+                    if (data.me === 'Heartbeat - OK' && Date.now() - lastHeartbeatLogTime.current < 1000) {
                         return;
                     }
-                    if (data.me === "Heartbeat - OK") {
+                    if (data.me === 'Heartbeat - OK') {
                         lastHeartbeatLogTime.current = Date.now();
                     }
                     addLog(`ESP: ${data.me}`, 'esp');
                     if (data.b1 !== undefined) {
-                        setButton1State(data.b1 === "on" ? 1 : 0);
-                        addLog(`Реле 1 (D0): ${data.b1 === "on" ? "включено" : "выключено"}`, 'esp');
+                        setButton1State(data.b1 === 'on' ? 1 : 0);
+                        addLog(`Реле 1 (D0): ${data.b1 === 'on' ? 'включено' : 'выключено'}`, 'esp');
                     }
                     if (data.b2 !== undefined) {
-                        setButton2State(data.b2 === "on" ? 1 : 0);
-                        addLog(`Реле 2 (3): ${data.b2 === "on" ? "включено" : "выключено"}`, 'esp');
+                        setButton2State(data.b2 === 'on' ? 1 : 0);
+                        addLog(`Реле 2 (3): ${data.b2 === 'on' ? 'включено' : 'выключено'}`, 'esp');
                     }
                     if (data.sp1 !== undefined) {
                         setServoAngle(Number(data.sp1));
@@ -322,18 +314,15 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         setServo2Angle(Number(data.sp2));
                         addLog(`Servo 2 angle: ${data.sp2}°`, 'esp');
                     }
-                } else if (data.ty === "est") {
+                } else if (data.ty === 'est') {
                     console.log(`Received ESP status: ${data.st}`);
-                    setEspConnected(data.st === "con");
-                    addLog(
-                        `ESP ${data.st === "con" ? "✅ Connected" : "❌ Disconnected"}`,
-                        'error'
-                    );
-                } else if (data.ty === "cst") {
+                    setEspConnected(data.st === 'con');
+                    addLog(`ESP ${data.st === 'con' ? '✅ Connected' : '❌ Disconnected'}`, 'error');
+                } else if (data.ty === 'cst') {
                     addLog(`Command ${data.co} delivered`, 'client');
                 }
             } catch (error) {
-                console.error("Error processing message:", error);
+                console.error('Error processing message:', error);
                 addLog(`Received message: ${event.data}`, 'error');
             }
         };
@@ -489,26 +478,29 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         }
     }, [sendCommand])
 
-    const adjustServo = useCallback((servoId: '1' | '2', delta: number) => {
-        const currentAngle = servoId === '1' ? servoAngle : servo2Angle;
-        const minAngle = servoId === '1' ? servo1MinAngle : servo2MinAngle;
-        const maxAngle = servoId === '1' ? servo1MaxAngle : servo2MaxAngle;
+    const adjustServo = useCallback(
+        (servoId: '1' | '2', delta: number) => {
+            const currentAngle = servoId === '1' ? servoAngle : servo2Angle;
+            const minAngle = servoId === '1' ? servo1MinAngle : servo2MinAngle;
+            const maxAngle = servoId === '1' ? servo1MaxAngle : servo2MaxAngle;
 
-        const newAngle = Math.max(minAngle, Math.min(maxAngle, currentAngle + delta));
+            const newAngle = Math.max(minAngle, Math.min(maxAngle, currentAngle + delta));
 
-        if (newAngle === currentAngle) {
-            addLog(`Servo ${servoId} angle not changed: within range ${minAngle}-${maxAngle}`, 'error');
-            return;
-        }
+            if (newAngle === currentAngle) {
+                addLog(`Servo ${servoId} angle not changed: within range ${minAngle}-${maxAngle}`, 'error');
+                return;
+            }
 
-        if (servoId === '1') {
-            setServoAngle(newAngle);
-            sendCommand("SSR", { an: newAngle });
-        } else {
-            setServo2Angle(newAngle);
-            sendCommand("SSR2", { an: newAngle });
-        }
-    }, [servoAngle, servo2Angle, servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle, sendCommand, addLog]);
+            if (servoId === '1') {
+                setServoAngle(newAngle);
+                sendCommand('SSR', { an: newAngle });
+            } else {
+                setServo2Angle(newAngle);
+                sendCommand('SSR2', { an: newAngle });
+            }
+        },
+        [servoAngle, servo2Angle, servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle, setServoAngle, setServo2Angle, sendCommand, addLog]
+    );
 
 
     const handleServo1MinAngleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -518,30 +510,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             localStorage.setItem('servo1MinAngle', value.toString());
         }
     }, [servo1MaxAngle]);
-
-    const handleServo1MaxAngleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = Number(e.target.value);
-        if (!isNaN(value) && value >= servo1MinAngle && value <= 180) {
-            setServo1MaxAngle(value);
-            localStorage.setItem('servo1MaxAngle', value.toString());
-        }
-    }, [servo1MinAngle]);
-
-    const handleServo2MinAngleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = Number(e.target.value);
-        if (!isNaN(value) && value >= 0 && value <= servo2MaxAngle) {
-            setServo2MinAngle(value);
-            localStorage.setItem('servo2MinAngle', value.toString());
-        }
-    }, [servo2MaxAngle]);
-
-    const handleServo2MaxAngleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = Number(e.target.value);
-        if (!isNaN(value) && value >= servo2MinAngle && value <= 180) {
-            setServo2MaxAngle(value);
-            localStorage.setItem('servo2MaxAngle', value.toString());
-        }
-    }, [servo2MinAngle]);
 
     const handleMotorAControl = createMotorHandler('A')
     const handleMotorBControl = createMotorHandler('B')
@@ -790,9 +758,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         sp={motorBSpeed}
                     />
 
-                    <div className="fixed left-1/2 transform -translate-x-1/2 flex flex-col space-y-4 z-50">
+                    <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex flex-col space-y-2 z-50">
                         {/* Управление первым сервоприводом */}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-center space-x-2">
                             <Button
                                 onClick={() => adjustServo('1', -180)}
                                 className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
@@ -817,29 +785,11 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                             >
                                 <ArrowRight className="h-5 w-5" />
                             </Button>
-                            <Input
-                                type="number"
-                                value={servo1MinAngle}
-                                onChange={handleServo1MinAngleChange}
-                                placeholder="Min"
-                                className="w-16 bg-transparent h-8 text-xs"
-                                min={0}
-                                max={servo1MaxAngle}
-                            />
-                            <Input
-                                type="number"
-                                value={servo1MaxAngle}
-                                onChange={handleServo1MaxAngleChange}
-                                placeholder="Max"
-                                className="w-16 bg-transparent h-8 text-xs"
-                                min={servo1MinAngle}
-                                max={180}
-                            />
                             <span className="text-sm font-medium text-gray-700">{servoAngle}°</span>
                         </div>
 
                         {/* Управление вторым сервоприводом */}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-center space-x-2">
                             <Button
                                 onClick={() => adjustServo('2', -180)}
                                 className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
@@ -864,62 +814,45 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                             >
                                 <ArrowRight className="h-5 w-5" />
                             </Button>
-                            <Input
-                                type="number"
-                                value={servo2MinAngle}
-                                onChange={handleServo2MinAngleChange}
-                                placeholder="Min"
-                                className="w-16 bg-transparent h-8 text-xs"
-                                min={0}
-                                max={servo2MaxAngle}
-                            />
-                            <Input
-                                type="number"
-                                value={servo2MaxAngle}
-                                onChange={handleServo2MaxAngleChange}
-                                placeholder="Max"
-                                className="w-16 bg-transparent h-8 text-xs"
-                                min={servo2MinAngle}
-                                max={180}
-                            />
                             <span className="text-sm font-medium text-gray-700">{servo2Angle}°</span>
                         </div>
-                    </div>
 
-                    <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-2 z-50">
-                        <Button
-                            onClick={() => {
-                                const newState = button1State ? "off" : "on";
-                                sendCommand("RLY", { pin: "D0", state: newState });
-                                setButton1State(newState === "on" ? 1 : 0);
-                            }}
-                            className={`${
-                                button1State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
-                            } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
-                        >
-                            <Power className="h-4 w-4" />
-                        </Button>
+                        {/* Кнопки реле и закрытия */}
+                        <div className="flex items-center justify-center space-x-2">
+                            <Button
+                                onClick={() => {
+                                    const newState = button1State ? 'off' : 'on';
+                                    sendCommand('RLY', { pin: 'D0', state: newState });
+                                    setButton1State(newState === 'on' ? 1 : 0);
+                                }}
+                                className={`${
+                                    button1State ? 'bg-green-600 hover:bg-green-700' : 'bg-transparent hover:bg-gray-700/30'
+                                } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
+                            >
+                                <Power className="h-4 w-4" />
+                            </Button>
 
-                        <Button
-                            onClick={() => {
-                                const newState = button2State ? "off" : "on";
-                                sendCommand("RLY", { pin: "3", state: newState });
-                                setButton2State(newState === "on" ? 1 : 0);
-                            }}
-                            className={`${
-                                button2State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
-                            } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
-                        >
-                            <Power className="h-4 w-4" />
-                        </Button>
+                            <Button
+                                onClick={() => {
+                                    const newState = button2State ? 'off' : 'on';
+                                    sendCommand('RLY', { pin: '3', state: newState });
+                                    setButton2State(newState === 'on' ? 1 : 0);
+                                }}
+                                className={`${
+                                    button2State ? 'bg-green-600 hover:bg-green-700' : 'bg-transparent hover:bg-gray-700/30'
+                                } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
+                            >
+                                <Power className="h-4 w-4" />
+                            </Button>
 
-                        <Button
-                            onClick={handleCloseControls}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
-                            style={{ minWidth: "6rem" }}
-                        >
-                            Close
-                        </Button>
+                            <Button
+                                onClick={handleCloseControls}
+                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
+                                style={{ minWidth: '6rem' }}
+                            >
+                                Close
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}
