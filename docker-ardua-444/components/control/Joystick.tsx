@@ -43,15 +43,22 @@ const Joystick = ({ mo, onChange, direction, sp, className }: JoystickProps) => 
         const rect = container.getBoundingClientRect()
         const containerHeight = rect.height
         const y = clientY - rect.top
-        const normalizedY = Math.max(0, Math.min(containerHeight, y))
 
-        const positionPercentage = (1 - (normalizedY / containerHeight)) * 100
-        setKnobPosition(positionPercentage)
+        // Ограничиваем движение ползунка в пределах 60% высоты (20% сверху, 80% снизу)
+        const trackHeight = containerHeight * 0.6 // 60% высоты контейнера
+        const trackTop = containerHeight * 0.2 // 20% сверху
+        const trackBottom = containerHeight * 0.8 // 80% снизу
+        const normalizedY = Math.max(trackTop, Math.min(trackBottom, y))
 
-        let value = ((containerHeight - normalizedY) / containerHeight) * 510 - 255
-        value = Math.max(-255, Math.min(255, value))
+        // Вычисляем процент позиции внутри 60%-й полосы
+        const positionPercentage = ((normalizedY - trackTop) / trackHeight) * 100
+        setKnobPosition(20 + (positionPercentage * 0.6)) // Масштабируем для отображения в 20%-80%
 
-        onChange(value)
+        // Вычисляем значение скорости от -255 до 255
+        const value = ((trackHeight - (normalizedY - trackTop)) / trackHeight) * 510 - 255
+        const clampedValue = Math.max(-255, Math.min(255, value))
+
+        onChange(clampedValue)
     }, [onChange])
 
     const handleStart = useCallback((clientY: number) => {
