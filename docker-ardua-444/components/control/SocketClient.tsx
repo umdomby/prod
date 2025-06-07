@@ -687,11 +687,11 @@ export default function SocketClient() {
                             }}
                             className={`${
                                 button1State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
-                            } backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm flex items-center`}
-                            style={{ minWidth: "6rem" }}
+                            } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
+                            // style={{ minWidth: "6rem" }}
                         >
-                            <Power className="h-4 w-4 mr-2" />
-                            Реле 1 (D0) {button1State ? "Вкл" : "Выкл"}
+                            <Power className="h-4 w-4" />
+                            {/*Реле 1 (D0) {button1State ? "Вкл" : "Выкл"}*/}
                         </Button>
 
                         {/* Кнопка для реле 2 (3) */}
@@ -703,11 +703,11 @@ export default function SocketClient() {
                             }}
                             className={`${
                                 button2State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
-                            } backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm flex items-center`}
-                            style={{ minWidth: "6rem" }}
+                            } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
+                            // style={{ minWidth: "6rem" }}
                         >
-                            <Power className="h-4 w-4 mr-2" />
-                            Реле 2 (3) {button2State ? "Вкл" : "Выкл"}
+                            <Power className="h-4 w-4" />
+                            {/*Реле 2 (3) {button2State ? "Вкл" : "Выкл"}*/}
                         </Button>
 
                         {/* Кнопка закрытия панели управления */}
