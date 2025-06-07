@@ -70,7 +70,7 @@
     transform: scaleX(-1);
 }
 
-.remoteVideoLabel{
+.remoteVideoLabel {
     position: absolute;
     left: 0;
     right: 0;
@@ -133,7 +133,6 @@
     transition: all 0.2s ease;
     padding: 0 12px;
 }
-
 
 .controlsOverlay {
     position: absolute;
@@ -213,7 +212,6 @@
 
 .connectionStatus {
     padding: 12px;
-    /*background-color: rgba(255, 255, 255, 0.1);*/
     border-radius: 6px;
     margin-bottom: 15px;
     font-weight: 500;
@@ -222,7 +220,6 @@
 .deviceSelection {
     color: #6a6a6a;
     margin-top: 20px;
-    /*background-color: rgba(255, 255, 255, 0.1);*/
     padding: 15px;
     border-radius: 8px;
 }
@@ -230,6 +227,61 @@
 .deviceSelection h3 {
     margin-top: 0;
     margin-bottom: 15px;
+}
+
+.tabContent.webrtcTab {
+    position: absolute;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 600px;
+    background-color: #1a1a1a;
+    color: #ffffff;
+    z-index: 15;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    padding: 20px;
+    animation: fadeInWebrtc 0.3s ease-out;
+}
+
+.tabContent.webrtcTab .controls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 100%;
+}
+
+.tabContent.webrtcTab .savedRooms,
+.tabContent.webrtcTab .userList {
+    margin-top: 20px;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.tabContent {
+    position: absolute;
+    top: 70px;
+    left: 0;
+    right: 0;
+    /*background-color: #1a1a1a;*/
+    color: #ffffff;
+    z-index: 15;
+    max-height: calc(100vh - 0px);
+    overflow-y: auto;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeInWebrtc {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @keyframes fadeIn {
@@ -256,16 +308,45 @@
     .videoControls {
         gap: 6px;
     }
+
+    .tabContent.webrtcTab {
+        max-width: 90%;
+        padding: 15px;
+    }
+
+    .tabContent.webrtcTab .controls {
+        gap: 15px;
+    }
+
+    .tabContent.webrtcTab .savedRooms,
+    .tabContent.webrtcTab .userList {
+        max-height: 100px;
+    }
+
+    .tabsContainer {
+        gap: 5px;
+    }
+
+    .tabButton {
+        padding: 1px 3px;
+        font-size: 8px;
+    }
+
+    .tabContent {
+        padding: 15px;
+    }
+
+    .logsPanel {
+        width: 200px;
+    }
 }
 
-/* Новые стили для вкладок */
 .tabsContainer {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
 }
 
-/* 3 */
 .tabButton {
     background-color: rgba(255, 255, 255, 0.15);
     color: white;
@@ -288,41 +369,28 @@
     background-color: rgba(0, 150, 255, 0.7);
 }
 
-.tabContent {
-    position: absolute;
-    top: 70px;
-    left: 0;
-    right: 0;
-    background-color: #1a1a1a; /* Сплошной тёмный фон для контраста */
-    color: #ffffff; /* Белый цвет текста для читаемости */
-    z-index: 15;
-    max-height: calc(100vh - 0px);
-    overflow-y: auto;
-    border-radius: 0 0 12px 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Тень для глубины */
-    animation: fadeIn 0.3s ease-out;
-}
-
 .videoControlsTab {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    padding: 20px; /* Отступы для лучшего вида */
+    padding: 20px;
+    background-color: #000; /* Черный фон */
+    width: 50%; /* Ширина 50% */
+    margin: 0 auto; /* Центрирование по горизонтали */
 }
 
 .controlButtons {
     display: flex;
-    flex-direction: row; /* Горизонтальное расположение */
-    flex-wrap: nowrap; /* Запрещаем перенос на следующую строку */
+    flex-direction: row;
+    flex-wrap: wrap; /* Перенос на новую строку */
     gap: 8px;
-    justify-content: center; /* Центрируем кнопки */
-    overflow-x: auto; /* Добавляем горизонтальную прокрутку, если кнопки не помещаются */
-    white-space: nowrap; /* Гарантируем, что кнопки остаются в одной строке */
+    justify-content: center; /* Центрирование элементов */
+    white-space: normal; /* Разрешаем перенос текста */
 }
 
 .controlButton {
-    background-color: #333333; /* Тёмный фон для неактивных кнопок */
-    color: #ffffff; /* Белый цвет для иконок/текста */
+    background-color: #333333;
+    color: #ffffff;
     border: none;
     border-radius: 20px;
     min-width: 40px;
@@ -337,20 +405,18 @@
 }
 
 .controlButton:hover {
-    background-color: #555555; /* Светлее при наведении */
+    background-color: #555555;
 }
 
 .controlButton.active {
-    background-color: #007bff; /* Яркий синий для активных кнопок */
+    background-color: #007bff;
     color: #ffffff;
 }
 
 .espTabContent {
-    background-color: rgba(0, 0, 0, 0.2) !important;
-    backdrop-filter: blur(5px) !important;
+    background-color: transparent !important; /* Полностью прозрачный фон */
+    backdrop-filter: none !important; /* Убираем размытие */
 }
-
-/* End 3 */
 
 .logsContent {
     font-family: monospace;
@@ -365,27 +431,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
-/* Адаптивные стили */
-@media (max-width: 768px) {
-    .tabsContainer {
-        gap: 5px;
-    }
-
-    .tabButton {
-        padding: 1px 3px;
-        font-size: 8px;
-    }
-
-    .tabContent {
-        padding: 15px;
-    }
-
-    .logsPanel {
-        width: 200px;
-    }
-}
-
 
 .statusIndicator {
     display: flex;
@@ -432,8 +477,7 @@
 }
 
 .statusIndicator {
-    /* существующие стили */
-    will-change: contents; /* Оптимизация для браузера */
+    will-change: contents;
 }
 
 .statusDot, .statusText {
@@ -479,7 +523,6 @@
     font-style: italic;
 }
 
-/* Стили для списка сохраненных комнат */
 .savedRooms {
     margin-top: 20px;
     background-color: rgba(255, 255, 255, 0.1);

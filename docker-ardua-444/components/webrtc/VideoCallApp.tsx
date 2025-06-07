@@ -528,7 +528,7 @@ export const VideoCallApp = () => {
             </div>
 
             {activeMainTab === 'webrtc' && (
-                <div className={styles.tabContent}>
+                <div className={`${styles.tabContent} ${styles.webrtcTab}`}>
                     {error && <div className={styles.error}>{error}</div>}
                     <div className={styles.controls}>
                         <div className={styles.connectionStatus}>
