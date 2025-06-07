@@ -793,7 +793,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     <div className="fixed left-1/2 transform -translate-x-1/2 flex flex-col space-y-4 z-50">
                         {/* Управление первым сервоприводом */}
                         <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-gray-700">Servo 1: {servoAngle}°</span>
                             <Button
                                 onClick={() => adjustServo('1', -180)}
                                 className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
@@ -836,11 +835,11 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                 min={servo1MinAngle}
                                 max={180}
                             />
+                            <span className="text-sm font-medium text-gray-700">{servoAngle}°</span>
                         </div>
 
                         {/* Управление вторым сервоприводом */}
                         <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-gray-700">Servo 2: {servo2Angle}°</span>
                             <Button
                                 onClick={() => adjustServo('2', -180)}
                                 className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
@@ -883,6 +882,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                 min={servo2MinAngle}
                                 max={180}
                             />
+                            <span className="text-sm font-medium text-gray-700">{servo2Angle}°</span>
                         </div>
                     </div>
 
