@@ -59,6 +59,7 @@ export const VideoCallApp = () => {
     const [roomToDelete, setRoomToDelete] = useState<string | null>(null)
     // Новое состояние для кодека
     const [selectedCodec, setSelectedCodec] = useState<'VP8' | 'H264'>('VP8')
+    const [isDeviceConnected, setIsDeviceConnected] = useState(false)
 
     const [isClient, setIsClient] = useState(false)
 
@@ -112,7 +113,7 @@ export const VideoCallApp = () => {
                     }
                 }
             } catch (e) {
-                console.error('Failed to load saved rooms', e)
+                console.error('Failed to load saved rooms', JSON.parse)
             }
         }
 
@@ -121,7 +122,7 @@ export const VideoCallApp = () => {
             setMuteLocalAudio(savedMuteLocal === 'true')
         }
 
-        const savedMuteRemote = localStorage.getItem('muteRemoteAudio')
+        const savedMuteRemote = localStorage.getItem('mutedRemoteAudio')
         if (savedMuteRemote !== null) {
             setMuteRemoteAudio(savedMuteRemote === 'true')
         }
@@ -139,16 +140,28 @@ export const VideoCallApp = () => {
         const savedAutoJoin = localStorage.getItem('autoJoin') === 'true'
         setAutoJoin(savedAutoJoin)
 
-        // Загрузка сохранённого кодека
         const savedCodec = localStorage.getItem('selectedCodec')
         if (savedCodec === 'VP8' || savedCodec === 'H264') {
             setSelectedCodec(savedCodec)
+        }
+
+        // Проверяем autoShowControls при загрузке
+        const savedAutoShowControls = localStorage.getItem('autoShowControls')
+        if (savedAutoShowControls === 'true') {
+            setActiveMainTab('esp')
         }
 
         loadSettings()
         loadSavedRooms()
         loadDevices()
     }, [])
+
+    useEffect(() => {
+        const savedAutoShowControls = localStorage.getItem('autoShowControls')
+        if (savedAutoShowControls === 'true' && isDeviceConnected) {
+            setActiveMainTab('esp')
+        }
+    }, [isDeviceConnected])
 
     const handleCodecChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const codec = e.target.value as 'VP8' | 'H264'
