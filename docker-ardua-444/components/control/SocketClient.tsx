@@ -61,8 +61,14 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const [button1State, setButton1State] = useState(0)
     const [button2State, setButton2State] = useState(0)
 
-    const [servoAngle, setServoAngle] = useState(90)
-    const [servo2Angle, setServo2Angle] = useState(90);
+    const [servoAngle, setServoAngle] = useState(() => {
+        const saved = localStorage.getItem('servoAngle');
+        return saved ? Number(saved) : 90;
+    });
+    const [servo2Angle, setServo2Angle] = useState(() => {
+        const saved = localStorage.getItem('servo2Angle');
+        return saved ? Number(saved) : 90;
+    });
     const [servo1MinAngle, setServo1MinAngle] = useState(0);
     const [servo1MaxAngle, setServo1MaxAngle] = useState(180);
     const [servo2MinAngle, setServo2MinAngle] = useState(0);
@@ -81,27 +87,34 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const motorBThrottleRef = useRef<NodeJS.Timeout | null>(null)
     const currentDeRef = useRef(inputDe)
 
+    // Сохранение servoAngle в localStorage при изменении
+    useEffect(() => {
+        localStorage.setItem('servoAngle', servoAngle.toString());
+    }, [servoAngle]);
+
+    // Сохранение servo2Angle в localStorage при изменении
+    useEffect(() => {
+        localStorage.setItem('servo2Angle', servo2Angle.toString());
+    }, [servo2Angle]);
+
+// Загрузка сохранённых настроек
     useEffect(() => {
         const savedPreventDeletion = localStorage.getItem('preventDeletion');
         if (savedPreventDeletion) {
             setPreventDeletion(savedPreventDeletion === 'true');
         }
-
         const savedAutoReconnect = localStorage.getItem('autoReconnect');
         if (savedAutoReconnect) {
             setAutoReconnect(savedAutoReconnect === 'true');
         }
-
         const savedAutoConnect = localStorage.getItem('autoConnect');
         if (savedAutoConnect) {
             setAutoConnect(savedAutoConnect === 'true');
         }
-
         const savedAutoShowControls = localStorage.getItem('autoShowControls');
         if (savedAutoShowControls) {
             setAutoShowControls(savedAutoShowControls === 'true');
         }
-
         const savedDevices = localStorage.getItem('espDeviceList');
         if (savedDevices) {
             const devices = JSON.parse(savedDevices);
@@ -114,7 +127,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 currentDeRef.current = initialDe;
             }
         }
-
         // Загрузка диапазонов сервоприводов
         const savedServo1MinAngle = localStorage.getItem('servo1MinAngle');
         if (savedServo1MinAngle) {
@@ -256,22 +268,22 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
 
         ws.onmessage = (event) => {
             try {
-                const data: MessageType = JSON.parse(event.data)
-                console.log("Received message:", data)
+                const data: MessageType = JSON.parse(event.data);
+                console.log("Received message:", data);
 
                 if (data.ty === "ack") {
                     if (data.co === "RLY" && data.pa) {
                         if (data.pa.pin === "D0") {
-                            setButton1State(data.pa.state === "on" ? 1 : 0)
-                            addLog(`Реле 1 (D0) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp')
+                            setButton1State(data.pa.state === "on" ? 1 : 0);
+                            addLog(`Реле 1 (D0) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
                         } else if (data.pa.pin === "3") {
-                            setButton2State(data.pa.state === "on" ? 1 : 0)
-                            addLog(`Реле 2 (3) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp')
+                            setButton2State(data.pa.state === "on" ? 1 : 0);
+                            addLog(`Реле 2 (3) ${data.pa.state === "on" ? "включено" : "выключено"}`, 'esp');
                         }
                     } else if (data.co === "SPD" && data.sp !== undefined) {
-                        addLog(`Speed set: ${data.sp} for motor ${data.mo || 'unknown'}`, 'esp')
+                        addLog(`Speed set: ${data.sp} for motor ${data.mo || 'unknown'}`, 'esp');
                     } else {
-                        addLog(`Command ${data.co} acknowledged`, 'esp')
+                        addLog(`Command ${data.co} acknowledged`, 'esp');
                     }
                 }
 
@@ -304,9 +316,11 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     }
                     if (data.sp1 !== undefined) {
                         setServoAngle(Number(data.sp1));
+                        addLog(`Servo 1 angle: ${data.sp1}°`, 'esp');
                     }
                     if (data.sp2 !== undefined) {
                         setServo2Angle(Number(data.sp2));
+                        addLog(`Servo 2 angle: ${data.sp2}°`, 'esp');
                     }
                 } else if (data.ty === "est") {
                     console.log(`Received ESP status: ${data.st}`);
@@ -316,13 +330,13 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         'error'
                     );
                 } else if (data.ty === "cst") {
-                    addLog(`Command ${data.co} delivered`, 'client')
+                    addLog(`Command ${data.co} delivered`, 'client');
                 }
             } catch (error) {
-                console.error("Error processing message:", error)
-                addLog(`Received message: ${event.data}`, 'error')
+                console.error("Error processing message:", error);
+                addLog(`Received message: ${event.data}`, 'error');
             }
-        }
+        };
 
         ws.onclose = (event) => {
             setIsConnected(false)
@@ -891,42 +905,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                 const newState = button2State ? "off" : "on";
                                 sendCommand("RLY", { pin: "3", state: newState });
                                 setButton2State(newState === "on" ? 1 : 0);
-                            }}
-                            className={`${
-                                button2State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
-                            } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
-                        >
-                            <Power className="h-4 w-4" />
-                        </Button>
-
-                        <Button
-                            onClick={handleCloseControls}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
-                            style={{ minWidth: "6rem" }}
-                        >
-                            Close
-                        </Button>
-                    </div>
-
-                    <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-2 z-50">
-                        <Button
-                            onClick={() => {
-                                const newState = button1State ? "off" : "on"
-                                sendCommand("RLY", { pin: "D0", state: newState })
-                                setButton1State(newState === "on" ? 1 : 0)
-                            }}
-                            className={`${
-                                button1State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
-                            } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
-                        >
-                            <Power className="h-4 w-4" />
-                        </Button>
-
-                        <Button
-                            onClick={() => {
-                                const newState = button2State ? "off" : "on"
-                                sendCommand("RLY", { pin: "3", state: newState })
-                                setButton2State(newState === "on" ? 1 : 0)
                             }}
                             className={`${
                                 button2State ? "bg-green-600 hover:bg-green-700" : "bg-transparent hover:bg-gray-700/30"
