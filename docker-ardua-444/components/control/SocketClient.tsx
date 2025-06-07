@@ -455,7 +455,7 @@ export default function SocketClient() {
     }
 
     return (
-        <div className="flex flex-col items-center min-h-screen p-4 bg-transparent mt-12">
+        <div className="flex flex-col items-center min-h-screen p-4 bg-transparent overflow-hidden">
             {activeTab === 'esp' && (
                 <div
                     className="w-full max-w-md space-y-2 bg-transparent rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
