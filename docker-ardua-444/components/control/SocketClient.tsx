@@ -647,7 +647,7 @@ export default function SocketClient() {
                         sp={motorBSpeed} // speed → sp
                     />
 
-                    <div className="fixed left-1/2 transform -translate-x-1/2 flex space-x-4 z-50">
+                    <div className="fixed bottom-14 left-1/2 transform -translate-x-1/2 flex space-x-4 z-50">
                         <Button
                             onClick={() => adjustServoAngle(-180)}
                             className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"

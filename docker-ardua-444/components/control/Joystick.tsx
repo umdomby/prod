@@ -32,8 +32,8 @@ const Joystick = ({ mo, onChange, direction, sp, className }: JoystickProps) => 
     }, [])
 
     const motorStyles = {
-        A: { border: '1px solid #ffffff', left: '10px' },
-        B: { border: '1px solid #ffffff', right: '10px' }
+        A: { border: '0px solid #ffffff', left: '10px' },
+        B: { border: '0px solid #ffffff', right: '10px' }
     }
 
     const updateValue = useCallback((clientY: number) => {
