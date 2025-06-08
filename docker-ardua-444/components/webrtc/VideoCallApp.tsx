@@ -86,7 +86,7 @@ export const VideoCallApp = () => {
         if (isInRoom && isCallActive && activeMainTab !== 'esp') {
             setActiveMainTab('esp');
         }
-    }, [isConnected, isInRoom, isCallActive, error, activeMainTab]);
+    }, [isConnected, isInRoom, isCallActive, error]);
 
     useEffect(() => {
         const loadSettings = () => {
@@ -454,9 +454,9 @@ export const VideoCallApp = () => {
 
     const toggleTab = (tab: 'webrtc' | 'esp' | 'controls') => {
         if (tab === 'controls') {
-            setShowControls(!showControls)
+            setShowControls(!showControls);
         } else {
-            setActiveMainTab(activeMainTab === tab ? null : tab)
+            setActiveMainTab(tab); // Всегда устанавливаем выбранную вкладку
         }
     }
 

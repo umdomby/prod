@@ -463,16 +463,12 @@ export const useWebRTC = (
             }
         }
 
-        // Очищаем ресурсы
         cleanup();
-
-        // Закрываем WebSocket
         if (ws.current) {
             ws.current.close();
             ws.current = null;
         }
 
-        // Сбрасываем состояния
         setUsers([]);
         setIsInRoom(false);
         setIsConnected(false);
