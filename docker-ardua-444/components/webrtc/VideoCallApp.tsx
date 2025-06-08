@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import SocketClient from '../control/SocketClient'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { getSavedRooms, saveRoom, deleteRoom, setDefaultRoom } from '@/app/actions'
+import { getSavedRooms, saveRoom, deleteRoom, setDefaultRoom, updateAutoConnect } from '@/app/actions'
 
 type VideoSettings = {
     rotation: number
@@ -22,6 +22,7 @@ type VideoSettings = {
 type SavedRoom = {
     id: string
     isDefault: boolean
+    autoConnect: boolean // Добавлено поле autoConnect
 }
 
 export const VideoCallApp = () => {
@@ -103,6 +104,7 @@ export const VideoCallApp = () => {
                 const defaultRoom = rooms.find(r => r.isDefault)
                 if (defaultRoom) {
                     setRoomId(formatRoomId(defaultRoom.id))
+                    setAutoJoin(defaultRoom.autoConnect) // Устанавливаем autoJoin для комнаты по умолчанию
                 }
             } catch (e) {
                 console.error('Failed to load saved rooms', e)
@@ -181,7 +183,7 @@ export const VideoCallApp = () => {
         if (!isRoomIdComplete) return
 
         try {
-            await saveRoom(roomId.replace(/-/g, ''))
+            await saveRoom(roomId.replace(/-/g, ''), autoJoin) // Передаём autoJoin как autoConnect
             const updatedRooms = await getSavedRooms()
             setSavedRooms(updatedRooms)
         } catch (err) {
@@ -205,6 +207,7 @@ export const VideoCallApp = () => {
 
             if (roomId.replace(/-/g, '') === roomToDelete) {
                 setRoomId('')
+                setAutoJoin(false) // Сбрасываем autoJoin при удалении текущей комнаты
             }
         } catch (err) {
             console.error('Ошибка удаления комнаты:', err)
@@ -216,7 +219,11 @@ export const VideoCallApp = () => {
     }
 
     const handleSelectRoom = (roomIdWithoutDashes: string) => {
-        setRoomId(formatRoomId(roomIdWithoutDashes))
+        const selectedRoom = savedRooms.find(r => r.id === roomIdWithoutDashes)
+        if (selectedRoom) {
+            setRoomId(formatRoomId(roomIdWithoutDashes))
+            setAutoJoin(selectedRoom.autoConnect) // Устанавливаем autoJoin на основе autoConnect
+        }
     }
 
     const handleSetDefaultRoom = async (roomIdWithoutDashes: string) => {
@@ -458,18 +465,21 @@ export const VideoCallApp = () => {
                 <div className={styles.tabsContainer}>
                     <button
                         onClick={() => toggleTab('webrtc')}
+                        onTouchEnd={() => toggleTab('webrtc')} // Для мобильных
                         className={[styles.tabButton, activeMainTab === 'webrtc' ? styles.activeTab : ''].join(' ')}
                     >
                         {activeMainTab === 'webrtc' ? '▲' : '▼'} <img src="/cam.svg" alt="Camera" />
                     </button>
                     <button
                         onClick={() => toggleTab('esp')}
+                        onTouchEnd={() => toggleTab('esp')}
                         className={[styles.tabButton, activeMainTab === 'esp' ? styles.activeTab : ''].join(' ')}
                     >
                         {activeMainTab === 'esp' ? '▲' : '▼'} <img src="/joy.svg" alt="Joystick" />
                     </button>
                     <button
                         onClick={() => toggleTab('controls')}
+                        onTouchEnd={() => toggleTab('controls')}
                         className={[styles.tabButton, showControls ? styles.activeTab : ''].join(' ')}
                     >
                         {showControls ? '▲' : '▼'} <img src="/img.svg" alt="Image" />
@@ -508,6 +518,9 @@ export const VideoCallApp = () => {
                                     disabled={!isRoomIdComplete}
                                     onCheckedChange={(checked) => {
                                         setAutoJoin(!!checked)
+                                        if (isRoomIdComplete) {
+                                            updateAutoConnect(roomId.replace(/-/g, ''), !!checked) // Обновляем autoConnect
+                                        }
                                         localStorage.setItem('autoJoin', checked ? 'true' : 'false')
                                     }}
                                     suppressHydrationWarning
@@ -575,20 +588,24 @@ export const VideoCallApp = () => {
                                         <li key={room.id} className={styles.savedRoomItem}>
                                             <span
                                                 onClick={() => handleSelectRoom(room.id)}
+                                                onTouchEnd={() => handleSelectRoom(room.id)} // Для мобильных
                                                 className={room.isDefault ? styles.defaultRoom : ''}
                                             >
                                                 {formatRoomId(room.id)}
                                                 {room.isDefault && ' (по умолчанию)'}
                                             </span>
-                                            <button
-                                                onClick={() => handleSetDefaultRoom(room.id)}
-                                                className={styles.defaultRoomButton}
-                                                disabled={room.isDefault}
-                                            >
-                                                Сделать по умолчанию
-                                            </button>
+                                            {!room.isDefault && ( // Скрываем кнопку для комнаты по умолчанию
+                                                <button
+                                                    onClick={() => handleSetDefaultRoom(room.id)}
+                                                    onTouchEnd={() => handleSetDefaultRoom(room.id)}
+                                                    className={styles.defaultRoomButton}
+                                                >
+                                                    Сделать по умолчанию
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => handleDeleteRoom(room.id)}
+                                                onTouchEnd={() => handleDeleteRoom(room.id)}
                                                 className={styles.deleteRoomButton}
                                             >
                                                 Удалить
@@ -652,6 +669,7 @@ export const VideoCallApp = () => {
                         <div className={styles.controlButtons}>
                             <button
                                 onClick={toggleCamera}
+                                onTouchEnd={toggleCamera}
                                 className={[styles.controlButton, useBackCamera ? styles.active : ''].join(' ')}
                                 title={useBackCamera ? 'Переключить на фронтальную камеру' : 'Переключить на заднюю камеру'}
                             >
@@ -659,6 +677,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={() => rotateVideo(0)}
+                                onTouchEnd={() => rotateVideo(0)}
                                 className={[styles.controlButton, videoSettings.rotation === 0 ? styles.active : ''].join(' ')}
                                 title="Обычная ориентация"
                             >
@@ -666,6 +685,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={() => rotateVideo(90)}
+                                onTouchEnd={() => rotateVideo(90)}
                                 className={[styles.controlButton, videoSettings.rotation === 90 ? styles.active : ''].join(' ')}
                                 title="Повернуть на 90°"
                             >
@@ -673,6 +693,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={() => rotateVideo(180)}
+                                onTouchEnd={() => rotateVideo(180)}
                                 className={[styles.controlButton, videoSettings.rotation === 180 ? styles.active : ''].join(' ')}
                                 title="Повернуть на 180°"
                             >
@@ -680,6 +701,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={() => rotateVideo(270)}
+                                onTouchEnd={() => rotateVideo(270)}
                                 className={[styles.controlButton, videoSettings.rotation === 270 ? styles.active : ''].join(' ')}
                                 title="Повернуть на 270°"
                             >
@@ -687,6 +709,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={flipVideoHorizontal}
+                                onTouchEnd={flipVideoHorizontal}
                                 className={[styles.controlButton, videoSettings.flipH ? styles.active : ''].join(' ')}
                                 title="Отразить по горизонтали"
                             >
@@ -694,6 +717,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={flipVideoVertical}
+                                onTouchEnd={flipVideoVertical}
                                 className={[styles.controlButton, videoSettings.flipV ? styles.active : ''].join(' ')}
                                 title="Отразить по вертикали"
                             >
@@ -701,6 +725,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={resetVideo}
+                                onTouchEnd={resetVideo}
                                 className={styles.controlButton}
                                 title="Сбросить настройки"
                             >
@@ -708,6 +733,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={toggleFullscreen}
+                                onTouchEnd={toggleFullscreen}
                                 className={styles.controlButton}
                                 title={isFullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
                             >
@@ -715,6 +741,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={toggleLocalVideo}
+                                onTouchEnd={toggleLocalVideo}
                                 className={[styles.controlButton, !showLocalVideo ? styles.active : ''].join(' ')}
                                 title={showLocalVideo ? 'Скрыть локальное видео' : 'Показать локальное видео'}
                             >
@@ -722,6 +749,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={toggleMuteLocalAudio}
+                                onTouchEnd={toggleMuteLocalAudio}
                                 className={[styles.controlButton, muteLocalAudio ? styles.active : ''].join(' ')}
                                 title={muteLocalAudio ? 'Включить микрофон' : 'Отключить микрофон'}
                             >
@@ -729,6 +757,7 @@ export const VideoCallApp = () => {
                             </button>
                             <button
                                 onClick={toggleMuteRemoteAudio}
+                                onTouchEnd={toggleMuteRemoteAudio}
                                 className={[styles.controlButton, muteRemoteAudio ? styles.active : ''].join(' ')}
                                 title={muteRemoteAudio ? 'Включить звук' : 'Отключить звук'}
                             >

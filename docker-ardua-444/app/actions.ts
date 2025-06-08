@@ -62,11 +62,8 @@ export async function registerUser(body: Prisma.UserCreateInput) {
   }
 }
 
-
-// Схема валидации для ID комнаты
 const roomIdSchema = z.string().length(16, 'ID комнаты должен содержать ровно 16 символов (без тире)');
 
-// Получение сохранённых комнат пользователя
 export async function getSavedRooms() {
   const session = await getUserSession();
   if (!session) {
@@ -81,11 +78,11 @@ export async function getSavedRooms() {
   return rooms.map((room) => ({
     id: room.roomId,
     isDefault: room.isDefault,
+    autoConnect: room.autoConnect, // Добавляем autoConnect
   }));
 }
 
-// Сохранение новой комнаты
-export async function saveRoom(roomId: string) {
+export async function saveRoom(roomId: string, autoConnect: boolean = false) {
   const session = await getUserSession();
   if (!session) {
     throw new Error('Пользователь не аутентифицирован');
@@ -98,7 +95,6 @@ export async function saveRoom(roomId: string) {
 
   const userId = parseInt(session.id);
 
-  // Проверяем, не существует ли уже такая комната
   const existingRoom = await prisma.savedRoom.findUnique({
     where: { roomId },
   });
@@ -107,24 +103,22 @@ export async function saveRoom(roomId: string) {
     throw new Error('Комната уже сохранена');
   }
 
-  // Проверяем, есть ли другие комнаты
   const roomCount = await prisma.savedRoom.count({
     where: { userId },
   });
 
-  // Создаём новую комнату
   await prisma.savedRoom.create({
     data: {
       roomId,
       userId,
-      isDefault: roomCount === 0, // Первая комната — по умолчанию
+      isDefault: roomCount === 0,
+      autoConnect, // Сохраняем значение autoConnect
     },
   });
 
-  revalidatePath('/'); // Обновляем кэш страницы
+  revalidatePath('/');
 }
 
-// Удаление комнаты
 export async function deleteRoom(roomId: string) {
   const session = await getUserSession();
   if (!session) {
@@ -138,12 +132,10 @@ export async function deleteRoom(roomId: string) {
 
   const userId = parseInt(session.id);
 
-  // Удаляем комнату
   const deletedRoom = await prisma.savedRoom.delete({
     where: { roomId, userId },
   });
 
-  // Если удалена комната по умолчанию, устанавливаем другую по умолчанию
   if (deletedRoom.isDefault) {
     const nextRoom = await prisma.savedRoom.findFirst({
       where: { userId },
@@ -158,10 +150,9 @@ export async function deleteRoom(roomId: string) {
     }
   }
 
-  revalidatePath('/'); // Обновляем кэш страницы
+  revalidatePath('/');
 }
 
-// Установка комнаты по умолчанию
 export async function setDefaultRoom(roomId: string) {
   const session = await getUserSession();
   if (!session) {
@@ -175,17 +166,36 @@ export async function setDefaultRoom(roomId: string) {
 
   const userId = parseInt(session.id);
 
-  // Сбрасываем isDefault для всех комнат пользователя
   await prisma.savedRoom.updateMany({
     where: { userId },
     data: { isDefault: false },
   });
 
-  // Устанавливаем isDefault для выбранной комнаты
   await prisma.savedRoom.update({
     where: { roomId, userId },
     data: { isDefault: true },
   });
 
-  revalidatePath('/'); // Обновляем кэш страницы
+  revalidatePath('/');
+}
+
+export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
+  const session = await getUserSession();
+  if (!session) {
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const parsedRoomId = roomIdSchema.safeParse(roomId);
+  if (!parsedRoomId.success) {
+    throw new Error(parsedRoomId.error.errors[0].message);
+  }
+
+  const userId = parseInt(session.id);
+
+  await prisma.savedRoom.update({
+    where: { roomId, userId },
+    data: { autoConnect },
+  });
+
+  revalidatePath('/');
 }

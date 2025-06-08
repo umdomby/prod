@@ -18,7 +18,7 @@ model User {
   role       UserRole    @default(USER)
   img        String?
   devices    Devices[]
-  savedRooms SavedRoom[] // Связь с новой моделью
+  savedRooms SavedRoom[]
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 }
@@ -47,13 +47,14 @@ model Settings {
 }
 
 model SavedRoom {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  roomId    String   @unique // ID комнаты без тире
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  roomId      String   @unique
+  isDefault   Boolean  @default(false)
+  autoConnect Boolean  @default(false) // Новое поле
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 enum DevicesEnum {
