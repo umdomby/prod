@@ -60,6 +60,8 @@ export const VideoCallApp = () => {
     const [isDeviceConnected, setIsDeviceConnected] = useState(false)
     const [isClient, setIsClient] = useState(false)
 
+    const webRTCRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     useEffect(() => {
         setIsClient(true)
     }, [])
@@ -76,17 +78,15 @@ export const VideoCallApp = () => {
         error,
         setError,
         ws,
-        activeCodec,
-    } = useWebRTC(selectedDevices, username, roomId.replace(/-/g, ''), selectedCodec)
+        activeCodec
+    } = useWebRTC(selectedDevices, username, roomId.replace(/-/g, ''), selectedCodec);
 
     useEffect(() => {
-        console.log('Состояния:', { isConnected, isInRoom, isCallActive, error })
-        // При успешном подключении (isInRoom && isCallActive) переключаемся на вкладку esp
+        console.log('Состояния:', { isConnected, isInRoom, isCallActive, error });
         if (isInRoom && isCallActive && activeMainTab !== 'esp') {
-             setActiveMainTab('esp')
-             //setShowControls(true) // Показываем панель управления
+            setActiveMainTab('esp');
         }
-    }, [isConnected, isInRoom, isCallActive, error])
+    }, [isConnected, isInRoom, isCallActive, error, activeMainTab]);
 
     useEffect(() => {
         const loadSettings = () => {
@@ -379,12 +379,16 @@ export const VideoCallApp = () => {
 
     // Новая функция для прерывания подключения
     const handleCancelJoin = () => {
-        console.log('Пользователь прервал попытку подключения')
-        setIsJoining(false)
-        setError(null)
-        leaveRoom() // Вызываем leaveRoom для очистки соединения
-        setActiveMainTab('webrtc') // Возвращаем вкладку webrtc
-    }
+        console.log('Пользователь прервал попытку подключения');
+        setIsJoining(false);
+        setError(null);
+        if (webRTCRetryTimeoutRef.current) {
+            clearTimeout(webRTCRetryTimeoutRef.current);
+            webRTCRetryTimeoutRef.current = null;
+        }
+        leaveRoom();
+        setActiveMainTab('webrtc');
+    };
 
     const toggleFullscreen = async () => {
         if (!videoContainerRef.current) return

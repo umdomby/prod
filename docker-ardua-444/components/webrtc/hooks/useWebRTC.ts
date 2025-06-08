@@ -61,6 +61,7 @@ export const useWebRTC = (
 
     const [roomInfo, setRoomInfo] = useState<any>({});
     const [stream, setStream] = useState<MediaStream | null>(null);
+    const webRTCRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 
 
@@ -385,7 +386,7 @@ export const useWebRTC = (
         console.log('Выполняется полная очистка ресурсов');
 
         // Очистка таймеров
-        [connectionTimeout, statsInterval, videoCheckTimeout].forEach(timer => {
+        [connectionTimeout, statsInterval, videoCheckTimeout, webRTCRetryTimeoutRef].forEach(timer => {
             if (timer.current) {
                 clearTimeout(timer.current);
                 timer.current = null;
@@ -1275,11 +1276,14 @@ export const useWebRTC = (
                             if (data.data === 'Room does not exist. Leader must join first.') {
                                 if (retryAttempts.current < MAX_RETRIES) {
                                     console.log('Комната не существует, повторная попытка через 5 секунд');
-                                    setTimeout(() => {
-                                        retryAttempts.current += 1;
-                                        setRetryCount(retryAttempts.current);
-                                        joinRoom(uniqueUsername).catch(console.error);
-                                    }, 5000); // Таймаут 5 секунд
+                                    if (retryAttempts.current < MAX_RETRIES) {
+                                        console.log('Планируем повторную попытку через 5 секунд');
+                                        webRTCRetryTimeoutRef.current = setTimeout(() => {
+                                            retryAttempts.current += 1;
+                                            setRetryCount(retryAttempts.current);
+                                            joinRoom(uniqueUsername).catch(console.error);
+                                        }, 5000);
+                                    }
                                     return; // Прерываем выполнение, чтобы не завершать промис
                                 } else {
                                     reject(new Error('Достигнуто максимальное количество попыток подключения'));
@@ -1342,11 +1346,11 @@ export const useWebRTC = (
 
             if (retryAttempts.current < MAX_RETRIES) {
                 console.log('Планируем повторную попытку через 5 секунд');
-                setTimeout(() => {
+                webRTCRetryTimeoutRef.current = setTimeout(() => {
                     retryAttempts.current += 1;
                     setRetryCount(retryAttempts.current);
                     joinRoom(uniqueUsername).catch(console.error);
-                }, 5000); // Фиксированный таймаут 5 секунд
+                }, 5000);
             } else {
                 console.error('Исчерпаны все попытки подключения');
                 setError('Не удалось подключиться после максимального количества попыток');
@@ -1375,7 +1379,7 @@ export const useWebRTC = (
         resetConnection,
         restartMediaDevices,
         setError,
-        ws: ws.current, // Возвращаем текущее соединение
-        activeCodec,
+        ws: ws.current,
+        activeCodec
     };
 };
