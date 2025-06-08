@@ -1,3 +1,4 @@
+// \\wsl.localhost\Ubuntu-24.04\home\pi\prod\docker-ardua-444\components\header.tsx
 'use client';
 
 import { cn } from '@/components/lib/utils';
@@ -37,13 +38,11 @@ export const Header: React.FC<Props> = ({ className }) => {
         setServo2MaxAngle,
     } = useServo();
 
-    // Локальное состояние для полей ввода
     const [servo1MinInput, setServo1MinInput] = useState<string>(servo1MinAngle.toString());
     const [servo1MaxInput, setServo1MaxInput] = useState<string>(servo1MaxAngle.toString());
     const [servo2MinInput, setServo2MinInput] = useState<string>(servo2MinAngle.toString());
     const [servo2MaxInput, setServo2MaxInput] = useState<string>(servo2MaxAngle.toString());
 
-    // Проверка валидности значений
     const isServo1MinValid = () => {
         const value = Number(servo1MinInput);
         return !isNaN(value) && value >= 0 && value <= Number(servo1MaxInput) && value <= 180;
@@ -64,7 +63,6 @@ export const Header: React.FC<Props> = ({ className }) => {
         return !isNaN(value) && value >= Number(servo2MinInput) && value <= 180;
     };
 
-    // Обработчики изменения
     const handleServo1MinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const input = e.target.value;
         setServo1MinInput(input);
