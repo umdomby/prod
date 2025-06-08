@@ -581,6 +581,11 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         setActiveTab(null)
     }
 
+    const handleCloseControls = () => {
+        setControlVisible(false)
+        setActiveTab('esp')
+    }
+
     return (
         <div className="flex flex-col items-center min-h-[calc(100vh-3rem)] p-4 bg-transparent overflow-hidden">
             {activeTab === 'esp' && (
@@ -896,6 +901,14 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                 ) : (
                                     <Eye className="h-4 w-4" />    // Иконка "глаз открыт" когда скрыто
                                 )}
+                            </Button>
+
+                            <Button
+                                onClick={handleCloseControls}
+                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-red-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
+                                // style={{ minWidth: '6rem' }}
+                            >
+                                <Power className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
