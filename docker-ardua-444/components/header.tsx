@@ -1,4 +1,3 @@
-// \\wsl.localhost\Ubuntu-24.04\home\pi\prod\docker-ardua-444\components\header.tsx
 'use client';
 
 import { cn } from '@/components/lib/utils';
@@ -18,7 +17,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from '@/components/ui/sheet';
-import { Menu } from 'lucide-react';
+import { Menu, X } from 'lucide-react'; // Добавляем иконку X для кнопки закрытия
 import { useServo } from '@/components/ServoContext';
 
 interface Props {
@@ -160,13 +159,15 @@ export const Header: React.FC<Props> = ({ className }) => {
 
                 <SheetContent side="right" className="w-[280px] sm:w-[300px] bg-background">
                     <SheetHeader className="text-right">
-                        <SheetTitle className="text-foreground">
-                            <Link href="/" className="flex items-center gap-3 p-4">
-                                <h1 className="text-2xl font-black">
-                                    Ardu<span className="text-primary">A</span>
-                                </h1>
-                            </Link>
-                        </SheetTitle>
+                        <div className="flex items-center justify-between">
+                            <SheetTitle className="text-foreground">
+                                <Link href="/" className="flex items-center gap-3 p-4">
+                                    <h1 className="text-2xl font-black">
+                                        Ardu<span className="text-primary">A</span>
+                                    </h1>
+                                </Link>
+                            </SheetTitle>
+                        </div>
                         <SheetDescription className="sr-only">Навигационное меню</SheetDescription>
                     </SheetHeader>
 
@@ -249,6 +250,16 @@ export const Header: React.FC<Props> = ({ className }) => {
                             </div>
                         </div>
                     </SheetFooter>
+
+                    <SheetClose asChild>
+                        <Button
+                            variant="ghost"
+                            className="mt-5 w-[60%] text-foreground bg-gray-800 hover:bg-gray-400 mx-auto block"
+                            aria-label="Закрыть меню"
+                        >
+                            Close
+                        </Button>
+                    </SheetClose>
                 </SheetContent>
             </Sheet>
         </div>
