@@ -141,7 +141,7 @@ export const VideoCallApp = () => {
         setActiveMainTab(savedAutoJoin ? 'esp' : 'webrtc');
 
         const savedAutoShowControls = localStorage.getItem('autoShowControls')
-        if (savedAutoShowControls === 'true') {
+        if (savedAutoShowControls === 'true' && savedAutoJoin ) {
             setActiveMainTab('esp')
         }
 
