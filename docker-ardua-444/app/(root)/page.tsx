@@ -1,48 +1,33 @@
 "use server"
 import { Container } from '@/components/container';
 import { getUserSession } from '@/components/lib/get-user-session';
-import { redirect } from 'next/navigation';
+import { prisma } from "@/prisma/prisma-client";
 import React, { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 import Loading from "@/app/(root)/loading";
-import {prisma} from "@/prisma/prisma-client";
-import SocketClient from "@/components/control/SocketClient";
-import WebRTC from  "@/components/webrtc";
-
+import WebRTC from "@/components/webrtc";
 
 export default async function Home() {
-    // const session = await getUserSession();
+    const session = await getUserSession();
 
-    // if (!session?.id) {
-    //     return (
-    //         <Container className="flex flex-col my-10">
-    //             <Suspense fallback={<Loading />}>
-    //                 123
-    //             </Suspense>
-    //         </Container>
-    //     );
-    // }
+    if (!session?.id) {
+        redirect('/register');
+    }
 
-    // const user = await prisma.user.findFirst({
-    //     where: {
-    //         id: Number(session.id)
-    //     }
-    // });
+    const user = await prisma.user.findFirst({
+        where: {
+            id: Number(session.id)
+        }
+    });
 
-    // if (!user) {
-    //     return (
-    //         <Container className="flex flex-col my-10">
-    //             <Suspense fallback={<Loading />}>
-    //                 123
-    //             </Suspense>
-    //         </Container>
-    //     );
-    // }
+    if (!user) {
+        redirect('/register');
+    }
 
     return (
         // <Container className="flex flex-col my-10">
             <Suspense fallback={<Loading />}>
-                {/*<SocketClient/>*/}
-                <WebRTC/>
+                <WebRTC />
             </Suspense>
         // </Container>
     );
