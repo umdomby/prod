@@ -12,6 +12,7 @@ import { Title } from './title';
 import { FormInput } from './form';
 import { Button } from '@/components/ui';
 import { updateUserInfo } from '@/app/actions';
+import Link from "next/link";
 
 interface Props {
   data: User;
@@ -76,6 +77,16 @@ export const ProfileForm: React.FC<Props> = ({ data }) => {
             type="button">
             Выйти
           </Button>
+          <Link href="/">
+            <Button
+                variant="secondary"
+                disabled={form.formState.isSubmitting}
+                className="text-base"
+                type="button"
+            >
+              HOME CONTROL ->
+            </Button>
+          </Link>
         </form>
       </FormProvider>
     </Container>

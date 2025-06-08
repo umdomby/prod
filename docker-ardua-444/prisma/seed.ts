@@ -1,4 +1,3 @@
-import { categories, products, productsItem, players } from './constants';
 import { prisma } from './prisma-client';
 import { hashSync } from 'bcrypt';
 

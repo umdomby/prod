@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: Weterr123
-      POSTGRES_MULTIPLE_DATABASES: heroes3,heroes4,heroes5,ardu
+      POSTGRES_MULTIPLE_DATABASES: heroes3,heroes4,heroes5,ardu,ardua
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./00-init-multiple-dbs.sh:/docker-entrypoint-initdb.d/00-init-multiple-dbs.sh

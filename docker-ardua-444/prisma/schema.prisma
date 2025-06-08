@@ -39,3 +39,8 @@ model Devices {
 enum DevicesEnum {
   ArduaESP8266
 }
+
+enum UserRole {
+  USER
+  ADMIN
+}
