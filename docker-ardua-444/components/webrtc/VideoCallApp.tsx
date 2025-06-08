@@ -465,7 +465,7 @@ export const VideoCallApp = () => {
                 <div className={styles.tabsContainer}>
                     <button
                         onClick={() => toggleTab('webrtc')}
-                        onTouchEnd={() => toggleTab('webrtc')} // Для мобильных
+                        onTouchEnd={() => toggleTab('webrtc')}
                         className={[styles.tabButton, activeMainTab === 'webrtc' ? styles.activeTab : ''].join(' ')}
                     >
                         {activeMainTab === 'webrtc' ? '▲' : '▼'} <img src="/cam.svg" alt="Camera" />
