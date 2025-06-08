@@ -22,7 +22,7 @@ type VideoSettings = {
 type SavedRoom = {
     id: string
     isDefault: boolean
-    autoConnect: boolean // Добавлено поле autoConnect
+    autoConnect: boolean
 }
 
 export const VideoCallApp = () => {
@@ -77,10 +77,15 @@ export const VideoCallApp = () => {
         setError,
         ws,
         activeCodec,
-    } = useWebRTC(selectedDevices, username, roomId.replace(/-/g, ''), selectedCodec);
+    } = useWebRTC(selectedDevices, username, roomId.replace(/-/g, ''), selectedCodec)
 
     useEffect(() => {
         console.log('Состояния:', { isConnected, isInRoom, isCallActive, error })
+        // При успешном подключении (isInRoom && isCallActive) переключаемся на вкладку esp
+        if (isInRoom && isCallActive && activeMainTab !== 'esp') {
+             setActiveMainTab('esp')
+             //setShowControls(true) // Показываем панель управления
+        }
     }, [isConnected, isInRoom, isCallActive, error])
 
     useEffect(() => {
@@ -104,7 +109,7 @@ export const VideoCallApp = () => {
                 const defaultRoom = rooms.find(r => r.isDefault)
                 if (defaultRoom) {
                     setRoomId(formatRoomId(defaultRoom.id))
-                    setAutoJoin(defaultRoom.autoConnect) // Устанавливаем autoJoin для комнаты по умолчанию
+                    setAutoJoin(defaultRoom.autoConnect)
                 }
             } catch (e) {
                 console.error('Failed to load saved rooms', e)
@@ -183,7 +188,7 @@ export const VideoCallApp = () => {
         if (!isRoomIdComplete) return
 
         try {
-            await saveRoom(roomId.replace(/-/g, ''), autoJoin) // Передаём autoJoin как autoConnect
+            await saveRoom(roomId.replace(/-/g, ''), autoJoin)
             const updatedRooms = await getSavedRooms()
             setSavedRooms(updatedRooms)
         } catch (err) {
@@ -192,7 +197,7 @@ export const VideoCallApp = () => {
         }
     }
 
-    const handleDeleteRoom = (roomIdWithoutDashes: string) => {
+    const handleDeleteRoom = async (roomIdWithoutDashes: string) => {
         setRoomToDelete(roomIdWithoutDashes)
         setShowDeleteDialog(true)
     }
@@ -207,7 +212,7 @@ export const VideoCallApp = () => {
 
             if (roomId.replace(/-/g, '') === roomToDelete) {
                 setRoomId('')
-                setAutoJoin(false) // Сбрасываем autoJoin при удалении текущей комнаты
+                setAutoJoin(false)
             }
         } catch (err) {
             console.error('Ошибка удаления комнаты:', err)
@@ -222,7 +227,7 @@ export const VideoCallApp = () => {
         const selectedRoom = savedRooms.find(r => r.id === roomIdWithoutDashes)
         if (selectedRoom) {
             setRoomId(formatRoomId(roomIdWithoutDashes))
-            setAutoJoin(selectedRoom.autoConnect) // Устанавливаем autoJoin на основе autoConnect
+            setAutoJoin(selectedRoom.autoConnect)
         }
     }
 
@@ -350,6 +355,7 @@ export const VideoCallApp = () => {
     const handleJoinRoom = async () => {
         if (!isRoomIdComplete) {
             console.warn('ID комнаты не полный, подключение невозможно')
+            setError('ID комнаты должен состоять из 16 символов')
             return
         }
 
@@ -359,13 +365,25 @@ export const VideoCallApp = () => {
             await handleSetDefaultRoom(roomId.replace(/-/g, ''))
             await joinRoom(username)
             console.log('Успешно подключено к комнате:', roomId)
+            // Переключаемся на вкладку esp при успешном подключении
+            setActiveMainTab('esp')
+            // setShowControls(true)
         } catch (error) {
             console.error('Ошибка подключения к комнате:', error)
-            setError('Ошибка подключения к комнате')
+            setError('Ошибка подключения к комнате: ' + (error instanceof Error ? error.message : String(error)))
         } finally {
             setIsJoining(false)
             console.log('Состояние isJoining сброшено')
         }
+    }
+
+    // Новая функция для прерывания подключения
+    const handleCancelJoin = () => {
+        console.log('Пользователь прервал попытку подключения')
+        setIsJoining(false)
+        setError(null)
+        leaveRoom() // Вызываем leaveRoom для очистки соединения
+        setActiveMainTab('webrtc') // Возвращаем вкладку webrtc
     }
 
     const toggleFullscreen = async () => {
@@ -519,7 +537,7 @@ export const VideoCallApp = () => {
                                     onCheckedChange={(checked) => {
                                         setAutoJoin(!!checked)
                                         if (isRoomIdComplete) {
-                                            updateAutoConnect(roomId.replace(/-/g, ''), !!checked) // Обновляем autoConnect
+                                            updateAutoConnect(roomId.replace(/-/g, ''), !!checked)
                                         }
                                         localStorage.setItem('autoJoin', checked ? 'true' : 'false')
                                     }}
@@ -535,7 +553,7 @@ export const VideoCallApp = () => {
                                 id="room"
                                 value={roomId}
                                 onChange={handleRoomIdChange}
-                                disabled={isInRoom}
+                                disabled={isInRoom || isJoining}
                                 placeholder="XXXX-XXXX-XXXX-XXXX"
                                 maxLength={19}
                             />
@@ -547,28 +565,38 @@ export const VideoCallApp = () => {
                                 id="username"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                disabled={isInRoom}
+                                disabled={isInRoom || isJoining}
                                 placeholder="Ваше имя"
                             />
                         </div>
 
-                        {!isInRoom ? (
-                            <Button
-                                onClick={handleJoinRoom}
-                                disabled={!hasPermission || isJoining || !isRoomIdComplete}
-                                className={styles.button}
-                            >
-                                {isJoining ? 'Подключение...' : 'Войти в комнату'}
-                            </Button>
-                        ) : (
-                            <Button
-                                onClick={leaveRoom}
-                                disabled={!isConnected || !isInRoom}
-                                className={styles.button}
-                            >
-                                Покинуть комнату
-                            </Button>
-                        )}
+                        <div className={styles.inputGroup}>
+                            {isInRoom ? (
+                                <Button
+                                    onClick={leaveRoom}
+                                    disabled={!isConnected}
+                                    className={styles.button}
+                                >
+                                    Покинуть комнату
+                                </Button>
+                            ) : isJoining ? (
+                                <Button
+                                    onClick={handleCancelJoin}
+                                    className={styles.button}
+                                    variant="destructive"
+                                >
+                                    Отменить подключение
+                                </Button>
+                            ) : (
+                                <Button
+                                    onClick={handleJoinRoom}
+                                    disabled={!hasPermission || !isRoomIdComplete}
+                                    className={styles.button}
+                                >
+                                    Войти в комнату
+                                </Button>
+                            )}
+                        </div>
 
                         <div className={styles.inputGroup}>
                             <Button
@@ -588,13 +616,13 @@ export const VideoCallApp = () => {
                                         <li key={room.id} className={styles.savedRoomItem}>
                                             <span
                                                 onClick={() => handleSelectRoom(room.id)}
-                                                onTouchEnd={() => handleSelectRoom(room.id)} // Для мобильных
+                                                onTouchEnd={() => handleSelectRoom(room.id)}
                                                 className={room.isDefault ? styles.defaultRoom : ''}
                                             >
                                                 {formatRoomId(room.id)}
                                                 {room.isDefault && ' (по умолчанию)'}
                                             </span>
-                                            {!room.isDefault && ( // Скрываем кнопку для комнаты по умолчанию
+                                            {!room.isDefault && (
                                                 <button
                                                     onClick={() => handleSetDefaultRoom(room.id)}
                                                     onTouchEnd={() => handleSetDefaultRoom(room.id)}
@@ -632,7 +660,7 @@ export const VideoCallApp = () => {
                         )}
 
                         <div className={styles.userList}>
-                            <h3>Участники ({users.length}):</h3>
+                            <h3>У участники ({users.length}):</h3>
                             <ul>
                                 {users.map((user, index) => (
                                     <li key={index}>{user}</li>
