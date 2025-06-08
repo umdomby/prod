@@ -136,14 +136,15 @@ export const VideoCallApp = () => {
             setUseBackCamera(savedCameraPref === 'true')
         }
 
-        const savedAutoJoin = localStorage.getItem('autoJoin') === 'true';
-        setAutoJoin(savedAutoJoin);
+        const savedAutoJoin = localStorage.getItem('autoJoin') === 'true'
+        setAutoJoin(savedAutoJoin)
         setActiveMainTab(savedAutoJoin ? 'esp' : 'webrtc');
 
         const savedAutoShowControls = localStorage.getItem('autoShowControls')
-        if (savedAutoShowControls === 'true' && savedAutoJoin ) {
+        if (savedAutoShowControls === 'true') {
             setActiveMainTab('esp')
         }
+
 
         const savedCodec = localStorage.getItem('selectedCodec')
         if (savedCodec === 'VP8' || savedCodec === 'H264') {
