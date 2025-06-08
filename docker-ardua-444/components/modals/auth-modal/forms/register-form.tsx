@@ -26,6 +26,7 @@ export const RegisterForm: React.FC<Props> = ({ onClose, onClickLogin }) => {
   });
 
   const onSubmit = async (data: TFormRegisterValues) => {
+    console.log('Form data:', data); // Логирование входных данных
     try {
       await registerUser({
         email: data.email,
@@ -39,6 +40,7 @@ export const RegisterForm: React.FC<Props> = ({ onClose, onClickLogin }) => {
 
       onClose?.();
     } catch (error) {
+      console.error('Registration error:', error);
       return toast.error('Неверный E-Mail или пароль, может пользователь уже существует', {
         icon: '❌',
       });

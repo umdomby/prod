@@ -36,24 +36,28 @@ export async function updateUserInfo(body: Prisma.UserUpdateInput) {
   }
 }
 export async function registerUser(body: Prisma.UserCreateInput) {
+  console.log('Input data:', body);
   try {
     const user = await prisma.user.findFirst({
       where: {
         email: body.email,
       },
     });
+    console.log('Existing user:', user);
     if (user) {
       throw new Error('Пользователь уже существует');
     }
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         fullName: body.fullName,
         email: body.email,
         password: hashSync(body.password, 10),
       },
     });
+    console.log('Created user:', newUser);
+    return { message: 'User created successfully', user: newUser };
   } catch (err) {
-    console.log('Error [CREATE_USER]', err);
+    console.error('Error [CREATE_USER]', err);
     throw err;
   }
 }

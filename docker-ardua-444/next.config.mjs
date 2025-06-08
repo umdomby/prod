@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    reactStrictMode: false,
+    reactStrictMode: true, // Включите для отладки
     images: {
         remotePatterns: [
             {
@@ -11,12 +11,12 @@ const nextConfig = {
         ]
     },
     // Конфигурация для standalone-режима
-    //output: 'standalone',
+    output: 'standalone',
     experimental: {
         serverActions: {
             bodySizeLimit: '5mb',
             serverActions: true,
-            allowedOrigins: ['localhost:3000/', 'localhost:3001/','https://ardua.site/', 'ardua.site' ],
+            allowedOrigins: ['localhost:3000/', 'localhost:3001/','https://ardua.site/', 'ardua.site', 'https://ardua.site:444/' ],
         },
     },
     eslint: {

@@ -16,12 +16,12 @@ export const ProfileButton: React.FC<Props> = ({ className, onClickSignIn }) => 
     return (
         <div className={className}>
             {!session ? (
-                <SheetClose asChild>
+                // <SheetClose asChild>
                     <Button onClick={onClickSignIn} variant="outline" className="flex items-center gap-1">
                         <User size={16} />
                         Войти
                     </Button>
-                </SheetClose>
+                // </SheetClose>
             ) : (
                 <SheetClose asChild>
                     <Link href="/profile">
