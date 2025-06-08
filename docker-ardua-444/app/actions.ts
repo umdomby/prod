@@ -5,7 +5,6 @@ import {Prisma} from '@prisma/client';
 import {hashSync} from 'bcrypt';
 import * as z from 'zod'
 import { revalidatePath } from 'next/cache';
-import { BetParticipant, PlayerChoice } from '@prisma/client'
 
 
 export async function updateUserInfo(body: Prisma.UserUpdateInput) {

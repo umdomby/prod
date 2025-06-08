@@ -11,8 +11,7 @@ import { Container } from './container';
 import { Title } from './title';
 import { FormInput } from './form';
 import { Button } from '@/components/ui';
-import { updateUserInfo } from '@/app/actions';
-import Link from "next/link";
+import {updateUserInfo} from "@/app/actions";
 
 interface Props {
   data: User;
@@ -54,41 +53,45 @@ export const ProfileForm: React.FC<Props> = ({ data }) => {
   };
 
   return (
-    <Container className="my-10">
-      <Title text={`Личные данные | #${data.id}`} size="md" className="font-bold" />
+      <Container className="my-6">
+        <Title text={`Личные данные | #${data.id}`} size="md" className="font-bold" />
 
-      <FormProvider {...form}>
-        <form className="flex flex-col gap-5 w-96 mt-10" onSubmit={form.handleSubmit(onSubmit)}>
-          <FormInput name="email" label="E-Mail" required />
-          <FormInput name="fullName" label="Полное имя" required />
+        <FormProvider {...form}>
+          <form className="flex flex-col gap-3 w-full max-w-sm mx-auto mt-6" onSubmit={form.handleSubmit(onSubmit)}>
+            <FormInput name="email" label="E-Mail" required />
+            <FormInput name="fullName" label="Полное имя" required />
+            <FormInput type="password" name="password" label="Новый пароль" required />
+            <FormInput type="password" name="confirmPassword" label="Повторите пароль" required />
 
-          <FormInput type="password" name="password" label="Новый пароль" required />
-          <FormInput type="password" name="confirmPassword" label="Повторите пароль" required />
-
-          <Button disabled={form.formState.isSubmitting} className="text-base mt-10" type="submit">
-            Сохранить
-          </Button>
-
-          <Button
-            onClick={onClickSignOut}
-            variant="secondary"
-            disabled={form.formState.isSubmitting}
-            className="text-base"
-            type="button">
-            Выйти
-          </Button>
-          <Link href="/">
-            <Button
-                variant="secondary"
-                disabled={form.formState.isSubmitting}
-                className="text-base"
-                type="button"
-            >
-              HOME CONTROL ->
-            </Button>
-          </Link>
-        </form>
-      </FormProvider>
-    </Container>
+            <div className="flex flex-col gap-2">
+              <Button
+                  disabled={form.formState.isSubmitting}
+                  className="text-base w-full"
+                  type="submit"
+              >
+                Сохранить
+              </Button>
+              <Button
+                  onClick={onClickSignOut}
+                  variant="secondary"
+                  disabled={form.formState.isSubmitting}
+                  className="text-base w-full"
+                  type="button"
+              >
+                Выйти
+              </Button>
+              <Button
+                  onClick={() => window.location.href = '/'}
+                  variant="secondary"
+                  disabled={form.formState.isSubmitting}
+                  className="text-base w-full"
+                  type="button"
+              >
+                HOME
+              </Button>
+            </div>
+          </form>
+        </FormProvider>
+      </Container>
   );
 };
