@@ -452,10 +452,12 @@ export const VideoCallApp = () => {
     const toggleTab = (tab: 'webrtc' | 'esp' | 'controls') => {
         if (tab === 'controls') {
             setShowControls(!showControls);
+            setActiveMainTab(null); // Сбрасываем активную вкладку для controls
         } else {
-            setActiveMainTab(tab); // Всегда устанавливаем выбранную вкладку
+            setActiveMainTab(activeMainTab === tab ? null : tab); // Переключаем или скрываем вкладку
+            setShowControls(false); // Скрываем джойстики при выборе webrtc или esp
         }
-    }
+    };
 
     return (
         <div className={styles.container} suppressHydrationWarning>
