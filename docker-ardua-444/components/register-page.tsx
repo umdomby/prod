@@ -16,7 +16,7 @@ export const RegisterPage: React.FC = () => {
 
     return (
         <Container className="flex flex-col my-10 items-center justify-center min-h-screen">
-            <div className="w-[450px] bg-secondary p-10 rounded-lg shadow-lg">
+            <div className="w-[350px] bg-secondary p-10 rounded-lg shadow-lg">
                 <div className="mb-6">
                     <h2 className="text-2xl font-bold">Профиль</h2>
                     <p className="text-sm text-muted-foreground">

@@ -1,5 +1,3 @@
-// npx prisma migrate dev --name init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,29 +9,51 @@ datasource db {
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   fullName   String
-  email      String    @unique
+  email      String      @unique
   provider   String?
   providerId String?
   password   String
-  role       UserRole  @default(USER)
+  role       UserRole    @default(USER)
   img        String?
   devices    Devices[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  savedRooms SavedRoom[] // Связь с новой моделью
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 }
 
 model Devices {
-  id             Int         @id @default(autoincrement())
-  userId         Int
-  nameDivice     String
-  user           User        @relation(fields: [userId], references: [id])
-  devicesEnum    DevicesEnum @default(ArduaESP8266)
-  keypassVideo   String
-  keypassControl String
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id                Int         @id @default(autoincrement())
+  userId            Int
+  user              User        @relation(fields: [userId], references: [id])
+  diviceName        String?
+  devicesEnum       DevicesEnum @default(ArduaESP8266)
+  idRoom            String?
+  idDevice          String?
+  idDeviceNotChange String?
+  settings          Settings[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+model Settings {
+  id        Int     @id @default(autoincrement())
+  devicesId Int
+  devices   Devices @relation(fields: [devicesId], references: [id])
+  servo1    Int
+  servo2    Int
+  camera    Json
+}
+
+model SavedRoom {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  roomId    String   @unique // ID комнаты без тире
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum DevicesEnum {
