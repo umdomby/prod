@@ -39,8 +39,9 @@ export const VideoCallApp = () => {
     const [devicesLoaded, setDevicesLoaded] = useState(false)
     const [isJoining, setIsJoining] = useState(false)
     const [autoJoin, setAutoJoin] = useState(false)
-    const [activeMainTab, setActiveMainTab] = useState<'webrtc' | 'esp' | null>(null)
+    const [activeMainTab, setActiveMainTab] = useState<'webrtc' | 'esp' | 'cam' | 'control' | null>(null)
     const [showControls, setShowControls] = useState(false)
+    const [showCam, setShowCam] = useState(false)
     const [videoSettings, setVideoSettings] = useState<VideoSettings>({
         rotation: 0,
         flipH: false,
@@ -449,8 +450,12 @@ export const VideoCallApp = () => {
         updateVideoSettings({ rotation: 0, flipH: false, flipV: false })
     }
 
-    const toggleTab = (tab: 'webrtc' | 'esp' | 'controls') => {
-        if (tab === 'controls') {
+    const toggleTab = (tab: 'webrtc' | 'esp' | 'cam' | 'controls') => {
+        if (tab === 'cam') {
+            setShowCam(!showCam);
+            setActiveMainTab(null); // Сбрасываем активную вкладку для controls
+        }
+        else if (tab === 'controls') {
             setShowControls(!showControls);
             setActiveMainTab(null); // Сбрасываем активную вкладку для controls
         } else {
@@ -499,11 +504,19 @@ export const VideoCallApp = () => {
                         {activeMainTab === 'esp' ? '▲' : '▼'} <img src="/joy.svg" alt="Joystick" />
                     </button>
                     <button
+                        onClick={() => toggleTab('cam')}
+                        onTouchEnd={() => toggleTab('cam')}
+                        className={[styles.tabButton, showCam ? styles.activeTab : ''].join(' ')}
+                    >
+                        {showCam ? '▲' : '▼'} <img src="/img.svg" alt="Image" />
+                    </button>
+
+                    <button
                         onClick={() => toggleTab('controls')}
                         onTouchEnd={() => toggleTab('controls')}
                         className={[styles.tabButton, showControls ? styles.activeTab : ''].join(' ')}
                     >
-                        {showControls ? '▲' : '▼'} <img src="/img.svg" alt="Image" />
+                        {showControls ? '▲' : '▼'} <img src="/connect.svg" alt="Image" />
                     </button>
                 </div>
             </div>
@@ -694,7 +707,7 @@ export const VideoCallApp = () => {
                 </div>
             )}
 
-            {showControls && (
+            {showCam && (
                 <div className={styles.tabContent}>
                     <div className={styles.videoControlsTab}>
                         <div className={styles.controlButtons}>
