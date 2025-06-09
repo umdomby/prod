@@ -182,72 +182,72 @@ export const Header: React.FC<Props> = ({ className }) => {
                                 </div>
                             </div>
 
-                            <div className="flex flex-col space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-foreground">Servo 1 Min:</span>
-                                    <Input
-                                        type="number"
-                                        value={servo1MinInput}
-                                        onChange={handleServo1MinChange}
-                                        onBlur={handleServo1MinBlur}
-                                        placeholder="Min"
-                                        className={cn(
-                                            'w-16 bg-transparent h-8 text-xs',
-                                            !isServo1MinValid() && servo1MinInput !== '' && 'border-red-500 focus:ring-red-500'
-                                        )}
-                                        min={0}
-                                        max={180}
-                                        step="1"
-                                    />
-                                    <span className="text-sm font-medium text-foreground">Max:</span>
-                                    <Input
-                                        type="number"
-                                        value={servo1MaxInput}
-                                        onChange={handleServo1MaxChange}
-                                        onBlur={handleServo1MaxBlur}
-                                        placeholder="Max"
-                                        className={cn(
-                                            'w-16 bg-transparent h-8 text-xs',
-                                            !isServo1MaxValid() && servo1MaxInput !== '' && 'border-red-500 focus:ring-red-500'
-                                        )}
-                                        min={0}
-                                        max={180}
-                                        step="1"
-                                    />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-foreground">Servo 2 Min:</span>
-                                    <Input
-                                        type="number"
-                                        value={servo2MinInput}
-                                        onChange={handleServo2MinChange}
-                                        onBlur={handleServo2MinBlur}
-                                        placeholder="Min"
-                                        className={cn(
-                                            'w-16 bg-transparent h-8 text-xs',
-                                            !isServo2MinValid() && servo2MinInput !== '' && 'border-red-500 focus:ring-red-500'
-                                        )}
-                                        min={0}
-                                        max={180}
-                                        step="1"
-                                    />
-                                    <span className="text-sm font-medium text-foreground">Max:</span>
-                                    <Input
-                                        type="number"
-                                        value={servo2MaxInput}
-                                        onChange={handleServo2MaxChange}
-                                        onBlur={handleServo2MaxBlur}
-                                        placeholder="Max"
-                                        className={cn(
-                                            'w-16 bg-transparent h-8 text-xs',
-                                            !isServo2MaxValid() && servo2MaxInput !== '' && 'border-red-500 focus:ring-red-500'
-                                        )}
-                                        min={0}
-                                        max={180}
-                                        step="1"
-                                    />
-                                </div>
-                            </div>
+                            {/*<div className="flex flex-col space-y-2">*/}
+                            {/*    <div className="flex items-center gap-2">*/}
+                            {/*        <span className="text-sm font-medium text-foreground">Servo 1 Min:</span>*/}
+                            {/*        <Input*/}
+                            {/*            type="number"*/}
+                            {/*            value={servo1MinInput}*/}
+                            {/*            onChange={handleServo1MinChange}*/}
+                            {/*            onBlur={handleServo1MinBlur}*/}
+                            {/*            placeholder="Min"*/}
+                            {/*            className={cn(*/}
+                            {/*                'w-16 bg-transparent h-8 text-xs',*/}
+                            {/*                !isServo1MinValid() && servo1MinInput !== '' && 'border-red-500 focus:ring-red-500'*/}
+                            {/*            )}*/}
+                            {/*            min={0}*/}
+                            {/*            max={180}*/}
+                            {/*            step="1"*/}
+                            {/*        />*/}
+                            {/*        <span className="text-sm font-medium text-foreground">Max:</span>*/}
+                            {/*        <Input*/}
+                            {/*            type="number"*/}
+                            {/*            value={servo1MaxInput}*/}
+                            {/*            onChange={handleServo1MaxChange}*/}
+                            {/*            onBlur={handleServo1MaxBlur}*/}
+                            {/*            placeholder="Max"*/}
+                            {/*            className={cn(*/}
+                            {/*                'w-16 bg-transparent h-8 text-xs',*/}
+                            {/*                !isServo1MaxValid() && servo1MaxInput !== '' && 'border-red-500 focus:ring-red-500'*/}
+                            {/*            )}*/}
+                            {/*            min={0}*/}
+                            {/*            max={180}*/}
+                            {/*            step="1"*/}
+                            {/*        />*/}
+                            {/*    </div>*/}
+                            {/*    <div className="flex items-center gap-2">*/}
+                            {/*        <span className="text-sm font-medium text-foreground">Servo 2 Min:</span>*/}
+                            {/*        <Input*/}
+                            {/*            type="number"*/}
+                            {/*            value={servo2MinInput}*/}
+                            {/*            onChange={handleServo2MinChange}*/}
+                            {/*            onBlur={handleServo2MinBlur}*/}
+                            {/*            placeholder="Min"*/}
+                            {/*            className={cn(*/}
+                            {/*                'w-16 bg-transparent h-8 text-xs',*/}
+                            {/*                !isServo2MinValid() && servo2MinInput !== '' && 'border-red-500 focus:ring-red-500'*/}
+                            {/*            )}*/}
+                            {/*            min={0}*/}
+                            {/*            max={180}*/}
+                            {/*            step="1"*/}
+                            {/*        />*/}
+                            {/*        <span className="text-sm font-medium text-foreground">Max:</span>*/}
+                            {/*        <Input*/}
+                            {/*            type="number"*/}
+                            {/*            value={servo2MaxInput}*/}
+                            {/*            onChange={handleServo2MaxChange}*/}
+                            {/*            onBlur={handleServo2MaxBlur}*/}
+                            {/*            placeholder="Max"*/}
+                            {/*            className={cn(*/}
+                            {/*                'w-16 bg-transparent h-8 text-xs',*/}
+                            {/*                !isServo2MaxValid() && servo2MaxInput !== '' && 'border-red-500 focus:ring-red-500'*/}
+                            {/*            )}*/}
+                            {/*            min={0}*/}
+                            {/*            max={180}*/}
+                            {/*            step="1"*/}
+                            {/*        />*/}
+                            {/*    </div>*/}
+                            {/*</div>*/}
                         </div>
                     </SheetFooter>
 

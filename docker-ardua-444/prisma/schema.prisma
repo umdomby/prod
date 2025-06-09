@@ -30,10 +30,10 @@ model Devices {
   diviceName    String?
   devicesEnum   DevicesEnum @default(ArduaESP8266)
   idDeviceAr    String?
-  idDevice      String      @unique // id устройство 16 символов без тире большие буквы английские и цифры
-  autoReconnect Boolean // Автоматическое переподключение при смене устройства
-  autoConnect   Boolean // Автоматическое подключение при загрузке страницы
-  closedDel     Boolean // Запретить удаление устройств
+  idDevice      String      @unique
+  autoReconnect Boolean
+  autoConnect   Boolean
+  closedDel     Boolean
   settings      Settings[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -47,7 +47,9 @@ model Settings {
   servo1MaxAngle Int?
   servo2MinAngle Int?
   servo2MaxAngle Int?
-  camera         Json
+  b1             Boolean
+  b2             Boolean
+  servoView      Boolean
 }
 
 model SavedRoom {
