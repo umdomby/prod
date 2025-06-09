@@ -859,10 +859,9 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
                             onClick={() => {
                                 const newState = button1State ? 'off' : 'on';
                                 sendCommand('RLY', {pin: 'D0', state: newState});
-                                setButton1State(newState === 'on' ? 1 : 0);
+                                // Удаляем setButton1State
                             }}
                             className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all flex items-center"
-
                         >
                             {button1State ? (
                                 <img width={'25px'} height={'25px'} src="/off.svg" alt="Image" />
@@ -875,7 +874,7 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
                             onClick={() => {
                                 const newState = button2State ? 'off' : 'on';
                                 sendCommand('RLY', {pin: '3', state: newState});
-                                setButton2State(newState === 'on' ? 1 : 0);
+                                // Удаляем setButton2State
                             }}
                             className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all flex items-center"
                         >
