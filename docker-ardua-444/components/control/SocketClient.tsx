@@ -329,11 +329,11 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
 
     const toggleServosVisibility = useCallback(async () => {
         try {
+            // Локально обновляем состояние сразу
+            setShowServos(prev => !prev);
             const newState = !showServos;
-            await updateServoSettings(inputDe, { servoView: newState });
-            setShowServos(newState);
-            addLog(`Видимость сервоприводов изменена: ${newState ? 'включена' : 'выключена'}`, 'success');
-            // Отправляем команду на устройство
+
+            // Отправляем команду на сервер
             if (socketRef.current?.readyState === WebSocket.OPEN) {
                 socketRef.current.send(
                     JSON.stringify({
@@ -345,7 +345,13 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     })
                 );
             }
+
+            // Сохраняем в базу данных
+            await updateServoSettings(inputDe, { servoView: newState });
+            addLog(`Видимость сервоприводов изменена: ${newState ? 'включена' : 'выключена'}`, 'success');
         } catch (error) {
+            // В случае ошибки откатываем локальное изменение
+            setShowServos(prev => !prev);
             console.error('Ошибка сохранения servoView:', error);
             addLog(`Ошибка сохранения servoView: ${error.message}`, 'error');
         }
