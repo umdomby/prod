@@ -75,7 +75,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const [isLandscape, setIsLandscape] = useState(false)
     const [button1State, setButton1State] = useState(0)
     const [button2State, setButton2State] = useState(0)
-    const [activeTab, setActiveTab] = useState<'webrtc' | 'esp' | 'controls' | null>('esp');
+    const [activeTab, setActiveTab] = useState<'esp' | 'controls' | null>('esp');
 
     const lastHeartbeatLogTime = useRef<number>(0);
     const reconnectAttemptRef = useRef(0)
@@ -568,17 +568,16 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     }, [isConnected, isIdentified, sendCommand])
 
     const handleOpenControls = () => {
-        setControlVisible(true)
         setActiveTab(null)
     }
 
     const handleCloseControls = () => {
-        setActiveTab('esp')
+        setActiveTab('controls')
     }
 
     return (
         <div className="flex flex-col items-center min-h-[calc(100vh-3rem)] p-4 bg-transparent overflow-hidden">
-            {activeTab === 'esp' && (
+            {activeTab === 'controls' && (
                 <div
                     className="w-full max-w-md space-y-2 bg-transparent rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
                     style={{ maxHeight: '90vh', overflowY: 'auto' }}
@@ -703,17 +702,17 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                 Auto connect on page load
                             </Label>
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="auto-show-controls"
-                                checked={autoShowControls}
-                                onCheckedChange={toggleAutoShowControls}
-                                className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoShowControls ? 'bg-green-500' : 'bg-white'}`}
-                            />
-                            <Label htmlFor="auto-show-controls" className="text-xs sm:text-sm font-medium text-gray-700">
-                                Auto show controls on load
-                            </Label>
-                        </div>
+                        {/*<div className="flex items-center space-x-2">*/}
+                        {/*    <Checkbox*/}
+                        {/*        id="auto-show-controls"*/}
+                        {/*        checked={autoShowControls}*/}
+                        {/*        onCheckedChange={toggleAutoShowControls}*/}
+                        {/*        className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoShowControls ? 'bg-green-500' : 'bg-white'}`}*/}
+                        {/*    />*/}
+                        {/*    <Label htmlFor="auto-show-controls" className="text-xs sm:text-sm font-medium text-gray-700">*/}
+                        {/*        Auto show controls on load*/}
+                        {/*    </Label>*/}
+                        {/*</div>*/}
                         <div className="flex items-center space-x-2">
                             <Checkbox
                                 id="prevent-deletion"
@@ -767,6 +766,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 </div>
             )}
 
+            {/*{activeTab === 'controls' && (*/}
                 <div>
                     <Joystick
                         mo="A"
@@ -785,72 +785,72 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex flex-col space-y-2 z-50">
                         {showServos && (
                             <>
-                        {/* Управление первым сервоприводом */}
-                        <div className="flex flex-col items-center space-y-2">
-                            {/* Управление первым сервоприводом */}
-                            <div className="flex flex-col items-center">
-                                <div className="flex items-center justify-center space-x-2">
-                                    <Button
-                                        onClick={() => adjustServo('1', -180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                    >
-                                        <ArrowLeft className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                        onClick={() => adjustServo('1', -15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                    >
-                                        <ArrowDown className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                        onClick={() => adjustServo('1', 15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                    >
-                                        <ArrowUp className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                        onClick={() => adjustServo('1', 180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                    >
-                                        <ArrowRight className="h-5 w-5" />
-                                    </Button>
-                                </div>
-                                <span className="text-sm font-medium text-gray-700 mt-1">{servoAngle}°</span>
-                            </div>
+                                {/* Управление первым сервоприводом */}
+                                <div className="flex flex-col items-center space-y-2">
+                                    {/* Управление первым сервоприводом */}
+                                    <div className="flex flex-col items-center">
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <Button
+                                                onClick={() => adjustServo('1', -180)}
+                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                            >
+                                                <ArrowLeft className="h-5 w-5" />
+                                            </Button>
+                                            <Button
+                                                onClick={() => adjustServo('1', -15)}
+                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                            >
+                                                <ArrowDown className="h-5 w-5" />
+                                            </Button>
+                                            <Button
+                                                onClick={() => adjustServo('1', 15)}
+                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                            >
+                                                <ArrowUp className="h-5 w-5" />
+                                            </Button>
+                                            <Button
+                                                onClick={() => adjustServo('1', 180)}
+                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                            >
+                                                <ArrowRight className="h-5 w-5" />
+                                            </Button>
+                                        </div>
+                                        <span className="text-sm font-medium text-gray-700 mt-1">{servoAngle}°</span>
+                                    </div>
 
-                            {/* Управление вторым сервоприводом */}
-                            <div className="flex flex-col items-center">
-                                <div className="flex items-center justify-center space-x-2">
-                                    <Button
-                                        onClick={() => adjustServo('2', -180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                    >
-                                        <ArrowLeft className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                        onClick={() => adjustServo('2', -15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                    >
-                                        <ArrowDown className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                        onClick={() => adjustServo('2', 15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                    >
-                                        <ArrowUp className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                        onClick={() => adjustServo('2', 180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                    >
-                                        <ArrowRight className="h-5 w-5" />
-                                    </Button>
+                                    {/* Управление вторым сервоприводом */}
+                                    <div className="flex flex-col items-center">
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <Button
+                                                onClick={() => adjustServo('2', -180)}
+                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                            >
+                                                <ArrowLeft className="h-5 w-5" />
+                                            </Button>
+                                            <Button
+                                                onClick={() => adjustServo('2', -15)}
+                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                            >
+                                                <ArrowDown className="h-5 w-5" />
+                                            </Button>
+                                            <Button
+                                                onClick={() => adjustServo('2', 15)}
+                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                            >
+                                                <ArrowUp className="h-5 w-5" />
+                                            </Button>
+                                            <Button
+                                                onClick={() => adjustServo('2', 180)}
+                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                            >
+                                                <ArrowRight className="h-5 w-5" />
+                                            </Button>
+                                        </div>
+                                        <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
+                                    </div>
                                 </div>
-                                <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
-                            </div>
-                        </div>
                             </>
-                    )}
+                        )}
 
                         {/* Кнопки реле и закрытия */}
                         <div className="flex items-center justify-center space-x-2">
@@ -902,6 +902,8 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         </div>
                     </div>
                 </div>
+             {/*)}*/}
+
         </div>
     )
 }

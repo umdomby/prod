@@ -510,6 +510,14 @@ export const VideoCallApp = () => {
                     >
                         {showCam ? '▲' : '▼'} <img src="/img.svg" alt="Image" />
                     </button>
+
+                    <button
+                        onClick={() => toggleTab('controls')}
+                        onTouchEnd={() => toggleTab('controls')}
+                        className={[styles.tabButton, showControls ? styles.activeTab : ''].join(' ')}
+                    >
+                        {showControls ? '▲' : '▼'} <img src="/connect.svg" alt="Image" />
+                    </button>
                 </div>
             </div>
 
