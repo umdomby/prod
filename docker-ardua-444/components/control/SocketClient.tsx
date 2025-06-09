@@ -1,14 +1,14 @@
 // file: components/control/SocketClient.tsx
 "use client"
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Power, EyeOff, Eye } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
+import {useState, useEffect, useRef, useCallback} from 'react'
+import {Button} from "@/components/ui/button"
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
+import {Input} from "@/components/ui/input"
+import {ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Power, EyeOff, Eye} from "lucide-react"
+import {Checkbox} from "@/components/ui/checkbox"
+import {Label} from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
-import { useServo } from '@/components/ServoContext';
+import {useServo} from '@/components/ServoContext';
 
 type MessageType = {
     ty?: string
@@ -39,7 +39,7 @@ interface SocketClientProps {
     onConnectionStatusChange?: (isFullyConnected: boolean) => void;
 }
 
-export default function SocketClient({ onConnectionStatusChange }: SocketClientProps) {
+export default function SocketClient({onConnectionStatusChange}: SocketClientProps) {
     const {
         servoAngle,
         servo2Angle,
@@ -234,7 +234,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     }, [newDe, deviceList]);
 
     const addLog = useCallback((msg: string, ty: LogEntry['ty']) => {
-        setLog(prev => [...prev.slice(-100), { me: `${new Date().toLocaleTimeString()}: ${msg}`, ty }])
+        setLog(prev => [...prev.slice(-100), {me: `${new Date().toLocaleTimeString()}: ${msg}`, ty}])
     }, [])
 
     const cleanupWebSocket = useCallback(() => {
@@ -479,7 +479,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             setSpeed(sp)
             setDirection(direction)
 
-            const currentCommand = { sp, direction }
+            const currentCommand = {sp, direction}
             if (JSON.stringify(lastCommandRef.current) === JSON.stringify(currentCommand)) {
                 return
             }
@@ -491,7 +491,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     clearTimeout(throttleRef.current)
                     throttleRef.current = null
                 }
-                sendCommand("SPD", { mo, sp: 0 })
+                sendCommand("SPD", {mo, sp: 0})
                 sendCommand(mo === 'A' ? "MSA" : "MSB")
                 return
             }
@@ -501,7 +501,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             }
 
             throttleRef.current = setTimeout(() => {
-                sendCommand("SPD", { mo, sp })
+                sendCommand("SPD", {mo, sp})
                 sendCommand(direction === 'forward'
                     ? `MF${mo}`
                     : `MR${mo}`)
@@ -522,7 +522,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 return;
             }
 
-            sendCommand(servoId === '1' ? 'SSR' : 'SSR2', { an: newAngle }); // Только отправка команды
+            sendCommand(servoId === '1' ? 'SSR' : 'SSR2', {an: newAngle}); // Только отправка команды
         },
         [servoAngle, servo2Angle, servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle, sendCommand, addLog]
     );
@@ -540,8 +540,8 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const handleMotorBControl = createMotorHandler('B')
 
     const emergencyStop = useCallback(() => {
-        sendCommand("SPD", { mo: 'A', sp: 0 })
-        sendCommand("SPD", { mo: 'B', sp: 0 })
+        sendCommand("SPD", {mo: 'A', sp: 0})
+        sendCommand("SPD", {mo: 'B', sp: 0})
         setMotorASpeed(0)
         setMotorBSpeed(0)
         setMotorADirection('stop')
@@ -572,15 +572,15 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     }
 
     const handleCloseControls = () => {
-        setActiveTab('controls')
-    }
+        setActiveTab(activeTab === 'controls' ? null : 'controls');
+    };
 
     return (
         <div className="flex flex-col items-center min-h-[calc(100vh-3rem)] p-4 bg-transparent overflow-hidden">
             {activeTab === 'controls' && (
                 <div
                     className="w-full max-w-md space-y-2 bg-transparent rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
-                    style={{ maxHeight: '90vh', overflowY: 'auto' }}
+                    style={{maxHeight: '90vh', overflowY: 'auto'}}
                 >
                     <div className="flex flex-col items-center space-y-2">
                         <div className="flex items-center space-x-2">
@@ -615,7 +615,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                             disabled={isConnected && !autoReconnect}
                         >
                             <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
-                                <SelectValue placeholder="Select device" />
+                                <SelectValue placeholder="Select device"/>
                             </SelectTrigger>
                             <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
                                 {deviceList.map(id => (
@@ -732,15 +732,16 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         className="w-full border-gray-300 bg-transparent hover:bg-gray-100/50 h-8 sm:h-10 text-xs sm:text-sm text-gray-700"
                     >
                         {logVisible ? (
-                            <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                            <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 mr-2"/>
                         ) : (
-                            <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                            <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 mr-2"/>
                         )}
                         {logVisible ? "Hide Logs" : "Show Logs"}
                     </Button>
 
                     {logVisible && (
-                        <div className="border border-gray-200 rounded-md overflow-hidden bg-transparent backdrop-blur-sm">
+                        <div
+                            className="border border-gray-200 rounded-md overflow-hidden bg-transparent backdrop-blur-sm">
                             <div className="h-32 sm:h-48 overflow-y-auto p-2 bg-transparent text-xs font-mono">
                                 {log.length === 0 ? (
                                     <div className="text-gray-500 italic">No logs yet</div>
@@ -767,142 +768,142 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             )}
 
             {/*{activeTab === 'controls' && (*/}
-                <div>
-                    <Joystick
-                        mo="A"
-                        onChange={handleMotorAControl}
-                        direction={motorADirection}
-                        sp={motorASpeed}
-                    />
+            <div>
+                <Joystick
+                    mo="A"
+                    onChange={handleMotorAControl}
+                    direction={motorADirection}
+                    sp={motorASpeed}
+                />
 
-                    <Joystick
-                        mo="B"
-                        onChange={handleMotorBControl}
-                        direction={motorBDirection}
-                        sp={motorBSpeed}
-                    />
+                <Joystick
+                    mo="B"
+                    onChange={handleMotorBControl}
+                    direction={motorBDirection}
+                    sp={motorBSpeed}
+                />
 
-                    <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex flex-col space-y-2 z-50">
-                        {showServos && (
-                            <>
+                <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex flex-col space-y-2 z-50">
+                    {showServos && (
+                        <>
+                            {/* Управление первым сервоприводом */}
+                            <div className="flex flex-col items-center space-y-2">
                                 {/* Управление первым сервоприводом */}
-                                <div className="flex flex-col items-center space-y-2">
-                                    {/* Управление первым сервоприводом */}
-                                    <div className="flex flex-col items-center">
-                                        <div className="flex items-center justify-center space-x-2">
-                                            <Button
-                                                onClick={() => adjustServo('1', -180)}
-                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                            >
-                                                <ArrowLeft className="h-5 w-5" />
-                                            </Button>
-                                            <Button
-                                                onClick={() => adjustServo('1', -15)}
-                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                            >
-                                                <ArrowDown className="h-5 w-5" />
-                                            </Button>
-                                            <Button
-                                                onClick={() => adjustServo('1', 15)}
-                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                            >
-                                                <ArrowUp className="h-5 w-5" />
-                                            </Button>
-                                            <Button
-                                                onClick={() => adjustServo('1', 180)}
-                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                            >
-                                                <ArrowRight className="h-5 w-5" />
-                                            </Button>
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-700 mt-1">{servoAngle}°</span>
+                                <div className="flex flex-col items-center">
+                                    <div className="flex items-center justify-center space-x-2">
+                                        <Button
+                                            onClick={() => adjustServo('1', -180)}
+                                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                        >
+                                            <ArrowLeft className="h-5 w-5"/>
+                                        </Button>
+                                        <Button
+                                            onClick={() => adjustServo('1', -15)}
+                                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                        >
+                                            <ArrowDown className="h-5 w-5"/>
+                                        </Button>
+                                        <Button
+                                            onClick={() => adjustServo('1', 15)}
+                                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                        >
+                                            <ArrowUp className="h-5 w-5"/>
+                                        </Button>
+                                        <Button
+                                            onClick={() => adjustServo('1', 180)}
+                                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                        >
+                                            <ArrowRight className="h-5 w-5"/>
+                                        </Button>
                                     </div>
-
-                                    {/* Управление вторым сервоприводом */}
-                                    <div className="flex flex-col items-center">
-                                        <div className="flex items-center justify-center space-x-2">
-                                            <Button
-                                                onClick={() => adjustServo('2', -180)}
-                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                            >
-                                                <ArrowLeft className="h-5 w-5" />
-                                            </Button>
-                                            <Button
-                                                onClick={() => adjustServo('2', -15)}
-                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                            >
-                                                <ArrowDown className="h-5 w-5" />
-                                            </Button>
-                                            <Button
-                                                onClick={() => adjustServo('2', 15)}
-                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                            >
-                                                <ArrowUp className="h-5 w-5" />
-                                            </Button>
-                                            <Button
-                                                onClick={() => adjustServo('2', 180)}
-                                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
-                                            >
-                                                <ArrowRight className="h-5 w-5" />
-                                            </Button>
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
-                                    </div>
+                                    <span className="text-sm font-medium text-gray-700 mt-1">{servoAngle}°</span>
                                 </div>
-                            </>
-                        )}
 
-                        {/* Кнопки реле и закрытия */}
-                        <div className="flex items-center justify-center space-x-2">
-                            <Button
-                                onClick={() => {
-                                    const newState = button1State ? 'off' : 'on';
-                                    sendCommand('RLY', { pin: 'D0', state: newState });
-                                    setButton1State(newState === 'on' ? 1 : 0);
-                                }}
-                                className={`${
-                                    button1State ? 'bg-green-600 hover:bg-green-700' : 'bg-transparent hover:bg-gray-700/30'
-                                } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
-                            >
-                                <Power className="h-4 w-4" />
-                            </Button>
+                                {/* Управление вторым сервоприводом */}
+                                <div className="flex flex-col items-center">
+                                    <div className="flex items-center justify-center space-x-2">
+                                        <Button
+                                            onClick={() => adjustServo('2', -180)}
+                                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                        >
+                                            <ArrowLeft className="h-5 w-5"/>
+                                        </Button>
+                                        <Button
+                                            onClick={() => adjustServo('2', -15)}
+                                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                        >
+                                            <ArrowDown className="h-5 w-5"/>
+                                        </Button>
+                                        <Button
+                                            onClick={() => adjustServo('2', 15)}
+                                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                        >
+                                            <ArrowUp className="h-5 w-5"/>
+                                        </Button>
+                                        <Button
+                                            onClick={() => adjustServo('2', 180)}
+                                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all"
+                                        >
+                                            <ArrowRight className="h-5 w-5"/>
+                                        </Button>
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
+                                </div>
+                            </div>
+                        </>
+                    )}
 
-                            <Button
-                                onClick={() => {
-                                    const newState = button2State ? 'off' : 'on';
-                                    sendCommand('RLY', { pin: '3', state: newState });
-                                    setButton2State(newState === 'on' ? 1 : 0);
-                                }}
-                                className={`${
-                                    button2State ? 'bg-green-600 hover:bg-green-700' : 'bg-transparent hover:bg-gray-700/30'
-                                } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
-                            >
-                                <Power className="h-4 w-4" />
-                            </Button>
+                    {/* Кнопки реле и закрытия */}
+                    <div className="flex items-center justify-center space-x-2">
+                        <Button
+                            onClick={() => {
+                                const newState = button1State ? 'off' : 'on';
+                                sendCommand('RLY', {pin: 'D0', state: newState});
+                                setButton1State(newState === 'on' ? 1 : 0);
+                            }}
+                            className={`${
+                                button1State ? 'bg-green-600 hover:bg-green-700' : 'bg-transparent hover:bg-gray-700/30'
+                            } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
+                        >
+                            <Power className="h-4 w-4"/>
+                        </Button>
 
-                            <Button
-                                onClick={toggleServosVisibility}
-                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all flex items-center"
-                                title={showServos ? 'Скрыть сервоприводы' : 'Показать сервоприводы'}
-                            >
-                                {showServos ? (
-                                    <EyeOff className="h-4 w-4" /> // Иконка "глаз закрыт" когда видно
-                                ) : (
-                                    <Eye className="h-4 w-4" />    // Иконка "глаз открыт" когда скрыто
-                                )}
-                            </Button>
+                        <Button
+                            onClick={() => {
+                                const newState = button2State ? 'off' : 'on';
+                                sendCommand('RLY', {pin: '3', state: newState});
+                                setButton2State(newState === 'on' ? 1 : 0);
+                            }}
+                            className={`${
+                                button2State ? 'bg-green-600 hover:bg-green-700' : 'bg-transparent hover:bg-gray-700/30'
+                            } backdrop-blur-sm border border-gray-600 text-gray-600 rounded-full transition-all text-xs sm:text-sm flex items-center`}
+                        >
+                            <Power className="h-4 w-4"/>
+                        </Button>
 
-                            <Button
-                                onClick={handleCloseControls}
-                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-red-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
-                                // style={{ minWidth: '6rem' }}
-                            >
-                                <Power className="h-4 w-4" />
-                            </Button>
-                        </div>
+                        <Button
+                            onClick={toggleServosVisibility}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all flex items-center"
+                            title={showServos ? 'Скрыть сервоприводы' : 'Показать сервоприводы'}
+                        >
+                            {showServos ? (
+                                <EyeOff className="h-4 w-4"/> // Иконка "глаз закрыт" когда видно
+                            ) : (
+                                <Eye className="h-4 w-4"/>    // Иконка "глаз открыт" когда скрыто
+                            )}
+                        </Button>
+
+                        <Button
+                            onClick={handleCloseControls}
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-red-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
+                            // style={{ minWidth: '6rem' }}
+                        >
+                            <Power className="h-4 w-4"/>
+                        </Button>
                     </div>
                 </div>
-             {/*)}*/}
+            </div>
+            {/*)}*/}
 
         </div>
     )
