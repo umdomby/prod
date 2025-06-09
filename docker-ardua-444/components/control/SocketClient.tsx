@@ -63,7 +63,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const [newDe, setNewDe] = useState('')
     const [deviceList, setDeviceList] = useState<string[]>(['123'])
     const [espConnected, setEspConnected] = useState(false)
-    const [controlVisible, setControlVisible] = useState(false)
     const [logVisible, setLogVisible] = useState(false)
     const [motorASpeed, setMotorASpeed] = useState(0)
     const [motorBSpeed, setMotorBSpeed] = useState(0)
@@ -178,13 +177,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         onConnectionStatusChange?.(isFullyConnected);
     }, [isConnected, isIdentified, espConnected, onConnectionStatusChange]);
 
-    useEffect(() => {
-        // Показываем джойстики автоматически, если autoShowControls === true и статус Connected
-        if (autoShowControls && isConnected && isIdentified && espConnected) {
-            setControlVisible(true)
-            setActiveTab(null)
-        }
-    }, [autoShowControls, isConnected, isIdentified, espConnected])
 
     const togglePreventDeletion = useCallback((checked: boolean) => {
         setPreventDeletion(checked)
@@ -195,7 +187,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         setAutoShowControls(checked)
         localStorage.setItem('autoShowControls', checked.toString())
         if (!checked) {
-            setControlVisible(false)
             setActiveTab('esp')
         }
     }, [])
@@ -582,7 +573,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     }
 
     const handleCloseControls = () => {
-        setControlVisible(false)
         setActiveTab('esp')
     }
 
@@ -777,7 +767,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 </div>
             )}
 
-            {controlVisible && (
                 <div>
                     <Joystick
                         mo="A"
@@ -913,7 +902,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         </div>
                     </div>
                 </div>
-            )}
         </div>
     )
 }
