@@ -24,26 +24,30 @@ model User {
 }
 
 model Devices {
-  id                Int         @id @default(autoincrement())
-  userId            Int
-  user              User        @relation(fields: [userId], references: [id])
-  diviceName        String?
-  devicesEnum       DevicesEnum @default(ArduaESP8266)
-  idRoom            String?
-  idDevice          String?
-  idDeviceNotChange String?
-  settings          Settings[]
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id            Int         @id @default(autoincrement())
+  userId        Int
+  user          User        @relation(fields: [userId], references: [id])
+  diviceName    String?
+  devicesEnum   DevicesEnum @default(ArduaESP8266)
+  idDeviceAr    String?
+  idDevice      String      @unique // id устройство 16 символов без тире большие буквы английские и цифры
+  autoReconnect Boolean // Автоматическое переподключение при смене устройства
+  autoConnect   Boolean // Автоматическое подключение при загрузке страницы
+  closedDel     Boolean // Запретить удаление устройств
+  settings      Settings[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
 model Settings {
-  id        Int     @id @default(autoincrement())
-  devicesId Int
-  devices   Devices @relation(fields: [devicesId], references: [id])
-  servo1    Int
-  servo2    Int
-  camera    Json
+  id             Int     @id @default(autoincrement())
+  devicesId      Int
+  devices        Devices @relation(fields: [devicesId], references: [id])
+  servo1MinAngle Int?
+  servo1MaxAngle Int?
+  servo2MinAngle Int?
+  servo2MaxAngle Int?
+  camera         Json
 }
 
 model SavedRoom {

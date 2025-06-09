@@ -63,7 +63,6 @@ export async function registerUser(body: Prisma.UserCreateInput) {
 }
 
 const roomIdSchema = z.string().length(16, 'ID комнаты должен содержать ровно 16 символов (без тире)');
-
 export async function getSavedRooms() {
   const session = await getUserSession();
   if (!session) {
@@ -81,7 +80,6 @@ export async function getSavedRooms() {
     autoConnect: room.autoConnect,
   }));
 }
-
 export async function saveRoom(roomId: string, autoConnect: boolean = false) {
   const session = await getUserSession();
   if (!session) {
@@ -118,7 +116,6 @@ export async function saveRoom(roomId: string, autoConnect: boolean = false) {
 
   revalidatePath('/');
 }
-
 export async function deleteRoom(roomId: string) {
   const session = await getUserSession();
   if (!session) {
@@ -152,7 +149,6 @@ export async function deleteRoom(roomId: string) {
 
   revalidatePath('/');
 }
-
 export async function setDefaultRoom(roomId: string) {
   const session = await getUserSession();
   if (!session) {
@@ -188,7 +184,6 @@ export async function setDefaultRoom(roomId: string) {
 
   revalidatePath('/');
 }
-
 export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
   const session = await getUserSession();
   if (!session) {
@@ -215,6 +210,194 @@ export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
   await prisma.savedRoom.update({
     where: { roomId, userId },
     data: { autoConnect },
+  });
+
+  revalidatePath('/');
+}
+
+const deviceIdSchema = z.string().length(16, 'ID устройства должен содержать ровно 16 символов (без тире)').regex(/^[A-Z0-9]+$/, 'ID должен содержать только заглавные латинские буквы и цифры');
+
+// Получение списка устройств пользователя
+export async function getDevices() {
+  const session = await getUserSession();
+  if (!session) {
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const devices = await prisma.devices.findMany({
+    where: { userId: parseInt(session.id) },
+    include: { settings: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  return devices.map(device => ({
+    idDevice: device.idDevice,
+    autoReconnect: device.autoReconnect,
+    autoConnect: device.autoConnect,
+    closedDel: device.closedDel,
+    settings: device.settings[0] || null,
+  }));
+}
+
+// Добавление нового устройства
+export async function addDevice(idDevice: string, autoConnect: boolean = false, autoReconnect: boolean = false, closedDel: boolean = false) {
+  const session = await getUserSession();
+  if (!session) {
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const parsedIdDevice = deviceIdSchema.safeParse(idDevice);
+  if (!parsedIdDevice.success) {
+    throw new Error(parsedIdDevice.error.errors[0].message);
+  }
+
+  const userId = parseInt(session.id);
+
+  // Проверяем существование устройства по idDevice
+  const existingDevice = await prisma.devices.findUnique({
+    where: { idDevice: parsedIdDevice.data },
+  });
+
+  if (existingDevice) {
+    throw new Error('Устройство с таким ID уже существует');
+  }
+
+  const deviceCount = await prisma.devices.count({
+    where: { userId },
+  });
+
+  const newDevice = await prisma.devices.create({
+    data: {
+      userId,
+      idDevice: parsedIdDevice.data,
+      autoReconnect,
+      autoConnect,
+      closedDel,
+      diviceName: 'ArduA',
+    },
+  });
+
+  // Создаем пустые настройки для нового устройства
+  await prisma.settings.create({
+    data: {
+      devicesId: newDevice.id,
+      servo1MinAngle: 0,
+      servo1MaxAngle: 180,
+      servo2MinAngle: 0,
+      servo2MaxAngle: 180,
+      camera: {},
+    },
+  });
+
+  revalidatePath('/');
+  return newDevice;
+}
+
+// Удаление устройства
+export async function deleteDevice(idDevice: string) {
+  const session = await getUserSession();
+  if (!session) {
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const parsedIdDevice = deviceIdSchema.safeParse(idDevice);
+  if (!parsedIdDevice.success) {
+    throw new Error(parsedIdDevice.error.errors[0].message);
+  }
+
+  const userId = parseInt(session.id);
+
+  const device = await prisma.devices.findUnique({
+    where: { idDevice: parsedIdDevice.data },
+  });
+
+  if (!device || device.userId !== userId) {
+    throw new Error('Устройство не найдено или доступ запрещен');
+  }
+
+  await prisma.settings.deleteMany({
+    where: { devicesId: device.id },
+  });
+
+  await prisma.devices.delete({
+    where: { idDevice: parsedIdDevice.data },
+  });
+
+  revalidatePath('/');
+}
+
+// Обновление настроек устройства
+export async function updateDeviceSettings(idDevice: string, settings: { autoReconnect?: boolean, autoConnect?: boolean, closedDel?: boolean }) {
+  const session = await getUserSession();
+  if (!session) {
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const parsedIdDevice = deviceIdSchema.safeParse(idDevice);
+  if (!parsedIdDevice.success) {
+    throw new Error(parsedIdDevice.error.errors[0].message);
+  }
+
+  const userId = parseInt(session.id);
+
+  const device = await prisma.devices.findUnique({
+    where: { idDevice: parsedIdDevice.data },
+  });
+
+  if (!device || device.userId !== userId) {
+    throw new Error('Устройство не найдено или доступ запрещен');
+  }
+
+  await prisma.devices.update({
+    where: { idDevice: parsedIdDevice.data },
+    data: {
+      autoReconnect: settings.autoReconnect ?? device.autoReconnect,
+      autoConnect: settings.autoConnect ?? device.autoConnect,
+      closedDel: settings.closedDel ?? device.closedDel,
+    },
+  });
+
+  revalidatePath('/');
+}
+
+// Обновление настроек сервоприводов
+export async function updateServoSettings(idDevice: string, settings: { servo1MinAngle?: number, servo1MaxAngle?: number, servo2MinAngle?: number, servo2MaxAngle?: number }) {
+  const session = await getUserSession();
+  if (!session) {
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const parsedIdDevice = deviceIdSchema.safeParse(idDevice);
+  if (!parsedIdDevice.success) {
+    throw new Error(parsedIdDevice.error.errors[0].message);
+  }
+
+  const userId = parseInt(session.id);
+
+  const device = await prisma.devices.findUnique({
+    where: { idDevice: parsedIdDevice.data },
+  });
+
+  if (!device || device.userId !== userId) {
+    throw new Error('Устройство не найдено или доступ запрещен');
+  }
+
+  await prisma.settings.upsert({
+    where: { devicesId: device.id },
+    update: {
+      servo1MinAngle: settings.servo1MinAngle,
+      servo1MaxAngle: settings.servo1MaxAngle,
+      servo2MinAngle: settings.servo2MinAngle,
+      servo2MaxAngle: settings.servo2MaxAngle,
+    },
+    create: {
+      devicesId: device.id,
+      servo1MinAngle: settings.servo1MinAngle ?? 0,
+      servo1MaxAngle: settings.servo1MaxAngle ?? 180,
+      servo2MinAngle: settings.servo2MinAngle ?? 0,
+      servo2MaxAngle: settings.servo2MaxAngle ?? 180,
+      camera: {},
+    },
   });
 
   revalidatePath('/');
