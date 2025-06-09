@@ -113,6 +113,63 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         setServo1MaxAngle(defaultDevice.settings.servo1MaxAngle || 180);
                         setServo2MinAngle(defaultDevice.settings.servo2MinAngle || 0);
                         setServo2MaxAngle(defaultDevice.settings.servo2MaxAngle || 180);
+                        setShowServos(defaultDevice.settings.servoView !== undefined ? defaultDevice.settings.servoView : true);
+                        setButton1State(defaultDevice.settings.b1 ? 1 : 0);
+                        setButton2State(defaultDevice.settings.b2 ? 1 : 0);
+                    }
+
+                    // Отправка настроек на устройство через WebSocket
+                    if (socketRef.current?.readyState === WebSocket.OPEN) {
+                        const settings = await sendDeviceSettingsToESP(defaultDevice.idDevice);
+                        if (settings.servo1MinAngle !== undefined && settings.servo1MaxAngle !== undefined) {
+                            socketRef.current.send(
+                                JSON.stringify({
+                                    co: 'SET_SERVO1_LIMITS',
+                                    pa: { min: settings.servo1MinAngle, max: settings.servo1MaxAngle },
+                                    de: defaultDevice.idDevice,
+                                    ts: Date.now(),
+                                    expectAck: true,
+                                })
+                            );
+                        }
+                        if (settings.servo2MinAngle !== undefined && settings.servo2MaxAngle !== undefined) {
+                            socketRef.current.send(
+                                JSON.stringify({
+                                    co: 'SET_SERVO2_LIMITS',
+                                    pa: { min: settings.servo2MinAngle, max: settings.servo2MaxAngle },
+                                    de: defaultDevice.idDevice,
+                                    ts: Date.now(),
+                                    expectAck: true,
+                                })
+                            );
+                        }
+                        socketRef.current.send(
+                            JSON.stringify({
+                                co: 'RLY',
+                                pa: { pin: 'D0', state: settings.b1 ? 'on' : 'off' },
+                                de: defaultDevice.idDevice,
+                                ts: Date.now(),
+                                expectAck: true,
+                            })
+                        );
+                        socketRef.current.send(
+                            JSON.stringify({
+                                co: 'RLY',
+                                pa: { pin: '3', state: settings.b2 ? 'on' : 'off' },
+                                de: defaultDevice.idDevice,
+                                ts: Date.now(),
+                                expectAck: true,
+                            })
+                        );
+                        socketRef.current.send(
+                            JSON.stringify({
+                                co: 'SET_SERVO_VIEW',
+                                pa: { visible: settings.servoView },
+                                de: defaultDevice.idDevice,
+                                ts: Date.now(),
+                                expectAck: true,
+                            })
+                        );
                     }
                 } else {
                     setDeviceList(['123']);
@@ -320,10 +377,64 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             ws.send(JSON.stringify({ co: "GET_RELAYS", de: deToConnect, ts: Date.now() }));
 
             // Отправка настроек на устройство
-            sendDeviceSettingsToESP(deToConnect, ws).catch(error => {
-                console.error('Ошибка отправки настроек на устройство:', error);
-                addLog(`Ошибка отправки настроек: ${error.message}`, 'error');
-            });
+            sendDeviceSettingsToESP(deToConnect)
+                .then(settings => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        if (settings.servo1MinAngle !== undefined && settings.servo1MaxAngle !== undefined) {
+                            ws.send(
+                                JSON.stringify({
+                                    co: 'SET_SERVO1_LIMITS',
+                                    pa: { min: settings.servo1MinAngle, max: settings.servo1MaxAngle },
+                                    de: deToConnect,
+                                    ts: Date.now(),
+                                    expectAck: true,
+                                })
+                            );
+                        }
+                        if (settings.servo2MinAngle !== undefined && settings.servo2MaxAngle !== undefined) {
+                            ws.send(
+                                JSON.stringify({
+                                    co: 'SET_SERVO2_LIMITS',
+                                    pa: { min: settings.servo2MinAngle, max: settings.servo2MaxAngle },
+                                    de: deToConnect,
+                                    ts: Date.now(),
+                                    expectAck: true,
+                                })
+                            );
+                        }
+                        ws.send(
+                            JSON.stringify({
+                                co: 'RLY',
+                                pa: { pin: 'D0', state: settings.b1 ? 'on' : 'off' },
+                                de: deToConnect,
+                                ts: Date.now(),
+                                expectAck: true,
+                            })
+                        );
+                        ws.send(
+                            JSON.stringify({
+                                co: 'RLY',
+                                pa: { pin: '3', state: settings.b2 ? 'on' : 'off' },
+                                de: deToConnect,
+                                ts: Date.now(),
+                                expectAck: true,
+                            })
+                        );
+                        ws.send(
+                            JSON.stringify({
+                                co: 'SET_SERVO_VIEW',
+                                pa: { visible: settings.servoView },
+                                de: deToConnect,
+                                ts: Date.now(),
+                                expectAck: true,
+                            })
+                        );
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка отправки настроек на устройство:', error);
+                    addLog(`Ошибка отправки настроек: ${error.message}`, 'error');
+                });
         };
 
         ws.onmessage = (event) => {

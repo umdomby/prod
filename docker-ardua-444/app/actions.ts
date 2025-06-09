@@ -433,7 +433,7 @@ export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
 }
 
 
-export async function sendDeviceSettingsToESP(idDevice: string, ws: WebSocket) {
+export async function sendDeviceSettingsToESP(idDevice: string) {
   const session = await getUserSession();
   if (!session) {
     throw new Error('Пользователь не аутентифицирован');
@@ -459,62 +459,13 @@ export async function sendDeviceSettingsToESP(idDevice: string, ws: WebSocket) {
     throw new Error('Настройки устройства не найдены');
   }
 
-  const settings = device.settings;
-
-  // Отправка настроек сервоприводов
-  if (settings.servo1MinAngle !== undefined && settings.servo1MaxAngle !== undefined) {
-    ws.send(
-        JSON.stringify({
-          co: 'SET_SERVO1_LIMITS',
-          pa: { min: settings.servo1MinAngle, max: settings.servo1MaxAngle },
-          de: idDevice,
-          ts: Date.now(),
-          expectAck: true,
-        })
-    );
-  }
-
-  if (settings.servo2MinAngle !== undefined && settings.servo2MaxAngle !== undefined) {
-    ws.send(
-        JSON.stringify({
-          co: 'SET_SERVO2_LIMITS',
-          pa: { min: settings.servo2MinAngle, max: settings.servo2MaxAngle },
-          de: idDevice,
-          ts: Date.now(),
-          expectAck: true,
-        })
-    );
-  }
-
-  // Отправка состояний реле
-  ws.send(
-      JSON.stringify({
-        co: 'RLY',
-        pa: { pin: 'D0', state: settings.b1 ? 'on' : 'off' },
-        de: idDevice,
-        ts: Date.now(),
-        expectAck: true,
-      })
-  );
-
-  ws.send(
-      JSON.stringify({
-        co: 'RLY',
-        pa: { pin: '3', state: settings.b2 ? 'on' : 'off' },
-        de: idDevice,
-        ts: Date.now(),
-        expectAck: true,
-      })
-  );
-
-  // Отправка состояния видимости сервоприводов
-  ws.send(
-      JSON.stringify({
-        co: 'SET_SERVO_VIEW',
-        pa: { visible: settings.servoView },
-        de: idDevice,
-        ts: Date.now(),
-        expectAck: true,
-      })
-  );
+  return {
+    servo1MinAngle: device.settings.servo1MinAngle,
+    servo1MaxAngle: device.settings.servo1MaxAngle,
+    servo2MinAngle: device.settings.servo2MinAngle,
+    servo2MaxAngle: device.settings.servo2MaxAngle,
+    b1: device.settings.b1,
+    b2: device.settings.b2,
+    servoView: device.settings.servoView,
+  };
 }
