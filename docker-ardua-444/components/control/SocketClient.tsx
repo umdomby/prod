@@ -109,14 +109,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     setInputDe(device.idDevice);
                     setDe(device.idDevice);
                     currentDeRef.current = device.idDevice;
-
-                    // const defaultDevice = devices[0];
-                    // setInputDe(defaultDevice.idDevice);
-                    // setDe(defaultDevice.idDevice);
-                    // currentDeRef.current = defaultDevice.idDevice;
-                    setAutoReconnect(devices.autoReconnect);
-                    setAutoConnect(devices.autoConnect);
-                    setClosedDel(devices.closedDel);
+                    setAutoReconnect(device.autoReconnect ?? false); // Загрузка из базы
+                    setAutoConnect(device.autoConnect ?? false); // Загрузка из базы
+                    setClosedDel(device.closedDel ?? false); // Загрузка из базы
                     if (device.settings) {
                         setServo1MinAngle(device.settings.servo1MinAngle || 0);
                         setServo1MaxAngle(device.settings.servo1MaxAngle || 180);
@@ -136,12 +131,13 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         socketRef.current.send(JSON.stringify({ co: 'SET_SERVO2_LIMITS', pa: { min: settings.servo2MinAngle, max: settings.servo2MaxAngle }, de: device.idDevice, ts: Date.now(), expectAck: true }));
                         socketRef.current.send(JSON.stringify({ co: 'SET_SERVO_VIEW', pa: { visible: settings.servoView }, de: device.idDevice, ts: Date.now(), expectAck: true }));
                     }
+                    if (device.autoConnect) {
+                        connectWebSocket(device.idDevice);
+                    }
                 } else {
                     setDeviceList(['123']);
                     setInputDe('123');
                     setDe('123');
-                    // setButton1State(false);
-                    // setButton2State(false);
                     setShowServos(true);
                     setServo1MinInput('0');
                     setServo1MaxInput('180');
@@ -314,22 +310,37 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     }, [servo2MinAngle, inputDe, servo1MinAngle, servo1MaxAngle, setServo2MaxAngle, addLog]);
 
     // Обработчики для настроек устройства
-    const toggleAutoReconnect = useCallback((checked: boolean) => {
+    const toggleAutoReconnect = useCallback(async (checked) => {
         setAutoReconnect(checked);
-        updateDeviceSettings(inputDe, { autoReconnect: checked })
-            .catch(error => addLog(`Ошибка сохранения autoReconnect: ${error.message}`, 'error'));
+        try {
+            await updateDeviceSettings(inputDe, { autoReconnect: checked });
+            addLog(`Автоматическое переподключение: ${checked ? 'включено' : 'выключено'}`, 'success');
+        } catch (error) {
+            setAutoReconnect(!checked);
+            addLog(`Ошибка сохранения autoReconnect: ${error.message}`, 'error');
+        }
     }, [inputDe, addLog]);
 
-    const toggleAutoConnect = useCallback((checked: boolean) => {
+    const toggleAutoConnect = useCallback(async (checked) => {
         setAutoConnect(checked);
-        updateDeviceSettings(inputDe, { autoConnect: checked })
-            .catch(error => addLog(`Ошибка сохранения autoConnect: ${error.message}`, 'error'));
+        try {
+            await updateDeviceSettings(inputDe, { autoConnect: checked });
+            addLog(`Автоматическое подключение: ${checked ? 'включено' : 'выключено'}`, 'success');
+        } catch (error) {
+            setAutoConnect(!checked);
+            addLog(`Ошибка сохранения autoConnect: ${error.message}`, 'error');
+        }
     }, [inputDe, addLog]);
 
-    const toggleClosedDel = useCallback((checked: boolean) => {
+    const toggleClosedDel = useCallback(async (checked) => {
         setClosedDel(checked);
-        updateDeviceSettings(inputDe, { closedDel: checked })
-            .catch(error => addLog(`Ошибка сохранения closedDel: ${error.message}`, 'error'));
+        try {
+            await updateDeviceSettings(inputDe, { closedDel: checked });
+            addLog(`Запрет удаления: ${checked ? 'включен' : 'выключен'}`, 'success');
+        } catch (error) {
+            setClosedDel(!checked);
+            addLog(`Ошибка сохранения closedDel: ${error.message}`, 'error');
+        }
     }, [inputDe, addLog]);
 
     // Форматирование и очистка ID устройства
@@ -363,9 +374,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 setInputDe(cleanId);
                 setNewDe('');
                 currentDeRef.current = cleanId;
+                addLog(`Устройство ${cleanId} добавлено`, 'success');
             } catch (error) {
-                console.error('Ошибка при добавлении устройства:', error);
-                addLog(`Ошибка: ${error.message}`, 'error');
+                addLog(`Ошибка добавления устройства: ${error.message}`, 'error');
             }
         }
     }, [newDe, deviceList, autoConnect, autoReconnect, closedDel, addLog]);
@@ -610,25 +621,28 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         });
     }, [addLog, cleanupWebSocket]);
 
-    const handleDeviceChange = useCallback(async (value: string) => {
+    const handleDeviceChange = useCallback(async (value) => {
         setInputDe(value);
         currentDeRef.current = value;
         try {
             const devices = await getDevices();
             const selectedDevice = devices.find(device => device.idDevice === value);
             if (selectedDevice) {
-                setAutoReconnect(selectedDevice.autoReconnect);
-                setAutoConnect(selectedDevice.autoConnect);
-                setClosedDel(selectedDevice.closedDel);
+                setAutoReconnect(selectedDevice.autoReconnect ?? false); // Загрузка из базы
+                setAutoConnect(selectedDevice.autoConnect ?? false); // Загрузка из базы
+                setClosedDel(selectedDevice.closedDel ?? false); // Загрузка из базы
                 if (selectedDevice.settings) {
                     setServo1MinAngle(selectedDevice.settings.servo1MinAngle || 0);
                     setServo1MaxAngle(selectedDevice.settings.servo1MaxAngle || 180);
                     setServo2MinAngle(selectedDevice.settings.servo2MinAngle || 0);
                     setServo2MaxAngle(selectedDevice.settings.servo2MaxAngle || 180);
-                    // Синхронизируем состояния кнопок и видимости сервоприводов
                     setButton1State(selectedDevice.settings.b1 ?? false);
                     setButton2State(selectedDevice.settings.b2 ?? false);
                     setShowServos(selectedDevice.settings.servoView ?? true);
+                    setServo1MinInput((selectedDevice.settings.servo1MinAngle || 0).toString());
+                    setServo1MaxInput((selectedDevice.settings.servo1MaxAngle || 180).toString());
+                    setServo2MinInput((selectedDevice.settings.servo2MinAngle || 0).toString());
+                    setServo2MaxInput((selectedDevice.settings.servo2MaxAngle || 180).toString());
                 }
                 if (autoReconnect) {
                     await disconnectWebSocket();
@@ -636,8 +650,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 }
             }
         } catch (error) {
-            console.error('Ошибка при смене устройства:', error);
-            addLog(`Ошибка: ${error.message}`, 'error');
+            addLog(`Ошибка при смене устройства: ${error.message}`, 'error');
         }
     }, [autoReconnect, disconnectWebSocket, connectWebSocket, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle]);
 
