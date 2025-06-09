@@ -126,7 +126,7 @@ export async function addDevice(idDevice: string, autoConnect: boolean = false, 
     },
   });
 
-  // Создаем пустые настройки для нового устройства
+  // Создаем настройки с начальными значениями для всех полей
   await prisma.settings.create({
     data: {
       devicesId: newDevice.id,
@@ -134,7 +134,9 @@ export async function addDevice(idDevice: string, autoConnect: boolean = false, 
       servo1MaxAngle: 180,
       servo2MinAngle: 0,
       servo2MaxAngle: 180,
-      camera: {},
+      b1: false,
+      b2: false,
+      servoView: true,
     },
   });
 
@@ -210,7 +212,18 @@ export async function updateDeviceSettings(idDevice: string, settings: { autoRec
 }
 
 // Обновление настроек сервоприводов
-export async function updateServoSettings(idDevice: string, settings: { servo1MinAngle?: number, servo1MaxAngle?: number, servo2MinAngle?: number, servo2MaxAngle?: number }) {
+export async function updateServoSettings(
+    idDevice: string,
+    settings: {
+      servo1MinAngle?: number;
+      servo1MaxAngle?: number;
+      servo2MinAngle?: number;
+      servo2MaxAngle?: number;
+      b1?: boolean;
+      b2?: boolean;
+      servoView?: boolean;
+    }
+) {
   const session = await getUserSession();
   if (!session) {
     throw new Error('Пользователь не аутентифицирован');
@@ -231,27 +244,39 @@ export async function updateServoSettings(idDevice: string, settings: { servo1Mi
     throw new Error('Устройство не найдено или доступ запрещен');
   }
 
+  // Фильтруем undefined значения для update
+  const updateData: any = {};
+  if (settings.servo1MinAngle !== undefined) updateData.servo1MinAngle = settings.servo1MinAngle;
+  if (settings.servo1MaxAngle !== undefined) updateData.servo1MaxAngle = settings.servo1MaxAngle;
+  if (settings.servo2MinAngle !== undefined) updateData.servo2MinAngle = settings.servo2MinAngle;
+  if (settings.servo2MaxAngle !== undefined) updateData.servo2MaxAngle = settings.servo2MaxAngle;
+  if (settings.b1 !== undefined) updateData.b1 = settings.b1;
+  if (settings.b2 !== undefined) updateData.b2 = settings.b2;
+  if (settings.servoView !== undefined) updateData.servoView = settings.servoView;
+
+  // Проверка, есть ли данные для обновления
+  if (Object.keys(updateData).length === 0) {
+    console.log('Нет данных для обновления в Settings');
+    return;
+  }
+
   await prisma.settings.upsert({
     where: { devicesId: device.id },
-    update: {
-      servo1MinAngle: settings.servo1MinAngle,
-      servo1MaxAngle: settings.servo1MaxAngle,
-      servo2MinAngle: settings.servo2MinAngle,
-      servo2MaxAngle: settings.servo2MaxAngle,
-    },
+    update: updateData,
     create: {
       devicesId: device.id,
       servo1MinAngle: settings.servo1MinAngle ?? 0,
       servo1MaxAngle: settings.servo1MaxAngle ?? 180,
       servo2MinAngle: settings.servo2MinAngle ?? 0,
       servo2MaxAngle: settings.servo2MaxAngle ?? 180,
-      camera: {},
+      b1: settings.b1 ?? false,
+      b2: settings.b2 ?? false,
+      servoView: settings.servoView ?? true,
     },
   });
 
   revalidatePath('/');
 }
-
 
 
 const roomIdSchema = z.string().length(16, 'ID комнаты должен содержать ровно 16 символов (без тире)');
@@ -405,4 +430,91 @@ export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
   });
 
   revalidatePath('/');
+}
+
+
+export async function sendDeviceSettingsToESP(idDevice: string, ws: WebSocket) {
+  const session = await getUserSession();
+  if (!session) {
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const parsedIdDevice = deviceIdSchema.safeParse(idDevice);
+  if (!parsedIdDevice.success) {
+    throw new Error(parsedIdDevice.error.errors[0].message);
+  }
+
+  const userId = parseInt(session.id);
+
+  const device = await prisma.devices.findUnique({
+    where: { idDevice: parsedIdDevice.data },
+    include: { settings: true },
+  });
+
+  if (!device || device.userId !== userId) {
+    throw new Error('Устройство не найдено или доступ запрещен');
+  }
+
+  if (!device.settings) {
+    throw new Error('Настройки устройства не найдены');
+  }
+
+  const settings = device.settings;
+
+  // Отправка настроек сервоприводов
+  if (settings.servo1MinAngle !== undefined && settings.servo1MaxAngle !== undefined) {
+    ws.send(
+        JSON.stringify({
+          co: 'SET_SERVO1_LIMITS',
+          pa: { min: settings.servo1MinAngle, max: settings.servo1MaxAngle },
+          de: idDevice,
+          ts: Date.now(),
+          expectAck: true,
+        })
+    );
+  }
+
+  if (settings.servo2MinAngle !== undefined && settings.servo2MaxAngle !== undefined) {
+    ws.send(
+        JSON.stringify({
+          co: 'SET_SERVO2_LIMITS',
+          pa: { min: settings.servo2MinAngle, max: settings.servo2MaxAngle },
+          de: idDevice,
+          ts: Date.now(),
+          expectAck: true,
+        })
+    );
+  }
+
+  // Отправка состояний реле
+  ws.send(
+      JSON.stringify({
+        co: 'RLY',
+        pa: { pin: 'D0', state: settings.b1 ? 'on' : 'off' },
+        de: idDevice,
+        ts: Date.now(),
+        expectAck: true,
+      })
+  );
+
+  ws.send(
+      JSON.stringify({
+        co: 'RLY',
+        pa: { pin: '3', state: settings.b2 ? 'on' : 'off' },
+        de: idDevice,
+        ts: Date.now(),
+        expectAck: true,
+      })
+  );
+
+  // Отправка состояния видимости сервоприводов
+  ws.send(
+      JSON.stringify({
+        co: 'SET_SERVO_VIEW',
+        pa: { visible: settings.servoView },
+        de: idDevice,
+        ts: Date.now(),
+        expectAck: true,
+      })
+  );
 }

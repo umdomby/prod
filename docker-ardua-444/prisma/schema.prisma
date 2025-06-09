@@ -41,7 +41,7 @@ model Devices {
 
 model Settings {
   id             Int     @id @default(autoincrement())
-  devicesId      Int
+  devicesId      Int     @unique
   devices        Devices @relation(fields: [devicesId], references: [id])
   servo1MinAngle Int?
   servo1MaxAngle Int?

@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
 import { useServo } from '@/components/ServoContext';
-import { getDevices, addDevice, deleteDevice, updateDeviceSettings, updateServoSettings } from '@/app/actions';
+import { getDevices, addDevice, deleteDevice, updateDeviceSettings, updateServoSettings, sendDeviceSettingsToESP } from '@/app/actions';
 
 type MessageType = {
     ty?: string
@@ -288,9 +288,17 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         }
     }, []);
 
-    const toggleServosVisibility = () => {
-        setShowServos(!showServos);
-    };
+    const toggleServosVisibility = useCallback(async () => {
+        try {
+            const newState = !showServos;
+            await updateServoSettings(inputDe, { servoView: newState });
+            setShowServos(newState);
+            addLog(`Видимость сервоприводов изменена: ${newState ? 'включена' : 'выключена'}`, 'success');
+        } catch (error) {
+            console.error('Ошибка сохранения servoView:', error);
+            addLog(`Ошибка сохранения servoView: ${error.message}`, 'error');
+        }
+    }, [inputDe, showServos, addLog]);
 
     const connectWebSocket = useCallback((deToConnect: string) => {
         cleanupWebSocket();
@@ -310,6 +318,12 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             ws.send(JSON.stringify({ ty: "clt", ct: "browser" }));
             ws.send(JSON.stringify({ ty: "idn", de: deToConnect }));
             ws.send(JSON.stringify({ co: "GET_RELAYS", de: deToConnect, ts: Date.now() }));
+
+            // Отправка настроек на устройство
+            sendDeviceSettingsToESP(deToConnect, ws).catch(error => {
+                console.error('Ошибка отправки настроек на устройство:', error);
+                addLog(`Ошибка отправки настроек: ${error.message}`, 'error');
+            });
         };
 
         ws.onmessage = (event) => {
@@ -321,9 +335,17 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     if (data.co === 'RLY' && data.pa) {
                         if (data.pa.pin === 'D0') {
                             setButton1State(data.pa.state === 'on' ? 1 : 0);
+                            // Сохраняем состояние реле в базе данных
+                            updateServoSettings(deToConnect, { b1: data.pa.state === 'on' }).catch(error =>
+                                addLog(`Ошибка сохранения b1: ${error.message}`, 'error')
+                            );
                             addLog(`Реле 1 (D0) ${data.pa.state === 'on' ? 'включено' : 'выключено'}`, 'esp');
                         } else if (data.pa.pin === '3') {
                             setButton2State(data.pa.state === 'on' ? 1 : 0);
+                            // Сохраняем состояние реле в базе данных
+                            updateServoSettings(deToConnect, { b2: data.pa.state === 'on' }).catch(error =>
+                                addLog(`Ошибка сохранения b2: ${error.message}`, 'error')
+                            );
                             addLog(`Реле 2 (3) ${data.pa.state === 'on' ? 'включено' : 'выключено'}`, 'esp');
                         }
                     } else if (data.co === 'SPD' && data.sp !== undefined) {
@@ -353,10 +375,18 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     addLog(`ESP: ${data.me}`, 'esp');
                     if (data.b1 !== undefined) {
                         setButton1State(data.b1 === 'on' ? 1 : 0);
+                        // Сохраняем состояние реле в базе данных
+                        updateServoSettings(deToConnect, { b1: data.b1 === 'on' }).catch(error =>
+                            addLog(`Ошибка сохранения b1: ${error.message}`, 'error')
+                        );
                         addLog(`Реле 1 (D0): ${data.b1 === 'on' ? 'включено' : 'выключено'}`, 'esp');
                     }
                     if (data.b2 !== undefined) {
                         setButton2State(data.b2 === 'on' ? 1 : 0);
+                        // Сохраняем состояние реле в базе данных
+                        updateServoSettings(deToConnect, { b2: data.b2 === 'on' }).catch(error =>
+                            addLog(`Ошибка сохранения b2: ${error.message}`, 'error')
+                        );
                         addLog(`Реле 2 (3): ${data.b2 === 'on' ? 'включено' : 'выключено'}`, 'esp');
                     }
                     if (data.sp1 !== undefined) {
@@ -444,11 +474,14 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     setServo1MaxAngle(selectedDevice.settings.servo1MaxAngle || 180);
                     setServo2MinAngle(selectedDevice.settings.servo2MinAngle || 0);
                     setServo2MaxAngle(selectedDevice.settings.servo2MaxAngle || 180);
+                    setShowServos(selectedDevice.settings.servoView !== undefined ? selectedDevice.settings.servoView : true);
+                    setButton1State(selectedDevice.settings.b1 ? 1 : 0);
+                    setButton2State(selectedDevice.settings.b2 ? 1 : 0);
                 }
-            }
-            if (autoReconnect) {
-                await disconnectWebSocket();
-                connectWebSocket(value);
+                if (autoReconnect) {
+                    await disconnectWebSocket();
+                    connectWebSocket(value);
+                }
             }
         } catch (error) {
             console.error('Ошибка при смене устройства:', error);
