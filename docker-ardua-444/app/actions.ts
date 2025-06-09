@@ -244,7 +244,6 @@ export async function updateServoSettings(
     throw new Error('Устройство не найдено или доступ запрещен');
   }
 
-  // Фильтруем undefined значения для update
   const updateData: any = {};
   if (settings.servo1MinAngle !== undefined) updateData.servo1MinAngle = settings.servo1MinAngle;
   if (settings.servo1MaxAngle !== undefined) updateData.servo1MaxAngle = settings.servo1MaxAngle;
@@ -254,7 +253,6 @@ export async function updateServoSettings(
   if (settings.b2 !== undefined) updateData.b2 = settings.b2;
   if (settings.servoView !== undefined) updateData.servoView = settings.servoView;
 
-  // Проверка, есть ли данные для обновления
   if (Object.keys(updateData).length === 0) {
     console.log('Нет данных для обновления в Settings');
     return;

@@ -72,10 +72,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const [autoConnect, setAutoConnect] = useState(false)
     const [closedDel, setClosedDel] = useState(false)
     const [isLandscape, setIsLandscape] = useState(false)
-    const [button1State, setButton1State] = useState(0)
-    const [button2State, setButton2State] = useState(0)
+    const [button1State, setButton1State] = useState<boolean | null>(null)
+    const [button2State, setButton2State] = useState<boolean | null>(null)
+    const [showServos, setShowServos] = useState<boolean | null>(null)
     const [activeTab, setActiveTab] = useState<'esp' | 'controls' | null>('esp');
-    const [showServos, setShowServos] = useState(true);
 
     const lastHeartbeatLogTime = useRef<number>(0);
     const reconnectAttemptRef = useRef(0)
@@ -88,7 +88,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const motorBThrottleRef = useRef<NodeJS.Timeout | null>(null)
     const currentDeRef = useRef(inputDe)
 
-    // Перемещаем addLog выше всех useCallback
     const addLog = useCallback((msg: string, ty: LogEntry['ty']) => {
         setLog(prev => [...prev.slice(-100), { me: `${new Date().toLocaleTimeString()}: ${msg}`, ty }]);
     }, []);
@@ -101,7 +100,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 const deviceIds = devices.map(device => device.idDevice);
                 setDeviceList(deviceIds);
                 if (deviceIds.length > 0) {
-                    const defaultDevice = devices[0]; // Выбираем первое устройство
+                    const defaultDevice = devices[0];
                     setInputDe(defaultDevice.idDevice);
                     setDe(defaultDevice.idDevice);
                     currentDeRef.current = defaultDevice.idDevice;
@@ -113,12 +112,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         setServo1MaxAngle(defaultDevice.settings.servo1MaxAngle || 180);
                         setServo2MinAngle(defaultDevice.settings.servo2MinAngle || 0);
                         setServo2MaxAngle(defaultDevice.settings.servo2MaxAngle || 180);
-                        setShowServos(defaultDevice.settings.servoView !== undefined ? defaultDevice.settings.servoView : true);
-                        setButton1State(defaultDevice.settings.b1 ? 1 : 0);
-                        setButton2State(defaultDevice.settings.b2 ? 1 : 0);
+                        setButton1State(defaultDevice.settings.b1 ?? false);
+                        setButton2State(defaultDevice.settings.b2 ?? false);
+                        setShowServos(defaultDevice.settings.servoView ?? true);
                     }
-
-                    // Отправка настроек на устройство через WebSocket
                     if (socketRef.current?.readyState === WebSocket.OPEN) {
                         const settings = await sendDeviceSettingsToESP(defaultDevice.idDevice);
                         if (settings.servo1MinAngle !== undefined && settings.servo1MaxAngle !== undefined) {
@@ -145,24 +142,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         }
                         socketRef.current.send(
                             JSON.stringify({
-                                co: 'RLY',
-                                pa: { pin: 'D0', state: settings.b1 ? 'on' : 'off' },
-                                de: defaultDevice.idDevice,
-                                ts: Date.now(),
-                                expectAck: true,
-                            })
-                        );
-                        socketRef.current.send(
-                            JSON.stringify({
-                                co: 'RLY',
-                                pa: { pin: '3', state: settings.b2 ? 'on' : 'off' },
-                                de: defaultDevice.idDevice,
-                                ts: Date.now(),
-                                expectAck: true,
-                            })
-                        );
-                        socketRef.current.send(
-                            JSON.stringify({
                                 co: 'SET_SERVO_VIEW',
                                 pa: { visible: settings.servoView },
                                 de: defaultDevice.idDevice,
@@ -176,6 +155,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     setInputDe('123');
                     setDe('123');
                     currentDeRef.current = '123';
+                    // setButton1State(false);
+                    // setButton2State(false);
+                    setShowServos(true);
                 }
             } catch (error) {
                 console.error('Ошибка загрузки устройств:', error);
@@ -351,6 +333,18 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             await updateServoSettings(inputDe, { servoView: newState });
             setShowServos(newState);
             addLog(`Видимость сервоприводов изменена: ${newState ? 'включена' : 'выключена'}`, 'success');
+            // Отправляем команду на устройство
+            if (socketRef.current?.readyState === WebSocket.OPEN) {
+                socketRef.current.send(
+                    JSON.stringify({
+                        co: 'SET_SERVO_VIEW',
+                        pa: { visible: newState },
+                        de: inputDe,
+                        ts: Date.now(),
+                        expectAck: true,
+                    })
+                );
+            }
         } catch (error) {
             console.error('Ошибка сохранения servoView:', error);
             addLog(`Ошибка сохранения servoView: ${error.message}`, 'error');
@@ -376,7 +370,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             ws.send(JSON.stringify({ ty: "idn", de: deToConnect }));
             ws.send(JSON.stringify({ co: "GET_RELAYS", de: deToConnect, ts: Date.now() }));
 
-            // Отправка настроек на устройство
             sendDeviceSettingsToESP(deToConnect)
                 .then(settings => {
                     if (ws.readyState === WebSocket.OPEN) {
@@ -404,24 +397,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         }
                         ws.send(
                             JSON.stringify({
-                                co: 'RLY',
-                                pa: { pin: 'D0', state: settings.b1 ? 'on' : 'off' },
-                                de: deToConnect,
-                                ts: Date.now(),
-                                expectAck: true,
-                            })
-                        );
-                        ws.send(
-                            JSON.stringify({
-                                co: 'RLY',
-                                pa: { pin: '3', state: settings.b2 ? 'on' : 'off' },
-                                de: deToConnect,
-                                ts: Date.now(),
-                                expectAck: true,
-                            })
-                        );
-                        ws.send(
-                            JSON.stringify({
                                 co: 'SET_SERVO_VIEW',
                                 pa: { visible: settings.servoView },
                                 de: deToConnect,
@@ -445,19 +420,19 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 if (data.ty === 'ack') {
                     if (data.co === 'RLY' && data.pa) {
                         if (data.pa.pin === 'D0') {
-                            setButton1State(data.pa.state === 'on' ? 1 : 0);
-                            // Сохраняем состояние реле в базе данных
-                            updateServoSettings(deToConnect, { b1: data.pa.state === 'on' }).catch(error =>
+                            const newState = data.pa.state === 'on';
+                            setButton1State(newState);
+                            updateServoSettings(deToConnect, { b1: newState }).catch(error =>
                                 addLog(`Ошибка сохранения b1: ${error.message}`, 'error')
                             );
-                            addLog(`Реле 1 (D0) ${data.pa.state === 'on' ? 'включено' : 'выключено'}`, 'esp');
+                            addLog(`Реле 1 (D0) ${newState ? 'включено' : 'выключено'}`, 'esp');
                         } else if (data.pa.pin === '3') {
-                            setButton2State(data.pa.state === 'on' ? 1 : 0);
-                            // Сохраняем состояние реле в базе данных
-                            updateServoSettings(deToConnect, { b2: data.pa.state === 'on' }).catch(error =>
+                            const newState = data.pa.state === 'on';
+                            setButton2State(newState);
+                            updateServoSettings(deToConnect, { b2: newState }).catch(error =>
                                 addLog(`Ошибка сохранения b2: ${error.message}`, 'error')
                             );
-                            addLog(`Реле 2 (3) ${data.pa.state === 'on' ? 'включено' : 'выключено'}`, 'esp');
+                            addLog(`Реле 2 (3) ${newState ? 'включено' : 'выключено'}`, 'esp');
                         }
                     } else if (data.co === 'SPD' && data.sp !== undefined) {
                         addLog(`Скорость установлена: ${data.sp} для мотора ${data.mo || 'unknown'}`, 'esp');
@@ -485,20 +460,20 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     }
                     addLog(`ESP: ${data.me}`, 'esp');
                     if (data.b1 !== undefined) {
-                        setButton1State(data.b1 === 'on' ? 1 : 0);
-                        // Сохраняем состояние реле в базе данных
-                        updateServoSettings(deToConnect, { b1: data.b1 === 'on' }).catch(error =>
+                        const newState = data.b1 === 'on';
+                        setButton1State(newState);
+                        updateServoSettings(deToConnect, { b1: newState }).catch(error =>
                             addLog(`Ошибка сохранения b1: ${error.message}`, 'error')
                         );
-                        addLog(`Реле 1 (D0): ${data.b1 === 'on' ? 'включено' : 'выключено'}`, 'esp');
+                        addLog(`Реле 1 (D0): ${newState ? 'включено' : 'выключено'}`, 'esp');
                     }
                     if (data.b2 !== undefined) {
-                        setButton2State(data.b2 === 'on' ? 1 : 0);
-                        // Сохраняем состояние реле в базе данных
-                        updateServoSettings(deToConnect, { b2: data.b2 === 'on' }).catch(error =>
+                        const newState = data.b2 === 'on';
+                        setButton2State(newState);
+                        updateServoSettings(deToConnect, { b2: newState }).catch(error =>
                             addLog(`Ошибка сохранения b2: ${error.message}`, 'error')
                         );
-                        addLog(`Реле 2 (3): ${data.b2 === 'on' ? 'включено' : 'выключено'}`, 'esp');
+                        addLog(`Реле 2 (3): ${newState ? 'включено' : 'выключено'}`, 'esp');
                     }
                     if (data.sp1 !== undefined) {
                         setServoAngle(Number(data.sp1));
@@ -585,9 +560,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     setServo1MaxAngle(selectedDevice.settings.servo1MaxAngle || 180);
                     setServo2MinAngle(selectedDevice.settings.servo2MinAngle || 0);
                     setServo2MaxAngle(selectedDevice.settings.servo2MaxAngle || 180);
-                    setShowServos(selectedDevice.settings.servoView !== undefined ? selectedDevice.settings.servoView : true);
-                    setButton1State(selectedDevice.settings.b1 ? 1 : 0);
-                    setButton2State(selectedDevice.settings.b2 ? 1 : 0);
+                    // Синхронизируем состояния кнопок и видимости сервоприводов
+                    setButton1State(selectedDevice.settings.b1 ?? false);
+                    setButton2State(selectedDevice.settings.b2 ?? false);
+                    setShowServos(selectedDevice.settings.servoView ?? true);
                 }
                 if (autoReconnect) {
                     await disconnectWebSocket();
@@ -1028,45 +1004,53 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     )}
 
                     <div className="flex items-center justify-center space-x-2">
-                        <Button
-                            onClick={() => {
-                                const newState = button1State ? 'off' : 'on';
-                                sendCommand('RLY', { pin: 'D0', state: newState });
-                            }}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
-                        >
-                            {button1State ? (
-                                <img width={'25px'} height={'25px'} src="/off.svg" alt="Image" />
-                            ) : (
-                                <img width={'25px'} height={'25px'} src="/on.svg" alt="Image" />
-                            )}
-                        </Button>
+                        {button1State !== null && (
+                            <Button
+                                onClick={() => {
+                                    const newState = button1State ? 'off' : 'on';
+                                    sendCommand('RLY', { pin: 'D0', state: newState });
+                                    // Не обновляем состояние локально, ждём ответа сервера
+                                }}
+                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
+                            >
+                                {button1State ? (
+                                    <img width={'25px'} height={'25px'} src="/off.svg" alt="Image" />
+                                ) : (
+                                    <img width={'25px'} height={'25px'} src="/on.svg" alt="Image" />
+                                )}
+                            </Button>
+                        )}
 
-                        <Button
-                            onClick={() => {
-                                const newState = button2State ? 'off' : 'on';
-                                sendCommand('RLY', { pin: '3', state: newState });
-                            }}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
-                        >
-                            {button2State ? (
-                                <img width={'25px'} height={'25px'} src="/off.svg" alt="Image" />
-                            ) : (
-                                <img width={'25px'} height={'25px'} src="/on.svg" alt="Image" />
-                            )}
-                        </Button>
+                        {button2State !== null && (
+                            <Button
+                                onClick={() => {
+                                    const newState = button2State ? 'off' : 'on';
+                                    sendCommand('RLY', { pin: '3', state: newState });
+                                    // Не обновляем состояние локально, ждём ответа сервера
+                                }}
+                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
+                            >
+                                {button2State ? (
+                                    <img width={'25px'} height={'25px'} src="/off.svg" alt="Image" />
+                                ) : (
+                                    <img width={'25px'} height={'25px'} src="/on.svg" alt="Image" />
+                                )}
+                            </Button>
+                        )}
 
-                        <Button
-                            onClick={toggleServosVisibility}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
-                            title={showServos ? 'Скрыть сервоприводы' : 'Показать сервоприводы'}
-                        >
-                            {showServos ? (
-                                <img width={'25px'} height={'25px'} src="/turn2.svg" alt="Image" />
-                            ) : (
-                                <img width={'25px'} height={'25px'} src="/turn1.svg" alt="Image" />
-                            )}
-                        </Button>
+                        {showServos !== null && (
+                            <Button
+                                onClick={toggleServosVisibility}
+                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
+                                title={showServos ? 'Скрыть сервоприводы' : 'Показать сервоприводы'}
+                            >
+                                {showServos ? (
+                                    <img width={'25px'} height={'25px'} src="/turn2.svg" alt="Image" />
+                                ) : (
+                                    <img width={'25px'} height={'25px'} src="/turn1.svg" alt="Image" />
+                                )}
+                            </Button>
+                        )}
 
                         <Button
                             onClick={handleCloseControls}
