@@ -39,7 +39,7 @@ export const VideoCallApp = () => {
     const [devicesLoaded, setDevicesLoaded] = useState(false)
     const [isJoining, setIsJoining] = useState(false)
     const [autoJoin, setAutoJoin] = useState(false)
-    const [activeMainTab, setActiveMainTab] = useState<'webrtc' | 'esp' | 'cam' | 'control' | null>(null)
+    const [activeMainTab, setActiveMainTab] = useState<'webrtc' | 'esp' | null>(null)
     const [showControls, setShowControls] = useState(false)
     const [showCam, setShowCam] = useState(false)
     const [videoSettings, setVideoSettings] = useState<VideoSettings>({
@@ -453,7 +453,7 @@ export const VideoCallApp = () => {
     const toggleTab = (tab: 'webrtc' | 'esp' | 'cam' | 'controls') => {
         if (tab === 'cam') {
             setShowCam(!showCam);
-            setActiveMainTab(null); // Сбрасываем активную вкладку для controls
+            // setActiveMainTab(null); // Сбрасываем активную вкладку для controls
         }
         else if (tab === 'controls') {
             setShowControls(!showControls);
