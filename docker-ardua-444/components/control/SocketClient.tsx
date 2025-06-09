@@ -486,54 +486,56 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         }
     }, [addLog, de, isIdentified, espConnected]);
 
-    const createMotorHandler = useCallback((mo: string) => {
-        const lastCommandRef = mo === 'A' ? lastMotorACommandRef : lastMotorBCommandRef;
-        const throttleRef = mo === 'A' ? motorAThrottleRef : motorBThrottleRef;
-        const setSpeed = mo === 'A' ? setMotorASpeed : setMotorBSpeed;
-        const setDirection = mo === 'A' ? setMotorADirection : setMotorBDirection;
+    const createMotorHandler = useCallback((mo: 'A' | 'B') => { // motor → mo
+        const lastCommandRef = mo === 'A' ? lastMotorACommandRef : lastMotorBCommandRef
+        const throttleRef = mo === 'A' ? motorAThrottleRef : motorBThrottleRef
+        const setSpeed = mo === 'A' ? setMotorASpeed : setMotorBSpeed
+        const setDirection = mo === 'A' ? setMotorADirection : setMotorBDirection
 
         return (value: number) => {
-            let direction: 'forward' | 'backward' | 'stop' = 'stop';
-            let sp = 0;
+            let direction: 'forward' | 'backward' | 'stop' = 'stop'
+            let sp = 0 // speed → sp
 
             if (value > 0) {
-                direction = 'forward';
-                sp = value;
+                direction = 'forward'
+                sp = value // speed → sp
             } else if (value < 0) {
-                direction = 'backward';
-                sp = -value;
+                direction = 'backward'
+                sp = -value // speed → sp
             }
 
-            setSpeed(sp);
-            setDirection(direction);
+            setSpeed(sp) // speed → sp
+            setDirection(direction)
 
-            const currentCommand = { sp, direction };
+            const currentCommand = {sp, direction} // speed → sp
             if (JSON.stringify(lastCommandRef.current) === JSON.stringify(currentCommand)) {
-                return;
+                return
             }
 
-            lastCommandRef.current = currentCommand;
+            lastCommandRef.current = currentCommand
 
-            if (sp === 0) {
+            if (sp === 0) { // speed → sp
                 if (throttleRef.current) {
-                    clearTimeout(throttleRef.current);
-                    throttleRef.current = null;
+                    clearTimeout(throttleRef.current)
+                    throttleRef.current = null
                 }
-                sendCommand("spD", { mo, sp: 0 });
-                sendCommand(mo === 'A' ? "MSA" : "MSB");
-                return;
+                sendCommand("SPD", {mo, sp: 0}) // set_speed → SPD, motor → mo, speed → sp
+                sendCommand(mo === 'A' ? "MSA" : "MSB")
+                return
             }
 
             if (throttleRef.current) {
-                clearTimeout(throttleRef.current);
+                clearTimeout(throttleRef.current)
             }
 
             throttleRef.current = setTimeout(() => {
-                sendCommand("SPD", { mo, sp });
-                sendCommand(direction === 'forward' ? `MF${mo}` : `MR${mo}`);
-            }, 40);
-        };
-    }, [sendCommand]);
+                sendCommand("SPD", {mo, sp}) // set_speed → SPD, motor → mo, speed → sp
+                sendCommand(direction === 'forward'
+                    ? `MF${mo}` // motor_a_forward → MFA, motor_b_forward → MFB
+                    : `MR${mo}`) // motor_a_backward → MRA, motor_b_backward → MRB
+            }, 40)
+        }
+    }, [sendCommand])
 
     const adjustServo = useCallback(
         (servoId: '1' | '2', delta: number) => {
