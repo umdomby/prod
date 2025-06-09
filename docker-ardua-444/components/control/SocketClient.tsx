@@ -183,13 +183,13 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
         localStorage.setItem('preventDeletion', checked.toString())
     }, [])
 
-    const toggleAutoShowControls = useCallback((checked: boolean) => {
-        setAutoShowControls(checked)
-        localStorage.setItem('autoShowControls', checked.toString())
-        if (!checked) {
-            setActiveTab('esp')
-        }
-    }, [])
+    // const toggleAutoShowControls = useCallback((checked: boolean) => {
+    //     setAutoShowControls(checked)
+    //     localStorage.setItem('autoShowControls', checked.toString())
+    //     if (!checked) {
+    //         setActiveTab('esp')
+    //     }
+    // }, [])
 
 
     // Добавляем функцию форматирования ID
@@ -887,18 +887,22 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
                             title={showServos ? 'Скрыть сервоприводы' : 'Показать сервоприводы'}
                         >
                             {showServos ? (
-                                <EyeOff className="h-4 w-4"/> // Иконка "глаз закрыт" когда видно
+                                <img width={'25px'} height={'25px'} src="/turn2.svg" alt="Image" />
                             ) : (
-                                <Eye className="h-4 w-4"/>    // Иконка "глаз открыт" когда скрыто
+                                <img width={'25px'} height={'25px'} src="/turn1.svg" alt="Image" />
                             )}
                         </Button>
 
                         <Button
                             onClick={handleCloseControls}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-red-600 text-gray-600 px-4 py-1 sm:px-6 sm:py-2 rounded-full transition-all text-xs sm:text-sm"
+                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 text-gray-600 p-2 rounded-full transition-all flex items-center"
                             // style={{ minWidth: '6rem' }}
                         >
-                            <Power className="h-4 w-4"/>
+                            { activeTab === 'controls' ? (
+                                <img width={'25px'} height={'25px'} src="/settings2.svg" alt="Image" />
+                            ) : (
+                                <img width={'25px'} height={'25px'} src="/settings1.svg" alt="Image" />
+                            )}
                         </Button>
                     </div>
                 </div>
