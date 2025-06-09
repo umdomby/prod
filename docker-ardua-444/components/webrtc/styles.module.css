@@ -391,6 +391,7 @@
     transition: all 0.2s ease;
     min-width: 30px; /* Фиксированная минимальная ширина */
     height: 28px; /* Фиксированная высота */
+    touch-action: manipulation; /* Убирает задержку для сенсорных событий */
 }
 .tabButton img {
     width: 14px; /* Уменьшили размер иконок */

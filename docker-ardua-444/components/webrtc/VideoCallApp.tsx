@@ -4,7 +4,7 @@ import { useWebRTC } from './hooks/useWebRTC'
 import styles from './styles.module.css'
 import { VideoPlayer } from './components/VideoPlayer'
 import { DeviceSelector } from './components/DeviceSelector'
-import { useEffect, useState, useRef } from 'react'
+import {useEffect, useState, useRef, useCallback} from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import SocketClient from '../control/SocketClient'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { getSavedRooms, saveRoom, deleteRoom, setDefaultRoom, updateAutoConnect } from '@/app/actions'
+import { debounce } from 'lodash';
 
 type VideoSettings = {
     rotation: number
@@ -450,19 +451,34 @@ export const VideoCallApp = () => {
         updateVideoSettings({ rotation: 0, flipH: false, flipV: false })
     }
 
-    const toggleTab = (tab: 'webrtc' | 'esp' | 'cam' | 'controls') => {
-        if (tab === 'cam') {
-            setShowCam(!showCam);
-            // setActiveMainTab(null); // Сбрасываем активную вкладку для controls
-        }
-        else if (tab === 'controls') {
-            setShowControls(!showControls);
-            setActiveMainTab(null); // Сбрасываем активную вкладку для controls
-        } else {
-            setActiveMainTab(activeMainTab === tab ? null : tab); // Переключаем или скрываем вкладку
-            setShowControls(false); // Скрываем джойстики при выборе webrtc или esp
-        }
-    };
+    // const toggleTab = (tab: 'webrtc' | 'esp' | 'cam' | 'controls') => {
+    //     if (tab === 'cam') {
+    //         setShowCam(!showCam);
+    //         // setActiveMainTab(null); // Сбрасываем активную вкладку для controls
+    //     }
+    //     else if (tab === 'controls') {
+    //         setShowControls(!showControls);
+    //         setActiveMainTab(null); // Сбрасываем активную вкладку для controls
+    //     } else {
+    //         setActiveMainTab(activeMainTab === tab ? null : tab); // Переключаем или скрываем вкладку
+    //         setShowControls(false); // Скрываем джойстики при выборе webrtc или esp
+    //     }
+    // };
+
+    const toggleTab = useCallback(
+        debounce((tab: 'webrtc' | 'esp' | 'cam' | 'controls') => {
+            if (tab === 'cam') {
+                setShowCam(!showCam);
+            } else if (tab === 'controls') {
+                setShowControls(!showControls);
+                setActiveMainTab(null);
+            } else {
+                setActiveMainTab(activeMainTab === tab ? null : tab);
+                setShowControls(false);
+            }
+        }, 300),
+        [showCam, showControls, activeMainTab]
+    );
 
     return (
         <div className={styles.container} suppressHydrationWarning>
