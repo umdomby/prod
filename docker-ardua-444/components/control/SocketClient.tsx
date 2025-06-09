@@ -88,6 +88,12 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const motorBThrottleRef = useRef<NodeJS.Timeout | null>(null)
     const currentDeRef = useRef(inputDe)
 
+
+    const [servo1MinInput, setServo1MinInput] = useState('');
+    const [servo1MaxInput, setServo1MaxInput] = useState('');
+    const [servo2MinInput, setServo2MinInput] = useState('');
+    const [servo2MaxInput, setServo2MaxInput] = useState('');
+
     const addLog = useCallback((msg: string, ty: LogEntry['ty']) => {
         setLog(prev => [...prev.slice(-100), { me: `${new Date().toLocaleTimeString()}: ${msg}`, ty }]);
     }, []);
@@ -97,75 +103,143 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         const loadDevices = async () => {
             try {
                 const devices = await getDevices();
-                const deviceIds = devices.map(device => device.idDevice);
-                setDeviceList(deviceIds);
-                if (deviceIds.length > 0) {
-                    const defaultDevice = devices[0];
-                    setInputDe(defaultDevice.idDevice);
-                    setDe(defaultDevice.idDevice);
-                    currentDeRef.current = defaultDevice.idDevice;
-                    setAutoReconnect(defaultDevice.autoReconnect);
-                    setAutoConnect(defaultDevice.autoConnect);
-                    setClosedDel(defaultDevice.closedDel);
-                    if (defaultDevice.settings) {
-                        setServo1MinAngle(defaultDevice.settings.servo1MinAngle || 0);
-                        setServo1MaxAngle(defaultDevice.settings.servo1MaxAngle || 180);
-                        setServo2MinAngle(defaultDevice.settings.servo2MinAngle || 0);
-                        setServo2MaxAngle(defaultDevice.settings.servo2MaxAngle || 180);
-                        setButton1State(defaultDevice.settings.b1 ?? false);
-                        setButton2State(defaultDevice.settings.b2 ?? false);
-                        setShowServos(defaultDevice.settings.servoView ?? true);
+                setDeviceList(devices.map(d => d.idDevice));
+                if (devices.length > 0) {
+                    const device = devices[0];
+                    setInputDe(device.idDevice);
+                    setDe(device.idDevice);
+                    currentDeRef.current = device.idDevice;
+
+                    // const defaultDevice = devices[0];
+                    // setInputDe(defaultDevice.idDevice);
+                    // setDe(defaultDevice.idDevice);
+                    // currentDeRef.current = defaultDevice.idDevice;
+                    setAutoReconnect(devices.autoReconnect);
+                    setAutoConnect(devices.autoConnect);
+                    setClosedDel(devices.closedDel);
+                    if (device.settings) {
+                        setServo1MinAngle(device.settings.servo1MinAngle || 0);
+                        setServo1MaxAngle(device.settings.servo1MaxAngle || 180);
+                        setServo2MinAngle(device.settings.servo2MinAngle || 0);
+                        setServo2MaxAngle(device.settings.servo2MaxAngle || 180);
+                        setButton1State(device.settings.b1 ?? false);
+                        setButton2State(device.settings.b2 ?? false);
+                        setShowServos(device.settings.servoView ?? true);
+                        setServo1MinInput((device.settings.servo1MinAngle || 0).toString());
+                        setServo1MaxInput((device.settings.servo1MaxAngle || 180).toString());
+                        setServo2MinInput((device.settings.servo2MinAngle || 0).toString());
+                        setServo2MaxInput((device.settings.servo2MaxAngle || 180).toString());
                     }
                     if (socketRef.current?.readyState === WebSocket.OPEN) {
-                        const settings = await sendDeviceSettingsToESP(defaultDevice.idDevice);
-                        if (settings.servo1MinAngle !== undefined && settings.servo1MaxAngle !== undefined) {
-                            socketRef.current.send(
-                                JSON.stringify({
-                                    co: 'SET_SERVO1_LIMITS',
-                                    pa: { min: settings.servo1MinAngle, max: settings.servo1MaxAngle },
-                                    de: defaultDevice.idDevice,
-                                    ts: Date.now(),
-                                    expectAck: true,
-                                })
-                            );
-                        }
-                        if (settings.servo2MinAngle !== undefined && settings.servo2MaxAngle !== undefined) {
-                            socketRef.current.send(
-                                JSON.stringify({
-                                    co: 'SET_SERVO2_LIMITS',
-                                    pa: { min: settings.servo2MinAngle, max: settings.servo2MaxAngle },
-                                    de: defaultDevice.idDevice,
-                                    ts: Date.now(),
-                                    expectAck: true,
-                                })
-                            );
-                        }
-                        socketRef.current.send(
-                            JSON.stringify({
-                                co: 'SET_SERVO_VIEW',
-                                pa: { visible: settings.servoView },
-                                de: defaultDevice.idDevice,
-                                ts: Date.now(),
-                                expectAck: true,
-                            })
-                        );
+                        const settings = await sendDeviceSettingsToESP(device.idDevice);
+                        socketRef.current.send(JSON.stringify({ co: 'SET_SERVO1_LIMITS', pa: { min: settings.servo1MinAngle, max: settings.servo1MaxAngle }, de: device.idDevice, ts: Date.now(), expectAck: true }));
+                        socketRef.current.send(JSON.stringify({ co: 'SET_SERVO2_LIMITS', pa: { min: settings.servo2MinAngle, max: settings.servo2MaxAngle }, de: device.idDevice, ts: Date.now(), expectAck: true }));
+                        socketRef.current.send(JSON.stringify({ co: 'SET_SERVO_VIEW', pa: { visible: settings.servoView }, de: device.idDevice, ts: Date.now(), expectAck: true }));
                     }
                 } else {
                     setDeviceList(['123']);
                     setInputDe('123');
                     setDe('123');
-                    currentDeRef.current = '123';
                     // setButton1State(false);
                     // setButton2State(false);
                     setShowServos(true);
+                    setServo1MinInput('0');
+                    setServo1MaxInput('180');
+                    setServo2MinInput('0');
+                    setServo2MaxInput('180');
                 }
             } catch (error) {
-                console.error('Ошибка загрузки устройств:', error);
                 addLog(`Ошибка: ${error.message}`, 'error');
             }
         };
         loadDevices();
     }, [setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle, addLog]);
+
+    const handleServoInputChange = useCallback(
+        (setter, value) => {
+            // Разрешаем ввод любых цифр или пустую строку
+            if (value === '' || /^[0-9]*$/.test(value)) {
+                setter(value);
+            }
+        },
+        []
+    );
+
+    const handleServoInputBlur = useCallback(async (field, value) => {
+        try {
+            let newValue = value === '' ? 0 : parseInt(value);
+            let isValid = true;
+            let updateData = {};
+
+            // Ограничиваем значения до 180
+            if (newValue > 180) {
+                newValue = 180;
+                isValid = false;
+            }
+
+            if (field === 'servo1Min') {
+                if (newValue > servo1MaxAngle) {
+                    newValue = servo1MinAngle;
+                    setServo1MinInput(servo1MinAngle.toString());
+                    isValid = false;
+                } else {
+                    setServo1MinAngle(newValue);
+                    setServo1MinInput(newValue.toString());
+                    updateData.servo1MinAngle = newValue;
+                }
+            } else if (field === 'servo1Max') {
+                if (newValue < servo1MinAngle) {
+                    newValue = servo1MaxAngle;
+                    setServo1MaxInput(servo1MaxAngle.toString());
+                    isValid = false;
+                } else {
+                    setServo1MaxAngle(newValue);
+                    setServo1MaxInput(newValue.toString());
+                    updateData.servo1MaxAngle = newValue;
+                }
+            } else if (field === 'servo2Min') {
+                if (newValue > servo2MaxAngle) {
+                    newValue = servo2MinAngle;
+                    setServo2MinInput(servo2MinAngle.toString());
+                    isValid = false;
+                } else {
+                    setServo2MinAngle(newValue);
+                    setServo2MinInput(newValue.toString());
+                    updateData.servo2MinAngle = newValue;
+                }
+            } else if (field === 'servo2Max') {
+                if (newValue < servo2MinAngle) {
+                    newValue = servo2MaxAngle;
+                    setServo2MaxInput(servo2MaxAngle.toString());
+                    isValid = false;
+                } else {
+                    setServo2MaxAngle(newValue);
+                    setServo2MaxInput(newValue.toString());
+                    updateData.servo2MaxAngle = newValue;
+                }
+            }
+
+            if (isValid && Object.keys(updateData).length > 0) {
+                await updateServoSettings(inputDe, updateData);
+                if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    if (field === 'servo1Min' || field === 'servo1Max') {
+                        socketRef.current.send(JSON.stringify({ co: 'SET_SERVO1_LIMITS', pa: { min: servo1MinAngle, max: servo1MaxAngle }, de: inputDe, ts: Date.now(), expectAck: true }));
+                    } else {
+                        socketRef.current.send(JSON.stringify({ co: 'SET_SERVO2_LIMITS', pa: { min: servo2MinAngle, max: servo2MaxAngle }, de: inputDe, ts: Date.now(), expectAck: true }));
+                    }
+                }
+                addLog(`Угол ${field} обновлён: ${newValue}°`, 'success');
+            } else if (!isValid) {
+                addLog(`Недопустимое значение для ${field}: ${value}`, 'error');
+            }
+        } catch (error) {
+            addLog(`Ошибка сохранения ${field}: ${error.message}`, 'error');
+            if (field === 'servo1Min') setServo1MinInput(servo1MinAngle.toString());
+            else if (field === 'servo1Max') setServo1MaxInput(servo1MaxAngle.toString());
+            else if (field === 'servo2Min') setServo2MinInput(servo2MinAngle.toString());
+            else if (field === 'servo2Max') setServo2MaxInput(servo2MaxAngle.toString());
+        }
+    }, [servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle, inputDe, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle]);
 
     useEffect(() => {
         const checkOrientation = () => {
@@ -329,31 +403,16 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
 
     const toggleServosVisibility = useCallback(async () => {
         try {
-            // Локально обновляем состояние сразу
             setShowServos(prev => !prev);
             const newState = !showServos;
-
-            // Отправляем команду на сервер
             if (socketRef.current?.readyState === WebSocket.OPEN) {
-                socketRef.current.send(
-                    JSON.stringify({
-                        co: 'SET_SERVO_VIEW',
-                        pa: { visible: newState },
-                        de: inputDe,
-                        ts: Date.now(),
-                        expectAck: true,
-                    })
-                );
+                socketRef.current.send(JSON.stringify({ co: 'SET_SERVO_VIEW', pa: { visible: newState }, de: inputDe, ts: Date.now(), expectAck: true }));
             }
-
-            // Сохраняем в базу данных
             await updateServoSettings(inputDe, { servoView: newState });
-            addLog(`Видимость сервоприводов изменена: ${newState ? 'включена' : 'выключена'}`, 'success');
+            addLog(`Видимость сервоприводов: ${newState ? 'включена' : 'выключена'}`, 'success');
         } catch (error) {
-            // В случае ошибки откатываем локальное изменение
             setShowServos(prev => !prev);
-            console.error('Ошибка сохранения servoView:', error);
-            addLog(`Ошибка сохранения servoView: ${error.message}`, 'error');
+            addLog(`Ошибка servoView: ${error.message}`, 'error');
         }
     }, [inputDe, showServos, addLog]);
 
@@ -841,49 +900,45 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                             <div>
                                 <Label htmlFor="servo1-min" className="text-xs sm:text-sm">Servo 1 Min (°)</Label>
                                 <Input
-                                    id="servo1-min"
-                                    type="number"
-                                    value={servo1MinAngle}
-                                    onChange={handleServo1MinAngleChange}
-                                    min={0}
-                                    max={servo1MaxAngle}
-                                    className="h-8 sm:h-10 text-xs sm:text-sm"
+                                    type="text"
+                                    value={servo1MinInput}
+                                    onChange={(e) => handleServoInputChange(setServo1MinInput, e.target.value)}
+                                    onBlur={(e) => handleServoInputBlur('servo1Min', e.target.value)}
+                                    placeholder="0"
+                                    className="bg-gray-700 text-white border-gray-600"
                                 />
                             </div>
                             <div>
                                 <Label htmlFor="servo1-max" className="text-xs sm:text-sm">Servo 1 Max (°)</Label>
                                 <Input
-                                    id="servo1-max"
-                                    type="number"
-                                    value={servo1MaxAngle}
-                                    onChange={handleServo1MaxAngleChange}
-                                    min={servo1MinAngle}
-                                    max={180}
-                                    className="h-8 sm:h-10 text-xs sm:text-sm"
+                                    type="text"
+                                    value={servo1MaxInput}
+                                    onChange={(e) => handleServoInputChange(setServo1MaxInput, e.target.value)}
+                                    onBlur={(e) => handleServoInputBlur('servo1Max', e.target.value)}
+                                    placeholder="0"
+                                    className={`bg-gray-700 text-white border-gray-600 ${parseInt(servo1MaxInput || '0') < servo1MinAngle ? 'border-red-500' : ''}`}
                                 />
                             </div>
                             <div>
                                 <Label htmlFor="servo2-min" className="text-xs sm:text-sm">Servo 2 Min (°)</Label>
                                 <Input
-                                    id="servo2-min"
-                                    type="number"
-                                    value={servo2MinAngle}
-                                    onChange={handleServo2MinAngleChange}
-                                    min={0}
-                                    max={servo2MaxAngle}
-                                    className="h-8 sm:h-10 text-xs sm:text-sm"
+                                    type="text"
+                                    value={servo2MinInput}
+                                    onChange={(e) => handleServoInputChange(setServo2MinInput, e.target.value)}
+                                    onBlur={(e) => handleServoInputBlur('servo2Min', e.target.value)}
+                                    placeholder="0"
+                                    className="bg-gray-700 text-white border-gray-600"
                                 />
                             </div>
                             <div>
                                 <Label htmlFor="servo2-max" className="text-xs sm:text-sm">Servo 2 Max (°)</Label>
                                 <Input
-                                    id="servo2-max"
-                                    type="number"
-                                    value={servo2MaxAngle}
-                                    onChange={handleServo2MaxAngleChange}
-                                    min={servo2MinAngle}
-                                    max={180}
-                                    className="h-8 sm:h-10 text-xs sm:text-sm"
+                                    type="text"
+                                    value={servo2MaxInput}
+                                    onChange={(e) => handleServoInputChange(setServo2MaxInput, e.target.value)}
+                                    onBlur={(e) => handleServoInputBlur('servo2Max', e.target.value)}
+                                    placeholder="0"
+                                    className={`bg-gray-700 text-white border-gray-600 ${parseInt(servo2MaxInput || '0') < servo2MinAngle ? 'border-red-500' : ''}`}
                                 />
                             </div>
                         </div>
@@ -1015,7 +1070,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                 onClick={() => {
                                     const newState = button1State ? 'off' : 'on';
                                     sendCommand('RLY', { pin: 'D0', state: newState });
-                                    // Не обновляем состояние локально, ждём ответа сервера
                                 }}
                                 className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
                             >
