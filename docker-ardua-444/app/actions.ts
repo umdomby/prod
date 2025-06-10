@@ -453,17 +453,19 @@ export async function sendDeviceSettingsToESP(idDevice: string) {
     throw new Error('Устройство не найдено или доступ запрещен');
   }
 
-  if (!device.settings) {
+  // Проверяем, есть ли настройки
+  const deviceSettings = device.settings[0]; // Берем первый объект настроек
+  if (!deviceSettings) {
     throw new Error('Настройки устройства не найдены');
   }
 
   return {
-    servo1MinAngle: device.settings.servo1MinAngle,
-    servo1MaxAngle: device.settings.servo1MaxAngle,
-    servo2MinAngle: device.settings.servo2MinAngle,
-    servo2MaxAngle: device.settings.servo2MaxAngle,
-    b1: device.settings.b1,
-    b2: device.settings.b2,
-    servoView: device.settings.servoView,
+    servo1MinAngle: deviceSettings.servo1MinAngle ?? 0, // Используем значение по умолчанию, если null
+    servo1MaxAngle: deviceSettings.servo1MaxAngle ?? 180,
+    servo2MinAngle: deviceSettings.servo2MinAngle ?? 0,
+    servo2MaxAngle: deviceSettings.servo2MaxAngle ?? 180,
+    b1: deviceSettings.b1,
+    b2: deviceSettings.b2,
+    servoView: deviceSettings.servoView,
   };
 }

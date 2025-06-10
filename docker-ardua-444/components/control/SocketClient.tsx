@@ -144,15 +144,23 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     setServo2MinInput('0');
                     setServo2MaxInput('180');
                 }
-            } catch (error) {
-                addLog(`Ошибка: ${error.message}`, 'error');
+            } catch (error: unknown) {
+                let errorMessage = 'Неизвестная ошибка';
+                if (error instanceof Error) {
+                    errorMessage = error.message;
+                } else if (typeof error === 'object' && error !== null && 'message' in error) {
+                    errorMessage = (error as { message: string }).message;
+                } else {
+                    errorMessage = String(error);
+                }
+                addLog(`Ошибка: ${errorMessage}`, 'error');
             }
         };
         loadDevices();
     }, [setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle, addLog]);
 
     const handleServoInputChange = useCallback(
-        (setter, value) => {
+        (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
             // Разрешаем ввод любых цифр или пустую строку
             if (value === '' || /^[0-9]*$/.test(value)) {
                 setter(value);
@@ -161,81 +169,102 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         []
     );
 
-    const handleServoInputBlur = useCallback(async (field, value) => {
-        try {
-            let newValue = value === '' ? 0 : parseInt(value);
-            let isValid = true;
-            let updateData = {};
+    const handleServoInputBlur = useCallback(
+        async (field: 'servo1Min' | 'servo1Max' | 'servo2Min' | 'servo2Max', value: string) => {
+            try {
+                let newValue = value === '' ? 0 : parseInt(value);
+                let isValid = true;
+                let updateData: {
+                    servo1MinAngle?: number;
+                    servo1MaxAngle?: number;
+                    servo2MinAngle?: number;
+                    servo2MaxAngle?: number;
+                } = {};
 
-            // Ограничиваем значения до 180
-            if (newValue > 180) {
-                newValue = 180;
-                isValid = false;
-            }
+                // Ограничиваем значения до 180
+                if (newValue > 180) {
+                    newValue = 180;
+                    isValid = false;
+                }
 
-            if (field === 'servo1Min') {
-                if (newValue > servo1MaxAngle) {
-                    newValue = servo1MinAngle;
-                    setServo1MinInput(servo1MinAngle.toString());
-                    isValid = false;
-                } else {
-                    setServo1MinAngle(newValue);
-                    setServo1MinInput(newValue.toString());
-                    updateData.servo1MinAngle = newValue;
-                }
-            } else if (field === 'servo1Max') {
-                if (newValue < servo1MinAngle) {
-                    newValue = servo1MaxAngle;
-                    setServo1MaxInput(servo1MaxAngle.toString());
-                    isValid = false;
-                } else {
-                    setServo1MaxAngle(newValue);
-                    setServo1MaxInput(newValue.toString());
-                    updateData.servo1MaxAngle = newValue;
-                }
-            } else if (field === 'servo2Min') {
-                if (newValue > servo2MaxAngle) {
-                    newValue = servo2MinAngle;
-                    setServo2MinInput(servo2MinAngle.toString());
-                    isValid = false;
-                } else {
-                    setServo2MinAngle(newValue);
-                    setServo2MinInput(newValue.toString());
-                    updateData.servo2MinAngle = newValue;
-                }
-            } else if (field === 'servo2Max') {
-                if (newValue < servo2MinAngle) {
-                    newValue = servo2MaxAngle;
-                    setServo2MaxInput(servo2MaxAngle.toString());
-                    isValid = false;
-                } else {
-                    setServo2MaxAngle(newValue);
-                    setServo2MaxInput(newValue.toString());
-                    updateData.servo2MaxAngle = newValue;
-                }
-            }
-
-            if (isValid && Object.keys(updateData).length > 0) {
-                await updateServoSettings(inputDe, updateData);
-                if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    if (field === 'servo1Min' || field === 'servo1Max') {
-                        socketRef.current.send(JSON.stringify({ co: 'SET_SERVO1_LIMITS', pa: { min: servo1MinAngle, max: servo1MaxAngle }, de: inputDe, ts: Date.now(), expectAck: true }));
+                if (field === 'servo1Min') {
+                    if (newValue > servo1MaxAngle) {
+                        newValue = servo1MinAngle;
+                        setServo1MinInput(servo1MinAngle.toString());
+                        isValid = false;
                     } else {
-                        socketRef.current.send(JSON.stringify({ co: 'SET_SERVO2_LIMITS', pa: { min: servo2MinAngle, max: servo2MaxAngle }, de: inputDe, ts: Date.now(), expectAck: true }));
+                        setServo1MinAngle(newValue);
+                        setServo1MinInput(newValue.toString());
+                        updateData.servo1MinAngle = newValue;
+                    }
+                } else if (field === 'servo1Max') {
+                    if (newValue < servo1MinAngle) {
+                        newValue = servo1MaxAngle;
+                        setServo1MaxInput(servo1MaxAngle.toString());
+                        isValid = false;
+                    } else {
+                        setServo1MaxAngle(newValue);
+                        setServo1MaxInput(newValue.toString());
+                        updateData.servo1MaxAngle = newValue;
+                    }
+                } else if (field === 'servo2Min') {
+                    if (newValue > servo2MaxAngle) {
+                        newValue = servo2MinAngle;
+                        setServo2MinInput(servo2MinAngle.toString());
+                        isValid = false;
+                    } else {
+                        setServo2MinAngle(newValue);
+                        setServo2MinInput(newValue.toString());
+                        updateData.servo2MinAngle = newValue;
+                    }
+                } else if (field === 'servo2Max') {
+                    if (newValue < servo2MinAngle) {
+                        newValue = servo2MaxAngle;
+                        setServo2MaxInput(servo2MaxAngle.toString());
+                        isValid = false;
+                    } else {
+                        setServo2MaxAngle(newValue);
+                        setServo2MaxInput(newValue.toString());
+                        updateData.servo2MaxAngle = newValue;
                     }
                 }
-                addLog(`Угол ${field} обновлён: ${newValue}°`, 'success');
-            } else if (!isValid) {
-                addLog(`Недопустимое значение для ${field}: ${value}`, 'error');
+
+                if (isValid && Object.keys(updateData).length > 0) {
+                    await updateServoSettings(inputDe, updateData);
+                    if (socketRef.current?.readyState === WebSocket.OPEN) {
+                        if (field === 'servo1Min' || field === 'servo1Max') {
+                            socketRef.current.send(JSON.stringify({
+                                co: 'SET_SERVO1_LIMITS',
+                                pa: { min: servo1MinAngle, max: servo1MaxAngle },
+                                de: inputDe,
+                                ts: Date.now(),
+                                expectAck: true
+                            }));
+                        } else {
+                            socketRef.current.send(JSON.stringify({
+                                co: 'SET_SERVO2_LIMITS',
+                                pa: { min: servo2MinAngle, max: servo2MaxAngle },
+                                de: inputDe,
+                                ts: Date.now(),
+                                expectAck: true
+                            }));
+                        }
+                    }
+                    addLog(`Угол ${field} обновлён: ${newValue}°`, 'success');
+                } else if (!isValid) {
+                    addLog(`Недопустимое значение для ${field}: ${value}`, 'error');
+                }
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                addLog(`Ошибка сохранения ${field}: ${errorMessage}`, 'error');
+                if (field === 'servo1Min') setServo1MinInput(servo1MinAngle.toString());
+                else if (field === 'servo1Max') setServo1MaxInput(servo1MaxAngle.toString());
+                else if (field === 'servo2Min') setServo2MinInput(servo2MinAngle.toString());
+                else if (field === 'servo2Max') setServo2MaxInput(servo2MaxAngle.toString());
             }
-        } catch (error) {
-            addLog(`Ошибка сохранения ${field}: ${error.message}`, 'error');
-            if (field === 'servo1Min') setServo1MinInput(servo1MinAngle.toString());
-            else if (field === 'servo1Max') setServo1MaxInput(servo1MaxAngle.toString());
-            else if (field === 'servo2Min') setServo2MinInput(servo2MinAngle.toString());
-            else if (field === 'servo2Max') setServo2MaxInput(servo2MaxAngle.toString());
-        }
-    }, [servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle, inputDe, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle]);
+        },
+        [servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle, inputDe, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle]
+    );
 
     useEffect(() => {
         const checkOrientation = () => {
@@ -278,7 +307,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         if (!isNaN(value) && value >= 0 && value <= servo1MaxAngle) {
             setServo1MinAngle(value);
             updateServoSettings(inputDe, { servo1MinAngle: value, servo1MaxAngle, servo2MinAngle, servo2MaxAngle })
-                .catch(error => addLog(`Ошибка сохранения servo1MinAngle: ${error.message}`, 'error'));
+                .catch((error: unknown) => {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    addLog(`Ошибка сохранения servo1MinAngle: ${errorMessage}`, 'error');
+                });
         }
     }, [servo1MaxAngle, inputDe, servo2MinAngle, servo2MaxAngle, setServo1MinAngle, addLog]);
 
@@ -287,7 +319,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         if (!isNaN(value) && value >= servo1MinAngle && value <= 180) {
             setServo1MaxAngle(value);
             updateServoSettings(inputDe, { servo1MinAngle, servo1MaxAngle: value, servo2MinAngle, servo2MaxAngle })
-                .catch(error => addLog(`Ошибка сохранения servo1MaxAngle: ${error.message}`, 'error'));
+                .catch((error: unknown) => {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    addLog(`Ошибка сохранения servo1MaxAngle: ${errorMessage}`, 'error');
+                });
         }
     }, [servo1MinAngle, inputDe, servo2MinAngle, servo2MaxAngle, setServo1MaxAngle, addLog]);
 
@@ -296,7 +331,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         if (!isNaN(value) && value >= 0 && value <= servo2MaxAngle) {
             setServo2MinAngle(value);
             updateServoSettings(inputDe, { servo1MinAngle, servo1MaxAngle, servo2MinAngle: value, servo2MaxAngle })
-                .catch(error => addLog(`Ошибка сохранения servo2MinAngle: ${error.message}`, 'error'));
+                .catch((error: unknown) => {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    addLog(`Ошибка сохранения servo2MinAngle: ${errorMessage}`, 'error');
+                });
         }
     }, [servo2MaxAngle, inputDe, servo1MinAngle, servo1MaxAngle, setServo2MinAngle, addLog]);
 
@@ -305,41 +343,47 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         if (!isNaN(value) && value >= servo2MinAngle && value <= 180) {
             setServo2MaxAngle(value);
             updateServoSettings(inputDe, { servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle: value })
-                .catch(error => addLog(`Ошибка сохранения servo2MaxAngle: ${error.message}`, 'error'));
+                .catch((error: unknown) => {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    addLog(`Ошибка сохранения servo2MaxAngle: ${errorMessage}`, 'error');
+                });
         }
     }, [servo2MinAngle, inputDe, servo1MinAngle, servo1MaxAngle, setServo2MaxAngle, addLog]);
 
     // Обработчики для настроек устройства
-    const toggleAutoReconnect = useCallback(async (checked) => {
+    const toggleAutoReconnect = useCallback(async (checked: boolean) => {
         setAutoReconnect(checked);
         try {
             await updateDeviceSettings(inputDe, { autoReconnect: checked });
             addLog(`Автоматическое переподключение: ${checked ? 'включено' : 'выключено'}`, 'success');
-        } catch (error) {
+        } catch (error: unknown) {
             setAutoReconnect(!checked);
-            addLog(`Ошибка сохранения autoReconnect: ${error.message}`, 'error');
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            addLog(`Ошибка сохранения autoReconnect: ${errorMessage}`, 'error');
         }
     }, [inputDe, addLog]);
 
-    const toggleAutoConnect = useCallback(async (checked) => {
+    const toggleAutoConnect = useCallback(async (checked: boolean) => {
         setAutoConnect(checked);
         try {
             await updateDeviceSettings(inputDe, { autoConnect: checked });
             addLog(`Автоматическое подключение: ${checked ? 'включено' : 'выключено'}`, 'success');
-        } catch (error) {
+        } catch (error: unknown) {
             setAutoConnect(!checked);
-            addLog(`Ошибка сохранения autoConnect: ${error.message}`, 'error');
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            addLog(`Ошибка сохранения autoConnect: ${errorMessage}`, 'error');
         }
     }, [inputDe, addLog]);
 
-    const toggleClosedDel = useCallback(async (checked) => {
+    const toggleClosedDel = useCallback(async (checked: boolean) => {
         setClosedDel(checked);
         try {
             await updateDeviceSettings(inputDe, { closedDel: checked });
             addLog(`Запрет удаления: ${checked ? 'включен' : 'выключен'}`, 'success');
-        } catch (error) {
+        } catch (error: unknown) {
             setClosedDel(!checked);
-            addLog(`Ошибка сохранения closedDel: ${error.message}`, 'error');
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            addLog(`Ошибка сохранения closedDel: ${errorMessage}`, 'error');
         }
     }, [inputDe, addLog]);
 
@@ -375,8 +419,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 setNewDe('');
                 currentDeRef.current = cleanId;
                 addLog(`Устройство ${cleanId} добавлено`, 'success');
-            } catch (error) {
-                addLog(`Ошибка добавления устройства: ${error.message}`, 'error');
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                addLog(`Ошибка добавления устройства: ${errorMessage}`, 'error');
             }
         }
     }, [newDe, deviceList, autoConnect, autoReconnect, closedDel, addLog]);
@@ -392,9 +437,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 setInputDe(defaultDevice);
                 setDe(defaultDevice);
                 currentDeRef.current = defaultDevice;
-            } catch (error) {
+            } catch (error: unknown) {
                 console.error('Ошибка при удалении устройства:', error);
-                addLog(`Ошибка: ${error.message}`, 'error');
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                addLog(`Ошибка: ${errorMessage}`, 'error');
             }
         }
     }, [inputDe, deviceList, closedDel, addLog]);
@@ -421,9 +467,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             }
             await updateServoSettings(inputDe, { servoView: newState });
             addLog(`Видимость сервоприводов: ${newState ? 'включена' : 'выключена'}`, 'success');
-        } catch (error) {
+        } catch (error: unknown) {
             setShowServos(prev => !prev);
-            addLog(`Ошибка servoView: ${error.message}`, 'error');
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            addLog(`Ошибка servoView: ${errorMessage}`, 'error');
         }
     }, [inputDe, showServos, addLog]);
 
@@ -482,9 +529,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         );
                     }
                 })
-                .catch(error => {
+                .catch((error: unknown) => {
                     console.error('Ошибка отправки настроек на устройство:', error);
-                    addLog(`Ошибка отправки настроек: ${error.message}`, 'error');
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    addLog(`Ошибка отправки настроек: ${errorMessage}`, 'error');
                 });
         };
 
@@ -498,16 +546,18 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         if (data.pa.pin === 'D0') {
                             const newState = data.pa.state === 'on';
                             setButton1State(newState);
-                            updateServoSettings(deToConnect, { b1: newState }).catch(error =>
-                                addLog(`Ошибка сохранения b1: ${error.message}`, 'error')
-                            );
+                            updateServoSettings(deToConnect, { b1: newState }).catch((error: unknown) => {
+                                const errorMessage = error instanceof Error ? error.message : String(error);
+                                addLog(`Ошибка сохранения b1: ${errorMessage}`, 'error');
+                            });
                             addLog(`Реле 1 (D0) ${newState ? 'включено' : 'выключено'}`, 'esp');
                         } else if (data.pa.pin === '3') {
                             const newState = data.pa.state === 'on';
                             setButton2State(newState);
-                            updateServoSettings(deToConnect, { b2: newState }).catch(error =>
-                                addLog(`Ошибка сохранения b2: ${error.message}`, 'error')
-                            );
+                            updateServoSettings(deToConnect, { b2: newState }).catch((error: unknown) => {
+                                const errorMessage = error instanceof Error ? error.message : String(error);
+                                addLog(`Ошибка сохранения b2: ${errorMessage}`, 'error');
+                            });
                             addLog(`Реле 2 (3) ${newState ? 'включено' : 'выключено'}`, 'esp');
                         }
                     } else if (data.co === 'SPD' && data.sp !== undefined) {
@@ -538,17 +588,19 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     if (data.b1 !== undefined) {
                         const newState = data.b1 === 'on';
                         setButton1State(newState);
-                        updateServoSettings(deToConnect, { b1: newState }).catch(error =>
-                            addLog(`Ошибка сохранения b1: ${error.message}`, 'error')
-                        );
+                        updateServoSettings(deToConnect, { b1: newState }).catch((error: unknown) => {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            addLog(`Ошибка сохранения b1: ${errorMessage}`, 'error');
+                        });
                         addLog(`Реле 1 (D0): ${newState ? 'включено' : 'выключено'}`, 'esp');
                     }
                     if (data.b2 !== undefined) {
                         const newState = data.b2 === 'on';
                         setButton2State(newState);
-                        updateServoSettings(deToConnect, { b2: newState }).catch(error =>
-                            addLog(`Ошибка сохранения b2: ${error.message}`, 'error')
-                        );
+                        updateServoSettings(deToConnect, { b2: newState }).catch((error: unknown) => {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            addLog(`Ошибка сохранения b2: ${errorMessage}`, 'error');
+                        });
                         addLog(`Реле 2 (3): ${newState ? 'включено' : 'выключено'}`, 'esp');
                     }
                     if (data.sp1 !== undefined) {
@@ -566,9 +618,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 } else if (data.ty === 'cst') {
                     addLog(`Команда ${data.co} доставлена`, 'client');
                 }
-            } catch (error) {
+            } catch (error: unknown) {
                 console.error('Ошибка обработки сообщения:', error);
-                addLog(`Получено сообщение: ${event.data}`, 'error');
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                addLog(`Ошибка обработки сообщения: ${errorMessage}`, 'error');
             }
         };
 
@@ -621,16 +674,16 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         });
     }, [addLog, cleanupWebSocket]);
 
-    const handleDeviceChange = useCallback(async (value) => {
+    const handleDeviceChange = useCallback(async (value: string) => {
         setInputDe(value);
         currentDeRef.current = value;
         try {
             const devices = await getDevices();
             const selectedDevice = devices.find(device => device.idDevice === value);
             if (selectedDevice) {
-                setAutoReconnect(selectedDevice.autoReconnect ?? false); // Загрузка из базы
-                setAutoConnect(selectedDevice.autoConnect ?? false); // Загрузка из базы
-                setClosedDel(selectedDevice.closedDel ?? false); // Загрузка из базы
+                setAutoReconnect(selectedDevice.autoReconnect ?? false);
+                setAutoConnect(selectedDevice.autoConnect ?? false);
+                setClosedDel(selectedDevice.closedDel ?? false);
                 if (selectedDevice.settings) {
                     setServo1MinAngle(selectedDevice.settings.servo1MinAngle || 0);
                     setServo1MaxAngle(selectedDevice.settings.servo1MaxAngle || 180);
@@ -649,8 +702,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     connectWebSocket(value);
                 }
             }
-        } catch (error) {
-            addLog(`Ошибка при смене устройства: ${error.message}`, 'error');
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            addLog(`Ошибка при смене устройства: ${errorMessage}`, 'error');
         }
     }, [autoReconnect, disconnectWebSocket, connectWebSocket, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle]);
 
