@@ -6,12 +6,21 @@ import React, { useState } from 'react';
 import { LoginForm } from '@/components/modals/auth-modal/forms/login-form';
 import { RegisterForm } from '@/components/modals/auth-modal/forms/register-form';
 import { Container } from '@/components/container';
+import { useRouter } from 'next/navigation'; // Импортируем useRouter
 
 export const RegisterPage: React.FC = () => {
     const [type, setType] = useState<'login' | 'register'>('register');
+    const router = useRouter(); // Для управления маршрутами
 
     const onSwitchType = () => {
         setType(type === 'login' ? 'register' : 'login');
+    };
+
+    // Функция для обработки успешного входа/регистрации
+    const handleSuccess = () => {
+        // Не закрываем форму и не редиректим на главную, оставляем на текущей странице
+        // Или редиректим на нужную страницу, например:
+        router.push('/'); // Замените '/profile' на нужный маршрут
     };
 
     return (
@@ -24,9 +33,9 @@ export const RegisterPage: React.FC = () => {
                     </p>
                 </div>
                 {type === 'login' ? (
-                    <LoginForm onClose={() => {}} />
+                    <LoginForm onClose={handleSuccess} /> // Передаем handleSuccess вместо пустой функции
                 ) : (
-                    <RegisterForm onClose={() => {}} />
+                    <RegisterForm onClose={handleSuccess} onClickLogin={onSwitchType} />
                 )}
 
                 <hr className="my-6" />
@@ -35,8 +44,12 @@ export const RegisterPage: React.FC = () => {
                         variant="secondary"
                         onClick={() =>
                             signIn('google', {
-                                callbackUrl: '/',
-                                redirect: true,
+                                callbackUrl: '/', // Указываем нужный маршрут
+                                redirect: false, // Отключаем автоматический редирект
+                            }).then((result) => {
+                                if (result?.ok) {
+                                    handleSuccess(); // Вызываем handleSuccess при успехе
+                                }
                             })
                         }
                         type="button"
