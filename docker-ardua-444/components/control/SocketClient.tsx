@@ -161,8 +161,8 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
 
     const handleServoInputChange = useCallback(
         (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
-            // Разрешаем ввод любых цифр или пустую строку
-            if (value === '' || /^[0-9]*$/.test(value)) {
+            // Разрешаем ввод любых цифр или пустую строку, но не больше 180
+            if (value === '' || (/^[0-9]*$/.test(value) && parseInt(value) <= 180)) {
                 setter(value);
             }
         },
@@ -300,55 +300,6 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
         const isFullyConnected = isConnected && isIdentified && espConnected;
         onConnectionStatusChange?.(isFullyConnected);
     }, [isConnected, isIdentified, espConnected, onConnectionStatusChange]);
-
-    // Обработчики для настроек сервоприводов
-    const handleServo1MinAngleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = Number(e.target.value);
-        if (!isNaN(value) && value >= 0 && value <= servo1MaxAngle) {
-            setServo1MinAngle(value);
-            updateServoSettings(inputDe, { servo1MinAngle: value, servo1MaxAngle, servo2MinAngle, servo2MaxAngle })
-                .catch((error: unknown) => {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    addLog(`Ошибка сохранения servo1MinAngle: ${errorMessage}`, 'error');
-                });
-        }
-    }, [servo1MaxAngle, inputDe, servo2MinAngle, servo2MaxAngle, setServo1MinAngle, addLog]);
-
-    const handleServo1MaxAngleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = Number(e.target.value);
-        if (!isNaN(value) && value >= servo1MinAngle && value <= 180) {
-            setServo1MaxAngle(value);
-            updateServoSettings(inputDe, { servo1MinAngle, servo1MaxAngle: value, servo2MinAngle, servo2MaxAngle })
-                .catch((error: unknown) => {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    addLog(`Ошибка сохранения servo1MaxAngle: ${errorMessage}`, 'error');
-                });
-        }
-    }, [servo1MinAngle, inputDe, servo2MinAngle, servo2MaxAngle, setServo1MaxAngle, addLog]);
-
-    const handleServo2MinAngleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = Number(e.target.value);
-        if (!isNaN(value) && value >= 0 && value <= servo2MaxAngle) {
-            setServo2MinAngle(value);
-            updateServoSettings(inputDe, { servo1MinAngle, servo1MaxAngle, servo2MinAngle: value, servo2MaxAngle })
-                .catch((error: unknown) => {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    addLog(`Ошибка сохранения servo2MinAngle: ${errorMessage}`, 'error');
-                });
-        }
-    }, [servo2MaxAngle, inputDe, servo1MinAngle, servo1MaxAngle, setServo2MinAngle, addLog]);
-
-    const handleServo2MaxAngleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = Number(e.target.value);
-        if (!isNaN(value) && value >= servo2MinAngle && value <= 180) {
-            setServo2MaxAngle(value);
-            updateServoSettings(inputDe, { servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle: value })
-                .catch((error: unknown) => {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    addLog(`Ошибка сохранения servo2MaxAngle: ${errorMessage}`, 'error');
-                });
-        }
-    }, [servo2MinAngle, inputDe, servo1MinAngle, servo1MaxAngle, setServo2MaxAngle, addLog]);
 
     // Обработчики для настроек устройства
     const toggleAutoReconnect = useCallback(async (checked: boolean) => {
