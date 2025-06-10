@@ -27,11 +27,11 @@ export async function getAllowedDeviceIds(): Promise<string[]> {
             },
         });
 
-        console.log(devices);
+        // console.log(devices);
 
         // Возвращаем массив idDevice
-        return ['123', '222', '333', '444', 'YNNGUT123PP5KMNB', 'NTKKKM96JMTPRP90','4444444444444444'];
-        // return devices.map((device) => device.idDevice);
+        // return ['123', '222', '333', '444', 'YNNGUT123PP5KMNB', 'NTKKKM96JMTPRP90','4444444444444444'];
+        return devices.map((device) => device.idDevice);
     } catch (error) {
         console.error('Ошибка при получении idDevice из базы данных:', error);
         return []; // Возвращаем пустой массив в случае ошибки
