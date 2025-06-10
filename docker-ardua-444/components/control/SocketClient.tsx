@@ -798,10 +798,12 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     };
 
     return (
-        <div className="flex flex-col items-center min-h-[calc(100vh-3rem)] p-4 bg-transparent overflow-hidden">
+        <div className="flex flex-col items-center min-h-[calc(100vh-3rem)] p-4 overflow-hidden relative">
             {activeTab === 'controls' && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-full max-w-md z-50">
+
                 <div
-                    className="w-full max-w-md space-y-2 bg-transparent rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
+                    className="space-y-2 bg-black rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
                     style={{ maxHeight: '90vh', overflowY: 'auto' }}
                 >
                     <div className="flex flex-col items-center space-y-2">
@@ -1000,9 +1002,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         </div>
                     )}
                 </div>
+                </div>
             )}
 
-            <div>
+            <div className={`mt-24 ${activeTab === 'controls' ? 'opacity-50' : ''}`}>
                 <Joystick
                     mo="A"
                     onChange={handleMotorAControl}
