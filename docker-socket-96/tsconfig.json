@@ -4,6 +4,12 @@
     "module": "commonjs",
     "outDir": "./dist",
     "rootDir": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@prisma/client": ["./generated/prisma/client"]
+    },
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

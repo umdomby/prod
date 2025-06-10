@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
-import { getAllowedDeviceIds } from './fun';
+import { getAllowedDeviceIds } from './actions';
 import { createServer } from 'http';
 
 const PORT = 8096;

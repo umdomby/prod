@@ -9,17 +9,23 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node server.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "prisma:pull": "prisma db pull"
   },
   "dependencies": {
-    "@types/ws": "^8.18.1",
-    "ws": "^8.18.1",
+    "@prisma/client": "6.9.0",
     "@types/node": "^22.14.1",
-    "typescript": "^5.8.3"
+    "@types/ws": "^8.18.1",
+    "install": "^0.13.0",
+    "prisma": "6.9.0",
+    "typescript": "^5.8.3",
+    "ws": "^8.18.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.1",
-    "typescript": "^5.8.3",
-    "ts-node": "^10.9.2"
+    "@prisma/client": "6.9.0",
+    "prisma": "^6.9.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }

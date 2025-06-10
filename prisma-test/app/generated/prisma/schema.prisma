@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Devices {
+  id            Int         @id @default(autoincrement())
+  userId        Int
+  diviceName    String?
+  devicesEnum   DevicesEnum @default(ArduaESP8266)
+  idDeviceAr    String?
+  idDevice      String      @unique
+  autoReconnect Boolean
+  autoConnect   Boolean
+  closedDel     Boolean
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime
+  User          User        @relation(fields: [userId], references: [id])
+  Settings      Settings?
+}
+
+model SavedRoom {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  roomId      String   @unique
+  isDefault   Boolean  @default(false)
+  autoConnect Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  User        User     @relation(fields: [userId], references: [id])
+}
+
+model Settings {
+  id             Int     @id @default(autoincrement())
+  devicesId      Int     @unique
+  servo1MinAngle Int?
+  servo1MaxAngle Int?
+  servo2MinAngle Int?
+  servo2MaxAngle Int?
+  b1             Boolean
+  b2             Boolean
+  servoView      Boolean
+  Devices        Devices @relation(fields: [devicesId], references: [id])
+}
+
+model User {
+  id         Int         @id @default(autoincrement())
+  fullName   String
+  email      String      @unique
+  provider   String?
+  providerId String?
+  password   String
+  role       UserRole    @default(USER)
+  img        String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime
+  Devices    Devices[]
+  SavedRoom  SavedRoom[]
+}
+
+enum DevicesEnum {
+  ArduaESP8266
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}

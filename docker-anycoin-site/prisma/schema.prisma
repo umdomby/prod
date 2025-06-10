@@ -431,7 +431,7 @@ model Bet {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
-// export async function placeBet fun.ts
+// export async function placeBet actions.ts
 model BetParticipant {
   id           Int          @id @default(autoincrement())
   betId        Int
@@ -553,7 +553,7 @@ model Bet3 {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
-// export async function placeBet fun.ts
+// export async function placeBet actions.ts
 model BetParticipant3 {
   id           Int          @id @default(autoincrement())
   betId        Int
@@ -690,7 +690,7 @@ model Bet4 {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
-// export async function placeBet fun.ts
+// export async function placeBet actions.ts
 model BetParticipant4 {
   id           Int          @id @default(autoincrement())
   bet          Bet4         @relation(fields: [betId], references: [id])
