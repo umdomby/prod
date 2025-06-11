@@ -597,8 +597,9 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
                         addLog(`Угол сервопривода 2: ${data.sp2}°`, 'esp');
                     }
                     if (data.z !== undefined) {
-                        setInputVoltage(Number(data.z));
-                        addLog(`Напряжение A0: ${data.z.toFixed(2)} В`, 'esp');
+                        const voltage = Number(data.z);
+                        setInputVoltage(voltage);
+                        addLog(`Напряжение A0: ${voltage.toFixed(2)} В`, 'esp');
                     }
                 } else if (data.ty === 'est') {
                     console.log(`Статус ESP: ${data.st}`);

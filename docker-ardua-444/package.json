@@ -46,6 +46,8 @@
     "next-auth": "^4.24.11",
     "next-themes": "^0.4.4",
     "nextjs-toploader": "^1.6.12",
+    "nodemailer": "^7.0.3",
+    "@types/nodemailer": "^6.4.17",
     "prisma": "^6.9.0",
     "qs": "^6.13.1",
     "react": "^19.0.0",
@@ -67,8 +69,8 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@types/lodash": "^4.17.12",
     "@eslint/eslintrc": "^3",
+    "@types/lodash": "^4.17.12",
     "@types/node": "^20.17.10",
     "@types/react": "^19",
     "@types/react-dom": "^19",
