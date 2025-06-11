@@ -708,7 +708,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
         }
         mu.Unlock()
 
-        if targetPeer == nil && (dataType == "offer" || dataType == "answer" || dataType == "ice_candidate") {
+        if targetPeer == nil && (dataType == "offer" || dataType == "answer" || dataType == "ice_candidate" || dataType == "toggle_flashlight") {
             continue
         }
 
@@ -794,6 +794,20 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
                         log.Printf("Error forwarding '%s' to %s: %v", dataType, targetPeer.username, err)
                     }
                 }
+            }
+        case "toggle_flashlight":
+            if targetPeer != nil && targetPeer.isLeader {
+                log.Printf("Forwarding 'toggle_flashlight' message from %s to %s", currentPeer.username, targetPeer.username)
+                targetPeer.mu.Lock()
+                targetWsConn := targetPeer.conn
+                targetPeer.mu.Unlock()
+                if targetWsConn != nil {
+                    if err := targetWsConn.WriteMessage(websocket.TextMessage, msgBytes); err != nil {
+                        log.Printf("Error forwarding 'toggle_flashlight' to %s: %v", targetPeer.username, err)
+                    }
+                }
+            } else {
+                log.Printf("Error: Received 'toggle_flashlight' from %s but no leader found.", currentPeer.username)
             }
         default:
             log.Printf("Ignoring message with type '%s' from %s", dataType, currentPeer.username)

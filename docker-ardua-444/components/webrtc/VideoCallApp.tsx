@@ -451,19 +451,24 @@ export const VideoCallApp = () => {
         updateVideoSettings({ rotation: 0, flipH: false, flipV: false })
     }
 
-    // const toggleTab = (tab: 'webrtc' | 'esp' | 'cam' | 'controls') => {
-    //     if (tab === 'cam') {
-    //         setShowCam(!showCam);
-    //         // setActiveMainTab(null); // Сбрасываем активную вкладку для controls
-    //     }
-    //     else if (tab === 'controls') {
-    //         setShowControls(!showControls);
-    //         setActiveMainTab(null); // Сбрасываем активную вкладку для controls
-    //     } else {
-    //         setActiveMainTab(activeMainTab === tab ? null : tab); // Переключаем или скрываем вкладку
-    //         setShowControls(false); // Скрываем джойстики при выборе webrtc или esp
-    //     }
-    // };
+    const toggleFlashlight = () => {
+        if (isConnected && ws) {
+            try {
+                ws.send(JSON.stringify({
+                    type: "toggle_flashlight",
+                    room: roomId.replace(/-/g, ''),
+                    username: username
+                }));
+                console.log('Отправлено сообщение для управления фонариком');
+            } catch (err) {
+                console.error('Ошибка отправки команды управления фонариком:', err);
+                setError('Ошибка при отправке команды фонарика');
+            }
+        } else {
+            console.error('Не подключено к серверу');
+            setError('Подключение к серверу отсутствует');
+        }
+    };
 
     const toggleTab = useCallback(
         debounce((tab: 'webrtc' | 'esp' | 'cam' | 'controls') => {
@@ -719,6 +724,14 @@ export const VideoCallApp = () => {
                 <div className={styles.tabContent}>
                     <div className={styles.videoControlsTab}>
                         <div className={styles.controlButtons}>
+                            <button
+                                onClick={toggleFlashlight}
+                                onTouchEnd={toggleFlashlight}
+                                className={styles.controlButton}
+                                title="Включить/выключить фонарик"
+                            >
+                                💡
+                            </button>
                             <button
                                 onClick={toggleCamera}
                                 onTouchEnd={toggleCamera}
