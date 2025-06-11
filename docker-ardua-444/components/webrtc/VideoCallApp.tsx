@@ -725,14 +725,6 @@ export const VideoCallApp = () => {
                     <div className={styles.videoControlsTab}>
                         <div className={styles.controlButtons}>
                             <button
-                                onClick={toggleFlashlight}
-                                onTouchEnd={toggleFlashlight}
-                                className={styles.controlButton}
-                                title="Включить/выключить фонарик"
-                            >
-                                💡
-                            </button>
-                            <button
                                 onClick={toggleCamera}
                                 onTouchEnd={toggleCamera}
                                 className={[styles.controlButton, useBackCamera ? styles.active : ''].join(' ')}
@@ -827,6 +819,15 @@ export const VideoCallApp = () => {
                                 title={muteRemoteAudio ? 'Включить звук' : 'Отключить звук'}
                             >
                                 {muteRemoteAudio ? '🔇' : '🔈'}
+                            </button>
+
+                            <button
+                                onClick={toggleFlashlight}
+                                onTouchEnd={toggleFlashlight}
+                                className={styles.controlButton}
+                                title="Включить/выключить фонарик"
+                            >
+                                💡
                             </button>
                         </div>
                     </div>
