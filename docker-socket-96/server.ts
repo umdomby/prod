@@ -144,9 +144,10 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                             ts: new Date().toISOString(), // timestamp → ts
                             or: "esp", // origin → or
                             b1: parsed.b1, // Пересылаем состояние реле 1
-                            b2: parsed.b2,  // Пересылаем состояние реле 2
+                            b2: parsed.b2, // Пересылаем состояние реле 2
                             sp1: parsed.sp1, // Пересылаем угол первого сервопривода
-                            sp2: parsed.sp2  // Пересылаем угол второго сервопривода
+                            sp2: parsed.sp2, // Пересылаем угол второго сервопривода
+                            z: parsed.z // Пересылаем значение inputVoltage
                         }));
                     }
                 });

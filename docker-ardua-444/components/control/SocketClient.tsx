@@ -1,15 +1,22 @@
 // file: components/control/SocketClient.tsx
 "use client"
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
+import {useState, useEffect, useRef, useCallback} from 'react'
+import {Button} from "@/components/ui/button"
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
+import {Input} from "@/components/ui/input"
+import {ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight} from "lucide-react"
+import {Checkbox} from "@/components/ui/checkbox"
+import {Label} from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
-import { useServo } from '@/components/ServoContext';
-import { getDevices, addDevice, deleteDevice, updateDeviceSettings, updateServoSettings, sendDeviceSettingsToESP } from '@/app/actions';
+import {useServo} from '@/components/ServoContext';
+import {
+    getDevices,
+    addDevice,
+    deleteDevice,
+    updateDeviceSettings,
+    updateServoSettings,
+    sendDeviceSettingsToESP
+} from '@/app/actions';
 
 type MessageType = {
     ty?: string
@@ -28,6 +35,7 @@ type MessageType = {
     b2?: string
     sp1?: string
     sp2?: string
+    z?: string
 }
 
 type LogEntry = {
@@ -39,7 +47,7 @@ interface SocketClientProps {
     onConnectionStatusChange?: (isFullyConnected: boolean) => void;
 }
 
-export default function SocketClient({ onConnectionStatusChange }: SocketClientProps) {
+export default function SocketClient({onConnectionStatusChange}: SocketClientProps) {
     const {
         servoAngle,
         servo2Angle,
@@ -94,8 +102,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const [servo2MinInput, setServo2MinInput] = useState('');
     const [servo2MaxInput, setServo2MaxInput] = useState('');
 
+    const [inputVoltage, setInputVoltage] = useState<number | null>(null);
+
     const addLog = useCallback((msg: string, ty: LogEntry['ty']) => {
-        setLog(prev => [...prev.slice(-100), { me: `${new Date().toLocaleTimeString()}: ${msg}`, ty }]);
+        setLog(prev => [...prev.slice(-100), {me: `${new Date().toLocaleTimeString()}: ${msg}`, ty}]);
     }, []);
 
     // Загрузка устройств и настроек из базы данных
@@ -127,9 +137,27 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     }
                     if (socketRef.current?.readyState === WebSocket.OPEN) {
                         const settings = await sendDeviceSettingsToESP(device.idDevice);
-                        socketRef.current.send(JSON.stringify({ co: 'SET_SERVO1_LIMITS', pa: { min: settings.servo1MinAngle, max: settings.servo1MaxAngle }, de: device.idDevice, ts: Date.now(), expectAck: true }));
-                        socketRef.current.send(JSON.stringify({ co: 'SET_SERVO2_LIMITS', pa: { min: settings.servo2MinAngle, max: settings.servo2MaxAngle }, de: device.idDevice, ts: Date.now(), expectAck: true }));
-                        socketRef.current.send(JSON.stringify({ co: 'SET_SERVO_VIEW', pa: { visible: settings.servoView }, de: device.idDevice, ts: Date.now(), expectAck: true }));
+                        socketRef.current.send(JSON.stringify({
+                            co: 'SET_SERVO1_LIMITS',
+                            pa: {min: settings.servo1MinAngle, max: settings.servo1MaxAngle},
+                            de: device.idDevice,
+                            ts: Date.now(),
+                            expectAck: true
+                        }));
+                        socketRef.current.send(JSON.stringify({
+                            co: 'SET_SERVO2_LIMITS',
+                            pa: {min: settings.servo2MinAngle, max: settings.servo2MaxAngle},
+                            de: device.idDevice,
+                            ts: Date.now(),
+                            expectAck: true
+                        }));
+                        socketRef.current.send(JSON.stringify({
+                            co: 'SET_SERVO_VIEW',
+                            pa: {visible: settings.servoView},
+                            de: device.idDevice,
+                            ts: Date.now(),
+                            expectAck: true
+                        }));
                     }
                     if (device.autoConnect) {
                         connectWebSocket(device.idDevice);
@@ -235,7 +263,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         if (field === 'servo1Min' || field === 'servo1Max') {
                             socketRef.current.send(JSON.stringify({
                                 co: 'SET_SERVO1_LIMITS',
-                                pa: { min: servo1MinAngle, max: servo1MaxAngle },
+                                pa: {min: servo1MinAngle, max: servo1MaxAngle},
                                 de: inputDe,
                                 ts: Date.now(),
                                 expectAck: true
@@ -243,7 +271,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         } else {
                             socketRef.current.send(JSON.stringify({
                                 co: 'SET_SERVO2_LIMITS',
-                                pa: { min: servo2MinAngle, max: servo2MaxAngle },
+                                pa: {min: servo2MinAngle, max: servo2MaxAngle},
                                 de: inputDe,
                                 ts: Date.now(),
                                 expectAck: true
@@ -305,7 +333,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const toggleAutoReconnect = useCallback(async (checked: boolean) => {
         setAutoReconnect(checked);
         try {
-            await updateDeviceSettings(inputDe, { autoReconnect: checked });
+            await updateDeviceSettings(inputDe, {autoReconnect: checked});
             addLog(`Автоматическое переподключение: ${checked ? 'включено' : 'выключено'}`, 'success');
         } catch (error: unknown) {
             setAutoReconnect(!checked);
@@ -317,7 +345,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const toggleAutoConnect = useCallback(async (checked: boolean) => {
         setAutoConnect(checked);
         try {
-            await updateDeviceSettings(inputDe, { autoConnect: checked });
+            await updateDeviceSettings(inputDe, {autoConnect: checked});
             addLog(`Автоматическое подключение: ${checked ? 'включено' : 'выключено'}`, 'success');
         } catch (error: unknown) {
             setAutoConnect(!checked);
@@ -329,7 +357,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const toggleClosedDel = useCallback(async (checked: boolean) => {
         setClosedDel(checked);
         try {
-            await updateDeviceSettings(inputDe, { closedDel: checked });
+            await updateDeviceSettings(inputDe, {closedDel: checked});
             addLog(`Запрет удаления: ${checked ? 'включен' : 'выключен'}`, 'success');
         } catch (error: unknown) {
             setClosedDel(!checked);
@@ -414,9 +442,15 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             setShowServos(prev => !prev);
             const newState = !showServos;
             if (socketRef.current?.readyState === WebSocket.OPEN) {
-                socketRef.current.send(JSON.stringify({ co: 'SET_SERVO_VIEW', pa: { visible: newState }, de: inputDe, ts: Date.now(), expectAck: true }));
+                socketRef.current.send(JSON.stringify({
+                    co: 'SET_SERVO_VIEW',
+                    pa: {visible: newState},
+                    de: inputDe,
+                    ts: Date.now(),
+                    expectAck: true
+                }));
             }
-            await updateServoSettings(inputDe, { servoView: newState });
+            await updateServoSettings(inputDe, {servoView: newState});
             addLog(`Видимость сервоприводов: ${newState ? 'включена' : 'выключена'}`, 'success');
         } catch (error: unknown) {
             setShowServos(prev => !prev);
@@ -440,9 +474,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             reconnectAttemptRef.current = 0;
             addLog("Подключено к WebSocket серверу", 'server');
 
-            ws.send(JSON.stringify({ ty: "clt", ct: "browser" }));
-            ws.send(JSON.stringify({ ty: "idn", de: deToConnect }));
-            ws.send(JSON.stringify({ co: "GET_RELAYS", de: deToConnect, ts: Date.now() }));
+            ws.send(JSON.stringify({ty: "clt", ct: "browser"}));
+            ws.send(JSON.stringify({ty: "idn", de: deToConnect}));
+            ws.send(JSON.stringify({co: "GET_RELAYS", de: deToConnect, ts: Date.now()}));
 
             sendDeviceSettingsToESP(deToConnect)
                 .then(settings => {
@@ -451,7 +485,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                             ws.send(
                                 JSON.stringify({
                                     co: 'SET_SERVO1_LIMITS',
-                                    pa: { min: settings.servo1MinAngle, max: settings.servo1MaxAngle },
+                                    pa: {min: settings.servo1MinAngle, max: settings.servo1MaxAngle},
                                     de: deToConnect,
                                     ts: Date.now(),
                                     expectAck: true,
@@ -462,7 +496,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                             ws.send(
                                 JSON.stringify({
                                     co: 'SET_SERVO2_LIMITS',
-                                    pa: { min: settings.servo2MinAngle, max: settings.servo2MaxAngle },
+                                    pa: {min: settings.servo2MinAngle, max: settings.servo2MaxAngle},
                                     de: deToConnect,
                                     ts: Date.now(),
                                     expectAck: true,
@@ -472,7 +506,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         ws.send(
                             JSON.stringify({
                                 co: 'SET_SERVO_VIEW',
-                                pa: { visible: settings.servoView },
+                                pa: {visible: settings.servoView},
                                 de: deToConnect,
                                 ts: Date.now(),
                                 expectAck: true,
@@ -497,7 +531,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         if (data.pa.pin === 'D0') {
                             const newState = data.pa.state === 'on';
                             setButton1State(newState);
-                            updateServoSettings(deToConnect, { b1: newState }).catch((error: unknown) => {
+                            updateServoSettings(deToConnect, {b1: newState}).catch((error: unknown) => {
                                 const errorMessage = error instanceof Error ? error.message : String(error);
                                 addLog(`Ошибка сохранения b1: ${errorMessage}`, 'error');
                             });
@@ -505,7 +539,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                         } else if (data.pa.pin === '3') {
                             const newState = data.pa.state === 'on';
                             setButton2State(newState);
-                            updateServoSettings(deToConnect, { b2: newState }).catch((error: unknown) => {
+                            updateServoSettings(deToConnect, {b2: newState}).catch((error: unknown) => {
                                 const errorMessage = error instanceof Error ? error.message : String(error);
                                 addLog(`Ошибка сохранения b2: ${errorMessage}`, 'error');
                             });
@@ -539,7 +573,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     if (data.b1 !== undefined) {
                         const newState = data.b1 === 'on';
                         setButton1State(newState);
-                        updateServoSettings(deToConnect, { b1: newState }).catch((error: unknown) => {
+                        updateServoSettings(deToConnect, {b1: newState}).catch((error: unknown) => {
                             const errorMessage = error instanceof Error ? error.message : String(error);
                             addLog(`Ошибка сохранения b1: ${errorMessage}`, 'error');
                         });
@@ -548,7 +582,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     if (data.b2 !== undefined) {
                         const newState = data.b2 === 'on';
                         setButton2State(newState);
-                        updateServoSettings(deToConnect, { b2: newState }).catch((error: unknown) => {
+                        updateServoSettings(deToConnect, {b2: newState}).catch((error: unknown) => {
                             const errorMessage = error instanceof Error ? error.message : String(error);
                             addLog(`Ошибка сохранения b2: ${errorMessage}`, 'error');
                         });
@@ -561,6 +595,10 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                     if (data.sp2 !== undefined) {
                         setServo2Angle(Number(data.sp2));
                         addLog(`Угол сервопривода 2: ${data.sp2}°`, 'esp');
+                    }
+                    if (data.z !== undefined) {
+                        setInputVoltage(Number(data.z));
+                        addLog(`Напряжение A0: ${data.z.toFixed(2)} В`, 'esp');
                     }
                 } else if (data.ty === 'est') {
                     console.log(`Статус ESP: ${data.st}`);
@@ -753,7 +791,7 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                 return;
             }
 
-            sendCommand(servoId === '1' ? 'SSR' : 'SSR2', { an: newAngle });
+            sendCommand(servoId === '1' ? 'SSR' : 'SSR2', {an: newAngle});
         },
         [servoAngle, servo2Angle, servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle, sendCommand, addLog]
     );
@@ -762,8 +800,8 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
     const handleMotorBControl = createMotorHandler('B');
 
     const emergencyStop = useCallback(() => {
-        sendCommand("SPD", { mo: 'A', sp: 0 });
-        sendCommand("SPD", { mo: 'B', sp: 0 });
+        sendCommand("SPD", {mo: 'A', sp: 0});
+        sendCommand("SPD", {mo: 'B', sp: 0});
         setMotorASpeed(0);
         setMotorBSpeed(0);
         setMotorADirection('stop');
@@ -802,206 +840,211 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
             {activeTab === 'controls' && (
                 <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-full max-w-md z-50">
 
-                <div
-                    className="space-y-2 bg-black rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
-                    style={{ maxHeight: '90vh', overflowY: 'auto' }}
-                >
-                    <div className="flex flex-col items-center space-y-2">
-                        <div className="flex items-center space-x-2">
-                            <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${
-                                isConnected
-                                    ? (isIdentified
-                                        ? (espConnected ? 'bg-green-500' : 'bg-yellow-500')
-                                        : 'bg-yellow-500')
-                                    : 'bg-red-500'
-                            }`}></div>
-                            <span className="text-xs sm:text-sm font-medium text-gray-600">
+                    <div
+                        className="space-y-2 bg-black rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
+                        style={{maxHeight: '90vh', overflowY: 'auto'}}
+                    >
+                        <div className="flex flex-col items-center space-y-2">
+                            <div className="flex items-center space-x-2">
+                                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${
+                                    isConnected
+                                        ? (isIdentified
+                                            ? (espConnected ? 'bg-green-500' : 'bg-yellow-500')
+                                            : 'bg-yellow-500')
+                                        : 'bg-red-500'
+                                }`}></div>
+                                <span className="text-xs sm:text-sm font-medium text-gray-600">
                 {isConnected
                     ? (isIdentified
                         ? (espConnected ? 'Подключено' : 'Ожидание ESP')
                         : 'Подключение...')
                     : 'Отключено'}
               </span>
+                            </div>
                         </div>
-                    </div>
 
-                    <Button
-                        onClick={handleOpenControls}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 h-8 sm:h-10 text-xs sm:text-sm"
-                    >
-                        Управление
-                    </Button>
-
-                    <div className="flex space-x-2">
-                        <Select
-                            value={inputDe}
-                            onValueChange={handleDeviceChange}
-                            disabled={isConnected && !autoReconnect}
-                        >
-                            <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
-                                <SelectValue placeholder="Выберите устройство" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
-                                {deviceList.map(id => (
-                                    <SelectItem key={id} value={id} className="hover:bg-gray-100/50 text-xs sm:text-sm">
-                                        {formatDeviceId(id)}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
                         <Button
-                            onClick={handleDeleteDevice}
-                            disabled={closedDel}
-                            className="bg-red-600 hover:bg-red-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
+                            onClick={handleOpenControls}
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 h-8 sm:h-10 text-xs sm:text-sm"
                         >
-                            Удалить
+                            Управление
                         </Button>
-                    </div>
 
-                    <div className="space-y-1 sm:space-y-2">
-                        <Label className="block text-xs sm:text-sm font-medium text-gray-700">Добавить новое устройство</Label>
                         <div className="flex space-x-2">
-                            <Input
-                                value={newDe}
-                                onChange={handleNewDeChange}
-                                placeholder="XXXX-XXXX-XXXX-XXXX"
-                                className="flex-1 bg-transparent h-8 sm:h-10 text-xs sm:text-sm uppercase"
-                                maxLength={19}
-                            />
-                            <Button
-                                onClick={saveNewDe}
-                                disabled={isAddDisabled}
-                                className="bg-blue-600 hover:bg-blue-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
+                            <Select
+                                value={inputDe}
+                                onValueChange={handleDeviceChange}
+                                disabled={isConnected && !autoReconnect}
                             >
-                                Добавить
+                                <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
+                                    <SelectValue placeholder="Выберите устройство"/>
+                                </SelectTrigger>
+                                <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
+                                    {deviceList.map(id => (
+                                        <SelectItem key={id} value={id}
+                                                    className="hover:bg-gray-100/50 text-xs sm:text-sm">
+                                            {formatDeviceId(id)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                onClick={handleDeleteDevice}
+                                disabled={closedDel}
+                                className="bg-red-600 hover:bg-red-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
+                            >
+                                Удалить
                             </Button>
                         </div>
-                    </div>
 
-                    <div className="space-y-2 sm:space-y-3">
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="auto-reconnect"
-                                checked={autoReconnect}
-                                onCheckedChange={toggleAutoReconnect}
-                                className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoReconnect ? 'bg-green-500' : 'bg-white'}`}
-                            />
-                            <Label htmlFor="auto-reconnect" className="text-xs sm:text-sm font-medium text-gray-700">
-                                Автоматическое переподключение при смене устройства
-                            </Label>
+                        <div className="space-y-1 sm:space-y-2">
+                            <Label className="block text-xs sm:text-sm font-medium text-gray-700">Добавить новое
+                                устройство</Label>
+                            <div className="flex space-x-2">
+                                <Input
+                                    value={newDe}
+                                    onChange={handleNewDeChange}
+                                    placeholder="XXXX-XXXX-XXXX-XXXX"
+                                    className="flex-1 bg-transparent h-8 sm:h-10 text-xs sm:text-sm uppercase"
+                                    maxLength={19}
+                                />
+                                <Button
+                                    onClick={saveNewDe}
+                                    disabled={isAddDisabled}
+                                    className="bg-blue-600 hover:bg-blue-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
+                                >
+                                    Добавить
+                                </Button>
+                            </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="auto-connect"
-                                checked={autoConnect}
-                                onCheckedChange={toggleAutoConnect}
-                                className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoConnect ? 'bg-green-500' : 'bg-white'}`}
-                            />
-                            <Label htmlFor="auto-connect" className="text-xs sm:text-sm font-medium text-gray-700">
-                                Автоматическое подключение при загрузке страницы
-                            </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="closed-del"
-                                checked={closedDel}
-                                onCheckedChange={toggleClosedDel}
-                                className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${closedDel ? 'bg-green-500' : 'bg-white'}`}
-                            />
-                            <Label htmlFor="closed-del" className="text-xs sm:text-sm font-medium text-gray-700">
-                                Запретить удаление устройств
-                            </Label>
-                        </div>
-                    </div>
 
-                    <div className="space-y-2 sm:space-y-3">
-                        <Label className="block text-xs sm:text-sm font-medium text-gray-700">Настройки сервоприводов</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <Label htmlFor="servo1-min" className="text-xs sm:text-sm">Servo 1 Min (°)</Label>
-                                <Input
-                                    type="text"
-                                    value={servo1MinInput}
-                                    onChange={(e) => handleServoInputChange(setServo1MinInput, e.target.value)}
-                                    onBlur={(e) => handleServoInputBlur('servo1Min', e.target.value)}
-                                    placeholder="0"
-                                    className="bg-gray-700 text-white border-gray-600"
+                        <div className="space-y-2 sm:space-y-3">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="auto-reconnect"
+                                    checked={autoReconnect}
+                                    onCheckedChange={toggleAutoReconnect}
+                                    className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoReconnect ? 'bg-green-500' : 'bg-white'}`}
                                 />
+                                <Label htmlFor="auto-reconnect"
+                                       className="text-xs sm:text-sm font-medium text-gray-700">
+                                    Автоматическое переподключение при смене устройства
+                                </Label>
                             </div>
-                            <div>
-                                <Label htmlFor="servo1-max" className="text-xs sm:text-sm">Servo 1 Max (°)</Label>
-                                <Input
-                                    type="text"
-                                    value={servo1MaxInput}
-                                    onChange={(e) => handleServoInputChange(setServo1MaxInput, e.target.value)}
-                                    onBlur={(e) => handleServoInputBlur('servo1Max', e.target.value)}
-                                    placeholder="0"
-                                    className={`bg-gray-700 text-white border-gray-600 ${parseInt(servo1MaxInput || '0') < servo1MinAngle ? 'border-red-500' : ''}`}
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="auto-connect"
+                                    checked={autoConnect}
+                                    onCheckedChange={toggleAutoConnect}
+                                    className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoConnect ? 'bg-green-500' : 'bg-white'}`}
                                 />
+                                <Label htmlFor="auto-connect" className="text-xs sm:text-sm font-medium text-gray-700">
+                                    Автоматическое подключение при загрузке страницы
+                                </Label>
                             </div>
-                            <div>
-                                <Label htmlFor="servo2-min" className="text-xs sm:text-sm">Servo 2 Min (°)</Label>
-                                <Input
-                                    type="text"
-                                    value={servo2MinInput}
-                                    onChange={(e) => handleServoInputChange(setServo2MinInput, e.target.value)}
-                                    onBlur={(e) => handleServoInputBlur('servo2Min', e.target.value)}
-                                    placeholder="0"
-                                    className="bg-gray-700 text-white border-gray-600"
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="closed-del"
+                                    checked={closedDel}
+                                    onCheckedChange={toggleClosedDel}
+                                    className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${closedDel ? 'bg-green-500' : 'bg-white'}`}
                                 />
-                            </div>
-                            <div>
-                                <Label htmlFor="servo2-max" className="text-xs sm:text-sm">Servo 2 Max (°)</Label>
-                                <Input
-                                    type="text"
-                                    value={servo2MaxInput}
-                                    onChange={(e) => handleServoInputChange(setServo2MaxInput, e.target.value)}
-                                    onBlur={(e) => handleServoInputBlur('servo2Max', e.target.value)}
-                                    placeholder="0"
-                                    className={`bg-gray-700 text-white border-gray-600 ${parseInt(servo2MaxInput || '0') < servo2MinAngle ? 'border-red-500' : ''}`}
-                                />
+                                <Label htmlFor="closed-del" className="text-xs sm:text-sm font-medium text-gray-700">
+                                    Запретить удаление устройств
+                                </Label>
                             </div>
                         </div>
-                    </div>
 
-                    <Button
-                        onClick={() => setLogVisible(!logVisible)}
-                        variant="outline"
-                        className="w-full border-gray-300 bg-transparent hover:bg-gray-100/50 h-8 sm:h-10 text-xs sm:text-sm"
-                    >
-                        {logVisible ? (
-                            <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                        ) : (
-                            <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                        <div className="space-y-2 sm:space-y-3">
+                            <Label className="block text-xs sm:text-sm font-medium text-gray-700">Настройки
+                                сервоприводов</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <Label htmlFor="servo1-min" className="text-xs sm:text-sm">Servo 1 Min (°)</Label>
+                                    <Input
+                                        type="text"
+                                        value={servo1MinInput}
+                                        onChange={(e) => handleServoInputChange(setServo1MinInput, e.target.value)}
+                                        onBlur={(e) => handleServoInputBlur('servo1Min', e.target.value)}
+                                        placeholder="0"
+                                        className="bg-gray-700 text-white border-gray-600"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="servo1-max" className="text-xs sm:text-sm">Servo 1 Max (°)</Label>
+                                    <Input
+                                        type="text"
+                                        value={servo1MaxInput}
+                                        onChange={(e) => handleServoInputChange(setServo1MaxInput, e.target.value)}
+                                        onBlur={(e) => handleServoInputBlur('servo1Max', e.target.value)}
+                                        placeholder="0"
+                                        className={`bg-gray-700 text-white border-gray-600 ${parseInt(servo1MaxInput || '0') < servo1MinAngle ? 'border-red-500' : ''}`}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="servo2-min" className="text-xs sm:text-sm">Servo 2 Min (°)</Label>
+                                    <Input
+                                        type="text"
+                                        value={servo2MinInput}
+                                        onChange={(e) => handleServoInputChange(setServo2MinInput, e.target.value)}
+                                        onBlur={(e) => handleServoInputBlur('servo2Min', e.target.value)}
+                                        placeholder="0"
+                                        className="bg-gray-700 text-white border-gray-600"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="servo2-max" className="text-xs sm:text-sm">Servo 2 Max (°)</Label>
+                                    <Input
+                                        type="text"
+                                        value={servo2MaxInput}
+                                        onChange={(e) => handleServoInputChange(setServo2MaxInput, e.target.value)}
+                                        onBlur={(e) => handleServoInputBlur('servo2Max', e.target.value)}
+                                        placeholder="0"
+                                        className={`bg-gray-700 text-white border-gray-600 ${parseInt(servo2MaxInput || '0') < servo2MinAngle ? 'border-red-500' : ''}`}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <Button
+                            onClick={() => setLogVisible(!logVisible)}
+                            variant="outline"
+                            className="w-full border-gray-300 bg-transparent hover:bg-gray-100/50 h-8 sm:h-10 text-xs sm:text-sm"
+                        >
+                            {logVisible ? (
+                                <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 mr-2"/>
+                            ) : (
+                                <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 mr-2"/>
+                            )}
+                            {logVisible ? "Скрыть логи" : "Показать логи"}
+                        </Button>
+
+                        {logVisible && (
+                            <div
+                                className="border border-gray-200 rounded-md overflow-hidden bg-transparent backdrop-blur-sm">
+                                <div className="h-32 sm:h-48 overflow-y-auto p-2 bg-transparent text-xs font-mono">
+                                    {log.length === 0 ? (
+                                        <div className="text-gray-500 italic">Логов пока нет</div>
+                                    ) : (
+                                        log.slice().reverse().map((entry, index) => (
+                                            <div
+                                                key={index}
+                                                className={`truncate py-1 ${
+                                                    entry.ty === 'client' ? 'text-blue-600' :
+                                                        entry.ty === 'esp' ? 'text-green-600' :
+                                                            entry.ty === 'server' ? 'text-purple-600' :
+                                                                entry.ty === 'success' ? 'text-teal-600' :
+                                                                    'text-red-600 font-semibold'
+                                                }`}
+                                            >
+                                                {entry.me}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
                         )}
-                        {logVisible ? "Скрыть логи" : "Показать логи"}
-                    </Button>
-
-                    {logVisible && (
-                        <div className="border border-gray-200 rounded-md overflow-hidden bg-transparent backdrop-blur-sm">
-                            <div className="h-32 sm:h-48 overflow-y-auto p-2 bg-transparent text-xs font-mono">
-                                {log.length === 0 ? (
-                                    <div className="text-gray-500 italic">Логов пока нет</div>
-                                ) : (
-                                    log.slice().reverse().map((entry, index) => (
-                                        <div
-                                            key={index}
-                                            className={`truncate py-1 ${
-                                                entry.ty === 'client' ? 'text-blue-600' :
-                                                    entry.ty === 'esp' ? 'text-green-600' :
-                                                        entry.ty === 'server' ? 'text-purple-600' :
-                                                            entry.ty === 'success' ? 'text-teal-600' :
-                                                                'text-red-600 font-semibold'
-                                            }`}
-                                        >
-                                            {entry.me}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                    </div>
                 </div>
             )}
 
@@ -1029,25 +1072,25 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                         onClick={() => adjustServo('1', -180)}
                                         className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all"
                                     >
-                                        <ArrowLeft className="h-5 w-5" />
+                                        <ArrowLeft className="h-5 w-5"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('1', -15)}
                                         className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
                                     >
-                                        <ArrowDown className="h-5 w-5" />
+                                        <ArrowDown className="h-5 w-5"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('1', 15)}
                                         className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
                                     >
-                                        <ArrowUp className="h-5 w-5" />
+                                        <ArrowUp className="h-5 w-5"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('1', 180)}
                                         className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
                                     >
-                                        <ArrowRight className="h-5 w-5" />
+                                        <ArrowRight className="h-5 w-5"/>
                                     </Button>
                                 </div>
                                 <span className="text-sm font-medium text-gray-700 mt-1">{servoAngle}°</span>
@@ -1059,45 +1102,53 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                         onClick={() => adjustServo('2', -180)}
                                         className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
                                     >
-                                        <ArrowLeft className="h-5 w-5" />
+                                        <ArrowLeft className="h-5 w-5"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('2', -15)}
                                         className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
                                     >
-                                        <ArrowDown className="h-5 w-5" />
+                                        <ArrowDown className="h-5 w-5"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('2', 15)}
                                         className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
                                     >
-                                        <ArrowUp className="h-5 w-5" />
+                                        <ArrowUp className="h-5 w-5"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('2', 180)}
                                         className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
                                     >
-                                        <ArrowRight className="h-5 w-5" />
+                                        <ArrowRight className="h-5 w-5"/>
                                     </Button>
                                 </div>
                                 <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
                             </div>
                         </>
                     )}
+                    <div>
+                        {inputVoltage !== null && (
+                            <span
+                                className="text-sm font-medium text-gray-700 bg-transparent border border-gray-600 p-2 rounded-full">
+                                A0: {inputVoltage.toFixed(2)} В
+                            </span>
+                        )}
+                    </div>
 
                     <div className="flex items-center justify-center space-x-2">
                         {button1State !== null && (
                             <Button
                                 onClick={() => {
                                     const newState = button1State ? 'off' : 'on';
-                                    sendCommand('RLY', { pin: 'D0', state: newState });
+                                    sendCommand('RLY', {pin: 'D0', state: newState});
                                 }}
                                 className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
                             >
                                 {button1State ? (
-                                    <img width={'25px'} height={'25px'} src="/off.svg" alt="Image" />
+                                    <img width={'25px'} height={'25px'} src="/off.svg" alt="Image"/>
                                 ) : (
-                                    <img width={'25px'} height={'25px'} src="/on.svg" alt="Image" />
+                                    <img width={'25px'} height={'25px'} src="/on.svg" alt="Image"/>
                                 )}
                             </Button>
                         )}
@@ -1106,15 +1157,15 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                             <Button
                                 onClick={() => {
                                     const newState = button2State ? 'off' : 'on';
-                                    sendCommand('RLY', { pin: '3', state: newState });
+                                    sendCommand('RLY', {pin: '3', state: newState});
                                     // Не обновляем состояние локально, ждём ответа сервера
                                 }}
                                 className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
                             >
                                 {button2State ? (
-                                    <img width={'25px'} height={'25px'} src="/off.svg" alt="Image" />
+                                    <img width={'25px'} height={'25px'} src="/off.svg" alt="Image"/>
                                 ) : (
-                                    <img width={'25px'} height={'25px'} src="/on.svg" alt="Image" />
+                                    <img width={'25px'} height={'25px'} src="/on.svg" alt="Image"/>
                                 )}
                             </Button>
                         )}
@@ -1126,9 +1177,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                                 title={showServos ? 'Скрыть сервоприводы' : 'Показать сервоприводы'}
                             >
                                 {showServos ? (
-                                    <img width={'25px'} height={'25px'} src="/turn2.svg" alt="Image" />
+                                    <img width={'25px'} height={'25px'} src="/turn2.svg" alt="Image"/>
                                 ) : (
-                                    <img width={'25px'} height={'25px'} src="/turn1.svg" alt="Image" />
+                                    <img width={'25px'} height={'25px'} src="/turn1.svg" alt="Image"/>
                                 )}
                             </Button>
                         )}
@@ -1138,9 +1189,9 @@ export default function SocketClient({ onConnectionStatusChange }: SocketClientP
                             className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
                         >
                             {activeTab === 'controls' ? (
-                                <img width={'25px'} height={'25px'} src="/settings2.svg" alt="Image" />
+                                <img width={'25px'} height={'25px'} src="/settings2.svg" alt="Image"/>
                             ) : (
-                                <img width={'25px'} height={'25px'} src="/settings1.svg" alt="Image" />
+                                <img width={'25px'} height={'25px'} src="/settings1.svg" alt="Image"/>
                             )}
                         </Button>
                     </div>
