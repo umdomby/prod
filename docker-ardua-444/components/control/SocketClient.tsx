@@ -1130,12 +1130,11 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
 
                     {inputVoltage !== null && (
                         <span
-                            className="text-sm font-medium text-green-700 bg-transparent rounded-full flex items-center justify-center"
+                            className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
                         >
                             {inputVoltage.toFixed(2)}
                         </span>
                     )}
-
 
                     <div className="flex items-center justify-center space-x-2">
                         {button1State !== null && (
