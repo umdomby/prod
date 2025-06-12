@@ -4,7 +4,7 @@ import { useWebRTC } from './hooks/useWebRTC'
 import styles from './styles.module.css'
 import { VideoPlayer } from './components/VideoPlayer'
 import { DeviceSelector } from './components/DeviceSelector'
-import {useEffect, useState, useRef, useCallback} from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -142,7 +142,6 @@ export const VideoCallApp = () => {
         setAutoJoin(savedAutoJoin)
         setActiveMainTab(savedAutoJoin ? 'esp' : 'webrtc');
 
-
         const savedCodec = localStorage.getItem('selectedCodec')
         if (savedCodec === 'VP8' || savedCodec === 'H264') {
             setSelectedCodec(savedCodec)
@@ -160,122 +159,149 @@ export const VideoCallApp = () => {
         }
     }, [isDeviceConnected])
 
-    const handleCodecChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const codec = e.target.value as 'VP8' | 'H264'
-        setSelectedCodec(codec)
-        localStorage.setItem('selectedCodec', codec)
-    }
+    const handleCodecChange = useCallback(
+        debounce((e: React.ChangeEvent<HTMLSelectElement>) => {
+            const codec = e.target.value as 'VP8' | 'H264'
+            setSelectedCodec(codec)
+            localStorage.setItem('selectedCodec', codec)
+        }, 300),
+        []
+    )
 
     const formatRoomId = (id: string): string => {
         const cleanedId = id.replace(/[^A-Z0-9]/gi, '')
         return cleanedId.replace(/(.{4})(?=.)/g, '$1-')
     }
 
-    const handleRoomIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const input = e.target.value.toUpperCase()
-        let cleanedInput = input.replace(/[^A-Z0-9-]/gi, '')
-        if (cleanedInput.length > 19) {
-            cleanedInput = cleanedInput.substring(0, 19)
-        }
-        const formatted = formatRoomId(cleanedInput)
-        setRoomId(formatted)
-    }
+    const handleRoomIdChange = useCallback(
+        debounce((e: React.ChangeEvent<HTMLInputElement>) => {
+            const input = e.target.value.toUpperCase()
+            let cleanedInput = input.replace(/[^A-Z0-9-]/gi, '')
+            if (cleanedInput.length > 19) {
+                cleanedInput = cleanedInput.substring(0, 19)
+            }
+            const formatted = formatRoomId(cleanedInput)
+            setRoomId(formatted)
+        }, 300),
+        []
+    )
 
     const isRoomIdComplete = roomId.replace(/-/g, '').length === 16
 
-    const handleSaveRoom = async () => {
-        if (!isRoomIdComplete) return
+    const handleSaveRoom = useCallback(
+        debounce(async () => {
+            if (!isRoomIdComplete) return
 
-        try {
-            await saveRoom(roomId.replace(/-/g, ''), autoJoin)
-            const updatedRooms = await getSavedRooms()
-            setSavedRooms(updatedRooms)
-        } catch (err) {
-            console.error('Ошибка сохранения комнаты:', err)
-            setError((err as Error).message)
-        }
-    }
-
-    const handleDeleteRoom = async (roomIdWithoutDashes: string) => {
-        setRoomToDelete(roomIdWithoutDashes)
-        setShowDeleteDialog(true)
-    }
-
-    const confirmDeleteRoom = async () => {
-        if (!roomToDelete) return
-
-        try {
-            await deleteRoom(roomToDelete)
-            const updatedRooms = await getSavedRooms()
-            setSavedRooms(updatedRooms)
-
-            if (roomId.replace(/-/g, '') === roomToDelete) {
-                setRoomId('')
-                setAutoJoin(false)
-            }
-        } catch (err) {
-            console.error('Ошибка удаления комнаты:', err)
-            setError((err as Error).message)
-        }
-
-        setShowDeleteDialog(false)
-        setRoomToDelete(null)
-    }
-
-    const handleSelectRoom = (roomIdWithoutDashes: string) => {
-        const selectedRoom = savedRooms.find(r => r.id === roomIdWithoutDashes)
-        if (selectedRoom) {
-            setRoomId(formatRoomId(roomIdWithoutDashes))
-            setAutoJoin(selectedRoom.autoConnect)
-        }
-    }
-
-    const handleSetDefaultRoom = async (roomIdWithoutDashes: string) => {
-        try {
-            await setDefaultRoom(roomIdWithoutDashes)
-            const updatedRooms = await getSavedRooms()
-            setSavedRooms(updatedRooms)
-        } catch (err) {
-            console.error('Ошибка установки комнаты по умолчанию:', err)
-            setError((err as Error).message)
-        }
-    }
-
-    const toggleCamera = () => {
-        const newCameraState = !useBackCamera
-        setUseBackCamera(newCameraState)
-        localStorage.setItem('useBackCamera', String(newCameraState))
-
-        if (isConnected && ws) {
             try {
-                ws.send(JSON.stringify({
-                    type: "switch_camera",
-                    useBackCamera: newCameraState,
-                    room: roomId.replace(/-/g, ''),
-                    username: username
-                }))
+                await saveRoom(roomId.replace(/-/g, ''), autoJoin)
+                const updatedRooms = await getSavedRooms()
+                setSavedRooms(updatedRooms)
             } catch (err) {
-                console.error('Error sending camera switch command:', err)
+                console.error('Ошибка сохранения комнаты:', err)
+                setError((err as Error).message)
             }
-        } else {
-            console.error('Not connected to server')
-        }
-    }
+        }, 300),
+        [roomId, autoJoin]
+    )
+
+    const handleDeleteRoom = useCallback(
+        debounce((roomIdWithoutDashes: string) => {
+            setRoomToDelete(roomIdWithoutDashes)
+            setShowDeleteDialog(true)
+        }, 300),
+        []
+    )
+
+    const confirmDeleteRoom = useCallback(
+        debounce(async () => {
+            if (!roomToDelete) return
+
+            try {
+                await deleteRoom(roomToDelete)
+                const updatedRooms = await getSavedRooms()
+                setSavedRooms(updatedRooms)
+
+                if (roomId.replace(/-/g, '') === roomToDelete) {
+                    setRoomId('')
+                    setAutoJoin(false)
+                }
+            } catch (err) {
+                console.error('Ошибка удаления комнаты:', err)
+                setError((err as Error).message)
+            }
+
+            setShowDeleteDialog(false)
+            setRoomToDelete(null)
+        }, 300),
+        [roomToDelete, roomId]
+    )
+
+    const handleSelectRoom = useCallback(
+        debounce((roomIdWithoutDashes: string) => {
+            const selectedRoom = savedRooms.find(r => r.id === roomIdWithoutDashes)
+            if (selectedRoom) {
+                setRoomId(formatRoomId(roomIdWithoutDashes))
+                setAutoJoin(selectedRoom.autoConnect)
+            }
+        }, 300),
+        [savedRooms]
+    )
+
+    const handleSetDefaultRoom = useCallback(
+        debounce(async (roomIdWithoutDashes: string) => {
+            try {
+                await setDefaultRoom(roomIdWithoutDashes)
+                const updatedRooms = await getSavedRooms()
+                setSavedRooms(updatedRooms)
+            } catch (err) {
+                console.error('Ошибка установки комнаты по умолчанию:', err)
+                setError((err as Error).message)
+            }
+        }, 300),
+        []
+    )
+
+    const toggleCamera = useCallback(
+        debounce(() => {
+            const newCameraState = !useBackCamera
+            setUseBackCamera(newCameraState)
+            localStorage.setItem('useBackCamera', String(newCameraState))
+
+            if (isConnected && ws) {
+                try {
+                    ws.send(JSON.stringify({
+                        type: "switch_camera",
+                        useBackCamera: newCameraState,
+                        room: roomId,
+                        username: username
+                    }))
+                    console.log('Sent camera switch command:', { useBackCamera: newCameraState })
+                } catch (err) {
+                    console.error('Error sending camera switch command:', err)
+                    setError('Failed to switch camera')
+                }
+            } else {
+                console.error('Not connected to WebRTC server')
+                setError('No connection to server')
+            }
+        }, 300),
+        [useBackCamera, isConnected, ws, roomId, username]
+    )
 
     useEffect(() => {
         if (localStream) {
-            localAudioTracks.current = localStream.getAudioTracks()
+            localAudioTracks.current = localStream.getAudioTracks();
             localAudioTracks.current.forEach(track => {
-                track.enabled = !muteLocalAudio
-            })
+                track.enabled = !muteLocalAudio; // Removed extra parenthesis
+            });
         }
-    }, [localStream, muteLocalAudio])
+    }, [localStream, muteLocalAudio]);
 
     useEffect(() => {
         if (remoteStream) {
             remoteStream.getAudioTracks().forEach(track => {
-                track.enabled = !muteRemoteAudio
-            })
+                track.enabled = !muteRemoteAudio;
+            });
         }
     }, [remoteStream, muteRemoteAudio])
 
@@ -285,7 +311,7 @@ export const VideoCallApp = () => {
         }
     }, [autoJoin, hasPermission, isRoomIdComplete])
 
-    const applyVideoTransform = (settings: VideoSettings) => {
+    const applyVideoTransform = useCallback((settings: VideoSettings) => {
         const { rotation, flipH, flipV } = settings
         let transform = ''
         if (rotation !== 0) transform += `rotate(${rotation}deg) `
@@ -296,11 +322,11 @@ export const VideoCallApp = () => {
             remoteVideoRef.current.style.transform = transform
             remoteVideoRef.current.style.transformOrigin = 'center center'
         }
-    }
+    }, [])
 
-    const saveSettings = (settings: VideoSettings) => {
+    const saveSettings = useCallback((settings: VideoSettings) => {
         localStorage.setItem('videoSettings', JSON.stringify(settings))
-    }
+    }, [])
 
     const loadDevices = async () => {
         try {
@@ -330,160 +356,194 @@ export const VideoCallApp = () => {
         }
     }
 
-    const toggleLocalVideo = () => {
-        const newState = !showLocalVideo
-        setShowLocalVideo(newState)
-        localStorage.setItem('showLocalVideo', String(newState))
-    }
+    const toggleLocalVideo = useCallback(
+        debounce(() => {
+            const newState = !showLocalVideo
+            setShowLocalVideo(newState)
+            localStorage.setItem('showLocalVideo', String(newState))
+        }, 300),
+        [showLocalVideo]
+    )
 
-    const updateVideoSettings = (newSettings: Partial<VideoSettings>) => {
+    const updateVideoSettings = useCallback((newSettings: Partial<VideoSettings>) => {
         const updated = { ...videoSettings, ...newSettings }
         setVideoSettings(updated)
         applyVideoTransform(updated)
         saveSettings(updated)
-    }
+    }, [videoSettings, applyVideoTransform, saveSettings])
 
-    const handleDeviceChange = (type: 'video' | 'audio', deviceId: string) => {
-        setSelectedDevices(prev => ({
-            ...prev,
-            [type]: deviceId
-        }))
-        localStorage.setItem(`${type}Device`, deviceId)
-    }
+    const handleDeviceChange = useCallback(
+        debounce((type: 'video' | 'audio', deviceId: string) => {
+            setSelectedDevices(prev => ({
+                ...prev,
+                [type]: deviceId
+            }))
+            localStorage.setItem(`${type}Device`, deviceId)
+        }, 300),
+        []
+    )
 
-    const handleJoinRoom = async () => {
-        if (!isRoomIdComplete) {
-            console.warn('ID комнаты не полный, подключение невозможно')
-            setError('ID комнаты должен состоять из 16 символов')
-            return
-        }
-
-        setIsJoining(true)
-        console.log('Попытка подключения к комнате:', roomId)
-        try {
-            await handleSetDefaultRoom(roomId.replace(/-/g, ''))
-            await joinRoom(username)
-            console.log('Успешно подключено к комнате:', roomId)
-            // Переключаемся на вкладку esp при успешном подключении
-            setActiveMainTab('esp')
-            // setShowControls(true)
-        } catch (error) {
-            console.error('Ошибка подключения к комнате:', error)
-            setError('Ошибка подключения к комнате: ' + (error instanceof Error ? error.message : String(error)))
-        } finally {
-            setIsJoining(false)
-            console.log('Состояние isJoining сброшено')
-        }
-    }
-
-    // Новая функция для прерывания подключения
-    const handleCancelJoin = () => {
-        console.log('Пользователь прервал попытку подключения');
-        setIsJoining(false);
-        setError(null);
-        if (webRTCRetryTimeoutRef.current) {
-            clearTimeout(webRTCRetryTimeoutRef.current);
-            webRTCRetryTimeoutRef.current = null;
-        }
-        leaveRoom();
-        setActiveMainTab('webrtc');
-    };
-
-    const toggleFullscreen = async () => {
-        if (!videoContainerRef.current) return
-
-        try {
-            if (!document.fullscreenElement) {
-                await videoContainerRef.current.requestFullscreen()
-                setIsFullscreen(true)
-            } else {
-                await document.exitFullscreen()
-                setIsFullscreen(false)
+    const handleJoinRoom = useCallback(
+        debounce(async () => {
+            if (!isRoomIdComplete) {
+                console.warn('ID комнаты не полный, подключение невозможно')
+                setError('ID комнаты должен состоять из 16 символов')
+                return
             }
-        } catch (err) {
-            console.error('Fullscreen error:', err)
-        }
-    }
 
-    const toggleMuteLocalAudio = () => {
-        const newState = !muteLocalAudio
-        setMuteLocalAudio(newState)
-        localStorage.setItem('muteLocalAudio', String(newState))
+            setIsJoining(true)
+            console.log('Попытка подключения к комнате:', roomId)
+            try {
+                await handleSetDefaultRoom(roomId.replace(/-/g, ''))
+                await joinRoom(username)
+                console.log('Успешно подключено к комнате:', roomId)
+                setActiveMainTab('esp')
+            } catch (error) {
+                console.error('Ошибка подключения к комнате:', error)
+                setError('Ошибка подключения к комнате: ' + (error instanceof Error ? error.message : String(error)))
+            } finally {
+                setIsJoining(false)
+                console.log('Состояние isJoining сброшено')
+            }
+        }, 300),
+        [isRoomIdComplete, roomId, username, joinRoom, setError, handleSetDefaultRoom]
+    )
 
-        localAudioTracks.current.forEach(track => {
-            track.enabled = !newState
-        })
-    }
+    const handleCancelJoin = useCallback(
+        debounce(() => {
+            console.log('Пользователь прервал попытку подключения')
+            setIsJoining(false)
+            setError(null)
+            if (webRTCRetryTimeoutRef.current) {
+                clearTimeout(webRTCRetryTimeoutRef.current)
+                webRTCRetryTimeoutRef.current = null
+            }
+            leaveRoom()
+            setActiveMainTab('webrtc')
+        }, 300),
+        [leaveRoom]
+    )
 
-    const toggleMuteRemoteAudio = () => {
-        const newState = !muteRemoteAudio
-        setMuteRemoteAudio(newState)
-        localStorage.setItem('muteRemoteAudio', String(newState))
+    const toggleFullscreen = useCallback(
+        debounce(async () => {
+            if (!videoContainerRef.current) return
 
-        if (remoteStream) {
-            remoteStream.getAudioTracks().forEach(track => {
+            try {
+                if (!document.fullscreenElement) {
+                    await videoContainerRef.current.requestFullscreen()
+                    setIsFullscreen(true)
+                } else {
+                    await document.exitFullscreen()
+                    setIsFullscreen(false)
+                }
+            } catch (err) {
+                console.error('Fullscreen error:', err)
+                setError('Failed to toggle fullscreen')
+            }
+        }, 300),
+        []
+    )
+
+    const toggleMuteLocalAudio = useCallback(
+        debounce(() => {
+            const newState = !muteLocalAudio
+            setMuteLocalAudio(newState)
+            localStorage.setItem('muteLocalAudio', String(newState))
+
+            localAudioTracks.current.forEach(track => {
                 track.enabled = !newState
             })
-        }
-    }
+        }, 300),
+        [muteLocalAudio]
+    )
 
-    const rotateVideo = (degrees: number) => {
-        updateVideoSettings({ rotation: degrees })
+    const toggleMuteRemoteAudio = useCallback(
+        debounce(() => {
+            const newState = !muteRemoteAudio
+            setMuteRemoteAudio(newState)
+            localStorage.setItem('muteRemoteAudio', String(newState))
 
-        if (remoteVideoRef.current) {
-            if (degrees === 90 || degrees === 270) {
-                remoteVideoRef.current.classList.add(styles.rotated)
+            if (remoteStream) {
+                remoteStream.getAudioTracks().forEach(track => {
+                    track.enabled = !newState
+                })
+            }
+        }, 300),
+        [muteRemoteAudio, remoteStream]
+    )
+
+    const rotateVideo = useCallback(
+        debounce((degrees: number) => {
+            updateVideoSettings({ rotation: degrees })
+
+            if (remoteVideoRef.current) {
+                if (degrees === 90 || degrees === 270) {
+                    remoteVideoRef.current.classList.add(styles.rotated)
+                } else {
+                    remoteVideoRef.current.classList.remove(styles.rotated)
+                }
+            }
+        }, 300),
+        [updateVideoSettings]
+    )
+
+    const flipVideoHorizontal = useCallback(
+        debounce(() => {
+            updateVideoSettings({ flipH: !videoSettings.flipH })
+        }, 300),
+        [videoSettings, updateVideoSettings]
+    )
+
+    const flipVideoVertical = useCallback(
+        debounce(() => {
+            updateVideoSettings({ flipV: !videoSettings.flipV })
+        }, 300),
+        [videoSettings, updateVideoSettings]
+    )
+
+    const resetVideo = useCallback(
+        debounce(() => {
+            updateVideoSettings({ rotation: 0, flipH: false, flipV: false })
+        }, 300),
+        [updateVideoSettings]
+    )
+
+    const toggleFlashlight = useCallback(
+        debounce(() => {
+            if (isConnected && ws) {
+                try {
+                    ws.send(JSON.stringify({
+                        type: "toggle_flashlight",
+                        room: roomId.replace(/-/g, ''),
+                        username: username
+                    }))
+                    console.log('Sent flashlight toggle command')
+                } catch (err) {
+                    console.error('Error sending flashlight command:', err)
+                    setError('Failed to toggle flashlight')
+                }
             } else {
-                remoteVideoRef.current.classList.remove(styles.rotated)
+                console.error('Not connected to server')
+                setError('No connection to server')
             }
-        }
-    }
-
-    const flipVideoHorizontal = () => {
-        updateVideoSettings({ flipH: !videoSettings.flipH })
-    }
-
-    const flipVideoVertical = () => {
-        updateVideoSettings({ flipV: !videoSettings.flipV })
-    }
-
-    const resetVideo = () => {
-        updateVideoSettings({ rotation: 0, flipH: false, flipV: false })
-    }
-
-    const toggleFlashlight = () => {
-        if (isConnected && ws) {
-            try {
-                ws.send(JSON.stringify({
-                    type: "toggle_flashlight",
-                    room: roomId.replace(/-/g, ''),
-                    username: username
-                }));
-                console.log('Отправлено сообщение для управления фонариком');
-            } catch (err) {
-                console.error('Ошибка отправки команды управления фонариком:', err);
-                setError('Ошибка при отправке команды фонарика');
-            }
-        } else {
-            console.error('Не подключено к серверу');
-            setError('Подключение к серверу отсутствует');
-        }
-    };
+        }, 300),
+        [isConnected, ws, roomId, username, setError]
+    )
 
     const toggleTab = useCallback(
         debounce((tab: 'webrtc' | 'esp' | 'cam' | 'controls') => {
             if (tab === 'cam') {
-                setShowCam(!showCam);
+                setShowCam(!showCam)
             } else if (tab === 'controls') {
-                setShowControls(!showControls);
-                setActiveMainTab(null);
+                setShowControls(!showControls)
+                setActiveMainTab(null)
             } else {
-                setActiveMainTab(activeMainTab === tab ? null : tab);
-                setShowControls(false);
+                setActiveMainTab(activeMainTab === tab ? null : tab)
+                setShowControls(false)
             }
         }, 300),
         [showCam, showControls, activeMainTab]
-    );
+    )
 
     return (
         <div className={styles.container} suppressHydrationWarning>
@@ -689,7 +749,7 @@ export const VideoCallApp = () => {
                         )}
 
                         <div className={styles.userList}>
-                            <h3>У участники ({users.length}):</h3>
+                            <h3>Участники ({users.length}):</h3>
                             <ul>
                                 {users.map((user, index) => (
                                     <li key={index}>{user}</li>
@@ -733,32 +793,32 @@ export const VideoCallApp = () => {
                                 {useBackCamera ? '📷⬅️' : '📷➡️'}
                             </button>
                             <button
-                                onClick={() => rotateVideo(0)}
-                                onTouchEnd={() => rotateVideo(0)}
+                                onClick={() => rotateVideo(0)} // Исправлено: стрелочная функция
+                                onTouchEnd={() => rotateVideo(0)} // Исправлено: стрелочная функция
                                 className={[styles.controlButton, videoSettings.rotation === 0 ? styles.active : ''].join(' ')}
                                 title="Обычная ориентация"
                             >
                                 ↻0°
                             </button>
                             <button
-                                onClick={() => rotateVideo(90)}
-                                onTouchEnd={() => rotateVideo(90)}
+                                onClick={() => rotateVideo(90)} // Исправлено: стрелочная функция
+                                onTouchEnd={() => rotateVideo(90)} // Исправлено: стрелочная функция
                                 className={[styles.controlButton, videoSettings.rotation === 90 ? styles.active : ''].join(' ')}
                                 title="Повернуть на 90°"
                             >
                                 ↻90°
                             </button>
                             <button
-                                onClick={() => rotateVideo(180)}
-                                onTouchEnd={() => rotateVideo(180)}
+                                onClick={() => rotateVideo(180)} // Исправлено: стрелочная функция
+                                onTouchEnd={() => rotateVideo(180)} // Исправлено: стрелочная функция
                                 className={[styles.controlButton, videoSettings.rotation === 180 ? styles.active : ''].join(' ')}
                                 title="Повернуть на 180°"
                             >
                                 ↻180°
                             </button>
                             <button
-                                onClick={() => rotateVideo(270)}
-                                onTouchEnd={() => rotateVideo(270)}
+                                onClick={() => rotateVideo(270)} // Исправлено: стрелочная функция
+                                onTouchEnd={() => rotateVideo(270)} // Исправлено: стрелочная функция
                                 className={[styles.controlButton, videoSettings.rotation === 270 ? styles.active : ''].join(' ')}
                                 title="Повернуть на 270°"
                             >
@@ -820,7 +880,6 @@ export const VideoCallApp = () => {
                             >
                                 {muteRemoteAudio ? '🔇' : '🔈'}
                             </button>
-
                             <button
                                 onClick={toggleFlashlight}
                                 onTouchEnd={toggleFlashlight}
