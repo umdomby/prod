@@ -31,7 +31,6 @@ model Devices {
   savedRoom     SavedRoom?
   diviceName    String?
   devicesEnum   DevicesEnum @default(ArduaESP8266)
-  idDeviceAr    String?
   idDevice      String      @unique
   autoReconnect Boolean
   autoConnect   Boolean
