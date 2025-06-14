@@ -116,14 +116,16 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
             try {
                 const devices = await getDevices();
                 setDeviceList(devices.map(d => d.idDevice));
+                // Устанавливаем noDevices в false, если есть хотя бы одно устройство
+                setNoDevices(devices.length === 0);
                 if (devices.length > 0) {
                     const device = devices[0];
                     setInputDe(device.idDevice);
                     setDe(device.idDevice);
                     currentDeRef.current = device.idDevice;
-                    setAutoReconnect(device.autoReconnect ?? false); // Загрузка из базы
-                    setAutoConnect(device.autoConnect ?? false); // Загрузка из базы
-                    setClosedDel(device.closedDel ?? false); // Загрузка из базы
+                    setAutoReconnect(device.autoReconnect ?? false);
+                    setAutoConnect(device.autoConnect ?? false);
+                    setClosedDel(device.closedDel ?? false);
                     if (device.settings) {
                         setServo1MinAngle(device.settings.servo1MinAngle || 0);
                         setServo1MaxAngle(device.settings.servo1MaxAngle || 180);
@@ -166,7 +168,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                     }
                 } else {
                     setDeviceList([]);
-                    setNoDevices(true); // Нет устройств
+                    setNoDevices(true);
                     setInputDe('');
                     setDe('');
                     setShowServos(true);
@@ -185,7 +187,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                     errorMessage = String(error);
                 }
                 addLog(`Ошибка: ${errorMessage}`, 'error');
-                setNoDevices(true); // В случае ошибки считаем, что устройств нет
+                setNoDevices(true);
             }
         };
         loadDevices();
@@ -879,7 +881,6 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
         <div className="flex flex-col items-center min-h-[calc(100vh-3rem)] p-4 overflow-hidden relative">
             {activeTab === 'controls' && (
                 <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-full max-w-md z-50">
-
                     <div
                         className="space-y-2 bg-black rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
                         style={{maxHeight: '90vh', overflowY: 'auto'}}
@@ -914,7 +915,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             <Select
                                 value={selectedDeviceId || inputDe}
                                 onValueChange={handleDeviceChange}
-                                disabled={!!selectedDeviceId || (isConnected && !autoReconnect) || noDevices}
+                                disabled={!!selectedDeviceId || (isConnected && !autoReconnect)}
                             >
                                 <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
                                     <SelectValue placeholder={noDevices ? "Устройства еще не добавлены" : "Выберите устройство"} />
@@ -929,7 +930,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             </Select>
                             <Button
                                 onClick={handleDeleteDevice}
-                                disabled={closedDel || !!selectedDeviceId || noDevices}
+                                disabled={closedDel || !!selectedDeviceId} // Удаляем noDevices из условия
                                 className="bg-red-600 hover:bg-red-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
                             >
                                 Удалить
@@ -963,7 +964,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     checked={autoReconnect}
                                     onCheckedChange={toggleAutoReconnect}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoReconnect ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={!!selectedDeviceId || noDevices}
+                                    disabled={!!selectedDeviceId} // Удаляем noDevices из условия
                                 />
                                 <Label htmlFor="auto-reconnect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое переподключение при смене устройства
@@ -975,7 +976,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     checked={autoConnect}
                                     onCheckedChange={toggleAutoConnect}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoConnect ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={!!selectedDeviceId || noDevices}
+                                    disabled={!!selectedDeviceId} // Удаляем noDevices из условия
                                 />
                                 <Label htmlFor="auto-connect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое подключение при загрузке страницы
@@ -987,7 +988,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     checked={closedDel}
                                     onCheckedChange={toggleClosedDel}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${closedDel ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={!!selectedDeviceId || noDevices}
+                                    disabled={!!selectedDeviceId} // Удаляем noDevices из условия
                                 />
                                 <Label htmlFor="closed-del" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Запретить удаление устройств
