@@ -21,7 +21,6 @@ import {
     getDevices,
     bindDeviceToRoom,
     getSavedRoomWithDevice,
-    getRoomById
 } from '@/app/actions'
 import { debounce } from 'lodash';
 
@@ -691,22 +690,6 @@ export const VideoCallApp = () => {
         }, 300),
         [showCam, showControls, activeMainTab]
     )
-
-    const handleRoomChange = async (roomId: string) => {
-        try {
-            const response = await getRoomById(roomId);
-            if (response.success && response.data) {
-                setSelectedRoomId(response.data.id);
-                setSelectedDeviceId(response.data.devicesId || null);
-                console.log('Выбрана комната:', response.data);
-            } else {
-                console.error('Ошибка получения комнаты:', response.error);
-            }
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error('Ошибка при выборе комнаты:', errorMessage);
-        }
-    };
 
     return (
         <div className={styles.container} suppressHydrationWarning>
