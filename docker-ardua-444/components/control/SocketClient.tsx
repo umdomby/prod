@@ -4,7 +4,7 @@ import {useState, useEffect, useRef, useCallback} from 'react'
 import {Button} from "@/components/ui/button"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Input} from "@/components/ui/input"
-import {ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight} from "lucide-react"
+import {ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X} from "lucide-react"
 import {Checkbox} from "@/components/ui/checkbox"
 import {Label} from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
@@ -885,6 +885,13 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                         className="space-y-2 bg-black rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
                         style={{maxHeight: '90vh', overflowY: 'auto'}}
                     >
+                        <Button
+                            onClick={handleCloseControls}
+                            className="absolute top-0 right-1 bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-1 rounded-full transition-all"
+                            title="Закрыть"
+                        >
+                            <X className="h-4 w-4 sm:h-5 sm:w-5 text-gray-300" />
+                        </Button>
                         <div className="flex flex-col items-center space-y-2">
                             <div className="flex items-center space-x-2">
                                 <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${
