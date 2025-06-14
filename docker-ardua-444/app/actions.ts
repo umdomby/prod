@@ -63,7 +63,6 @@ export async function registerUser(body: Prisma.UserCreateInput) {
 }
 
 
-
 const deviceIdSchema = z.string().length(16, 'ID устройства должен содержать ровно 16 символов (без тире)').regex(/^[A-Z0-9]+$/, 'ID должен содержать только заглавные латинские буквы и цифры');
 
 // Получение списка устройств пользователя

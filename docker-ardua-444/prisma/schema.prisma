@@ -59,7 +59,7 @@ model SavedRoom {
   user        User     @relation(fields: [userId], references: [id])
   roomId      String   @unique
   isDefault   Boolean  @default(false)
-  autoConnect Boolean  @default(false) // Новое поле
+  autoConnect Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
