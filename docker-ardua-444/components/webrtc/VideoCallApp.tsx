@@ -219,18 +219,15 @@ export const VideoCallApp = () => {
         return cleanedId.replace(/(.{4})(?=.)/g, '$1-')
     }
 
-    const handleRoomIdChange = useCallback(
-        debounce((e: React.ChangeEvent<HTMLInputElement>) => {
-            const input = e.target.value.toUpperCase()
-            let cleanedInput = input.replace(/[^A-Z0-9-]/gi, '')
-            if (cleanedInput.length > 19) {
-                cleanedInput = cleanedInput.substring(0, 19)
-            }
-            const formatted = formatRoomId(cleanedInput)
-            setRoomId(formatted)
-        }, 300),
-        []
-    )
+    const handleRoomIdChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const input = e.target.value.toUpperCase()
+        let cleanedInput = input.replace(/[^A-Z0-9-]/gi, '')
+        if (cleanedInput.length > 19) {
+            cleanedInput = cleanedInput.substring(0, 19)
+        }
+        const formatted = formatRoomId(cleanedInput)
+        setRoomId(formatted)
+    }, [])
 
     const isRoomIdComplete = roomId.replace(/-/g, '').length === 16
 
@@ -806,58 +803,16 @@ export const VideoCallApp = () => {
                             />
                         </div>
 
-                        <div className={styles.inputGroup}>
-                            <Label htmlFor="device">Привязать устройство к комнате</Label>
-                            <div className="flex space-x-2">
-                                <Select
-                                    value={selectedDeviceId || ''}
-                                    onValueChange={setSelectedDeviceId}
-                                    disabled={isInRoom || isJoining}
-                                >
-                                    <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
-                                        <SelectValue placeholder="Выберите устройство" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
-                                        {availableDevices.map(device => (
-                                            <SelectItem key={device.idDevice} value={device.idDevice} className="hover:bg-gray-100/50 text-xs sm:text-sm">
-                                                {formatRoomId(device.idDevice)}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Button
-                                    onClick={handleBindDeviceToRoom}
-                                    disabled={!isRoomIdComplete || !selectedDeviceId}
-                                    className="bg-blue-600 hover:bg-blue-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
-                                >
-                                    Привязать
-                                </Button>
-                                {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
-                                    <Button
-                                        onClick={handleUnbindDeviceFromRoom}
-                                        className="bg-red-600 hover:bg-red-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
-                                    >
-                                        Отвязать
-                                    </Button>
-                                )}
-                            </div>
-                            {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
-                                <span className="text-xs sm:text-sm text-gray-600">
-                  Привязано устройство: {formatRoomId(savedRooms.find(r => r.id === roomId.replace(/-/g, ''))?.deviceId || '')}
-                </span>
-                            )}
-                        </div>
-
-                        <div className={styles.inputGroup}>
-                            <Label htmlFor="username">Ваше имя</Label>
-                            <Input
-                                id="username"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                disabled={isInRoom || isJoining}
-                                placeholder="Ваше имя"
-                            />
-                        </div>
+                        {/*<div className={styles.inputGroup}>*/}
+                        {/*    <Label htmlFor="username">Ваше имя</Label>*/}
+                        {/*    <Input*/}
+                        {/*        id="username"*/}
+                        {/*        value={username}*/}
+                        {/*        onChange={(e) => setUsername(e.target.value)}*/}
+                        {/*        disabled={isInRoom || isJoining}*/}
+                        {/*        placeholder="Ваше имя"*/}
+                        {/*    />*/}
+                        {/*</div>*/}
 
                         <div className={styles.inputGroup}>
                             {isInRoom ? (
@@ -910,7 +865,7 @@ export const VideoCallApp = () => {
                       >
                         {formatRoomId(room.id)}
                           {room.isDefault && ' (по умолчанию)'}
-                          {room.deviceId && ` [Устройство: ${formatRoomId(room.deviceId)}]`}
+                          {/*{room.deviceId && ` [Устройство: ${formatRoomId(room.deviceId)}]`}*/}
                       </span>
                                             {!room.isDefault && (
                                                 <button
@@ -948,6 +903,48 @@ export const VideoCallApp = () => {
                                 </div>
                             </div>
                         )}
+
+                        <div className={styles.inputGroup}>
+                            <Label htmlFor="device">Привязать устройство к комнате</Label>
+                            <div className="flex space-x-2">
+                                <Select
+                                    value={selectedDeviceId || ''}
+                                    onValueChange={setSelectedDeviceId}
+                                    disabled={isInRoom || isJoining}
+                                >
+                                    <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
+                                        <SelectValue placeholder="Выберите устройство" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
+                                        {availableDevices.map(device => (
+                                            <SelectItem key={device.idDevice} value={device.idDevice} className="hover:bg-gray-100/50 text-xs sm:text-sm">
+                                                {formatRoomId(device.idDevice)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    onClick={handleBindDeviceToRoom}
+                                    disabled={!isRoomIdComplete || !selectedDeviceId}
+                                    className="bg-blue-600 hover:bg-blue-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
+                                >
+                                    Привязать
+                                </Button>
+                                {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
+                                    <Button
+                                        onClick={handleUnbindDeviceFromRoom}
+                                        className="bg-red-600 hover:bg-red-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
+                                    >
+                                        Отвязать
+                                    </Button>
+                                )}
+                            </div>
+                            {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
+                                <span className="text-xs sm:text-sm text-gray-600">
+                  Привязано устройство: {formatRoomId(savedRooms.find(r => r.id === roomId.replace(/-/g, ''))?.deviceId || '')}
+                </span>
+                            )}
+                        </div>
 
                         <div className={styles.userList}>
                             <h3>Участники ({users.length}):</h3>
