@@ -173,18 +173,15 @@ export const VideoCallApp = () => {
         return cleanedId.replace(/(.{4})(?=.)/g, '$1-')
     }
 
-    const handleRoomIdChange = useCallback(
-        debounce((e: React.ChangeEvent<HTMLInputElement>) => {
-            const input = e.target.value.toUpperCase()
-            let cleanedInput = input.replace(/[^A-Z0-9-]/gi, '')
-            if (cleanedInput.length > 19) {
-                cleanedInput = cleanedInput.substring(0, 19)
-            }
-            const formatted = formatRoomId(cleanedInput)
-            setRoomId(formatted)
-        }, 300),
-        []
-    )
+    const handleRoomIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                const input = e.target.value.toUpperCase()
+                let cleanedInput = input.replace(/[^A-Z0-9-]/gi, '')
+                if (cleanedInput.length > 19) {
+                    cleanedInput = cleanedInput.substring(0, 19)
+                }
+                const formatted = formatRoomId(cleanedInput)
+                setRoomId(formatted)
+    };
 
     const isRoomIdComplete = roomId.replace(/-/g, '').length === 16
 

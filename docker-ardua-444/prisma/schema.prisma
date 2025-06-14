@@ -28,6 +28,7 @@ model Devices {
   id            Int         @id @default(autoincrement())
   userId        Int
   user          User        @relation(fields: [userId], references: [id])
+  savedRoom     SavedRoom?
   diviceName    String?
   devicesEnum   DevicesEnum @default(ArduaESP8266)
   idDeviceAr    String?
@@ -57,6 +58,8 @@ model SavedRoom {
   id          Int      @id @default(autoincrement())
   userId      Int
   user        User     @relation(fields: [userId], references: [id])
+  devicesId   Int?     @unique
+  devices     Devices? @relation(fields: [devicesId], references: [id])
   roomId      String   @unique
   isDefault   Boolean  @default(false)
   autoConnect Boolean  @default(false)

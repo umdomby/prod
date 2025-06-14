@@ -429,7 +429,6 @@ export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
   revalidatePath('/');
 }
 
-
 export async function sendDeviceSettingsToESP(idDevice: string) {
   const session = await getUserSession();
   if (!session) {
@@ -466,5 +465,84 @@ export async function sendDeviceSettingsToESP(idDevice: string) {
     b1: deviceSettings.b1,
     b2: deviceSettings.b2,
     servoView: deviceSettings.servoView,
+  };
+}
+
+// Привязка устройства к комнате
+export async function bindDeviceToRoom(roomId: string, deviceId: string | null) {
+  const session = await getUserSession();
+  if (!session) {
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const parsedRoomId = roomIdSchema.safeParse(roomId);
+  if (!parsedRoomId.success) {
+    throw new Error(parsedRoomId.error.errors[0].message);
+  }
+
+  const userId = parseInt(session.id);
+
+  const room = await prisma.savedRoom.findUnique({
+    where: { roomId, userId },
+  });
+
+  if (!room) {
+    throw new Error('Комната не найдена');
+  }
+
+  let device = null;
+  if (deviceId) {
+    const parsedDeviceId = deviceIdSchema.safeParse(deviceId);
+    if (!parsedDeviceId.success) {
+      throw new Error(parsedDeviceId.error.errors[0].message);
+    }
+
+    device = await prisma.devices.findUnique({
+      where: { idDevice: parsedDeviceId.data },
+    });
+
+    if (!device || device.userId !== userId) {
+      throw new Error('Устройство не найдено или доступ запрещен');
+    }
+  }
+
+  await prisma.savedRoom.update({
+    where: { roomId, userId },
+    data: {
+      devicesId: device ? device.id : null,
+    },
+  });
+
+  revalidatePath('/');
+}
+
+// Получение комнаты с привязанным устройством
+export async function getSavedRoomWithDevice(roomId: string) {
+  const session = await getUserSession();
+  if (!session) {
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const parsedRoomId = roomIdSchema.safeParse(roomId);
+  if (!parsedRoomId.success) {
+    throw new Error(parsedRoomId.error.errors[0].message);
+  }
+
+  const userId = parseInt(session.id);
+
+  const room = await prisma.savedRoom.findUnique({
+    where: { roomId, userId },
+    include: { devices: true },
+  });
+
+  if (!room) {
+    throw new Error('Комната не найдена');
+  }
+
+  return {
+    id: room.roomId,
+    isDefault: room.isDefault,
+    autoConnect: room.autoConnect,
+    deviceId: room.devices ? room.devices.idDevice : null,
   };
 }
