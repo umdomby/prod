@@ -546,3 +546,33 @@ export async function getSavedRoomWithDevice(roomId: string) {
     deviceId: room.devices ? room.devices.idDevice : null,
   };
 }
+
+export async function getRoomById(roomId: string) {
+  try {
+    const room = await prisma.savedRoom.findUnique({
+      where: { id: roomId },
+      select: {
+        id: true,
+        name: true,
+        devicesId: true,
+        autoConnect: true,
+        createdAt: true,
+      },
+    });
+
+    if (!room) {
+      throw new Error(`Комната с ID ${roomId} не найдена`);
+    }
+
+    return {
+      success: true,
+      data: room,
+    };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}

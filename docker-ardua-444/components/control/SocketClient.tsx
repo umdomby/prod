@@ -642,12 +642,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
         socketRef.current = ws;
     }, [addLog, cleanupWebSocket]);
 
-    useEffect(() => {
-        if (autoConnect && !isConnected) {
-            connectWebSocket(currentDeRef.current);
-        }
-    }, [autoConnect, connectWebSocket, isConnected]);
-
+    // Определение disconnectWebSocket
     const disconnectWebSocket = useCallback(() => {
         return new Promise<void>((resolve) => {
             cleanupWebSocket();
@@ -664,6 +659,31 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
             resolve();
         });
     }, [addLog, cleanupWebSocket]);
+
+    // useEffect для переподключения при смене selectedDeviceId
+    useEffect(() => {
+        if (selectedDeviceId && selectedDeviceId !== inputDe) {
+            const reconnect = async () => {
+                try {
+                    await disconnectWebSocket();
+                    setInputDe(selectedDeviceId);
+                    currentDeRef.current = selectedDeviceId;
+                    connectWebSocket(selectedDeviceId);
+                    addLog(`Переподключено к устройству ${formatDeviceId(selectedDeviceId)} из-за смены комнаты`, 'success');
+                } catch (error: unknown) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    addLog(`Ошибка переподключения устройства: ${errorMessage}`, 'error');
+                }
+            };
+            reconnect();
+        }
+    }, [selectedDeviceId, inputDe, disconnectWebSocket, connectWebSocket, addLog, formatDeviceId]);
+
+    useEffect(() => {
+        if (autoConnect && !isConnected) {
+            connectWebSocket(currentDeRef.current);
+        }
+    }, [autoConnect, connectWebSocket, isConnected]);
 
     const handleDeviceChange = useCallback(async (value: string) => {
         if (selectedDeviceId) {

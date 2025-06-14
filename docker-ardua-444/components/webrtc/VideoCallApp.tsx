@@ -12,7 +12,17 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import SocketClient from '../control/SocketClient'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { getSavedRooms, saveRoom, deleteRoom, setDefaultRoom, updateAutoConnect, getDevices, bindDeviceToRoom, getSavedRoomWithDevice } from '@/app/actions'
+import {
+    getSavedRooms,
+    saveRoom,
+    deleteRoom,
+    setDefaultRoom,
+    updateAutoConnect,
+    getDevices,
+    bindDeviceToRoom,
+    getSavedRoomWithDevice,
+    getRoomById
+} from '@/app/actions'
 import { debounce } from 'lodash';
 
 type VideoSettings = {
@@ -73,6 +83,7 @@ export const VideoCallApp = () => {
     const [isDeviceConnected, setIsDeviceConnected] = useState(false)
     const [isClient, setIsClient] = useState(false)
     const [availableDevices, setAvailableDevices] = useState<Device[]>([])
+    const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
     const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 
     const webRTCRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -676,6 +687,22 @@ export const VideoCallApp = () => {
         [showCam, showControls, activeMainTab]
     )
 
+    const handleRoomChange = async (roomId: string) => {
+        try {
+            const response = await getRoomById(roomId);
+            if (response.success && response.data) {
+                setSelectedRoomId(response.data.id);
+                setSelectedDeviceId(response.data.devicesId || null);
+                console.log('Выбрана комната:', response.data);
+            } else {
+                console.error('Ошибка получения комнаты:', response.error);
+            }
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Ошибка при выборе комнаты:', errorMessage);
+        }
+    };
+
     return (
         <div className={styles.container} suppressHydrationWarning>
             <div ref={videoContainerRef} className={styles.remoteVideoContainer} suppressHydrationWarning>
@@ -949,9 +976,10 @@ export const VideoCallApp = () => {
             )}
 
             {activeMainTab === 'esp' && (
-                <div className={[styles.tabContent, styles.espTabContent].join(' ')}>
-                    <SocketClient onConnectionStatusChange={setIsDeviceConnected} selectedDeviceId={selectedDeviceId} />
-                </div>
+                <SocketClient
+                    onConnectionStatusChange={setIsDeviceConnected}
+                    selectedDeviceId={selectedDeviceId}
+                />
             )}
 
             {showCam && (
