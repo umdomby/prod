@@ -547,10 +547,10 @@ export async function getSavedRoomWithDevice(roomId: string) {
   };
 }
 
-export async function getRoomById(roomId: string) {
+export async function getRoomById(id) {
   try {
     const room = await prisma.savedRoom.findUnique({
-      where: { id: roomId },
+      where: { id: id },
       select: {
         id: true,
         name: true,
@@ -561,7 +561,7 @@ export async function getRoomById(roomId: string) {
     });
 
     if (!room) {
-      throw new Error(`Комната с ID ${roomId} не найдена`);
+      throw new Error(`Комната с ID ${id} не найдена`);
     }
 
     return {

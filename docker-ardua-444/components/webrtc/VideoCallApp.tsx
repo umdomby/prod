@@ -923,13 +923,15 @@ export const VideoCallApp = () => {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <Button
-                                    onClick={handleBindDeviceToRoom}
-                                    disabled={!isRoomIdComplete || !selectedDeviceId}
-                                    className="bg-blue-600 hover:bg-blue-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
-                                >
-                                    Привязать
-                                </Button>
+                                {!savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
+                                    <Button
+                                        onClick={handleBindDeviceToRoom}
+                                        disabled={!isRoomIdComplete || !selectedDeviceId}
+                                        className="bg-blue-600 hover:bg-blue-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
+                                    >
+                                        Привязать
+                                    </Button>
+                                )}
                                 {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
                                     <Button
                                         onClick={handleUnbindDeviceFromRoom}
@@ -941,8 +943,8 @@ export const VideoCallApp = () => {
                             </div>
                             {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
                                 <span className="text-xs sm:text-sm text-gray-600">
-                  Привязано устройство: {formatRoomId(savedRooms.find(r => r.id === roomId.replace(/-/g, ''))?.deviceId || '')}
-                </span>
+            Привязано устройство: {formatRoomId(savedRooms.find(r => r.id === roomId.replace(/-/g, ''))?.deviceId || '')}
+        </span>
                             )}
                         </div>
 
