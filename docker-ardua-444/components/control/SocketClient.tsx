@@ -45,9 +45,10 @@ type LogEntry = {
 
 interface SocketClientProps {
     onConnectionStatusChange?: (isFullyConnected: boolean) => void;
+    selectedDeviceId?: string | null;
 }
 
-export default function SocketClient({onConnectionStatusChange}: SocketClientProps) {
+export default function SocketClient({onConnectionStatusChange, selectedDeviceId}: SocketClientProps) {
     const {
         servoAngle,
         servo2Angle,
@@ -665,6 +666,10 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
     }, [addLog, cleanupWebSocket]);
 
     const handleDeviceChange = useCallback(async (value: string) => {
+        if (selectedDeviceId) {
+            addLog('Невозможно сменить устройство: оно привязано к комнате', 'error');
+            return;
+        }
         setInputDe(value);
         currentDeRef.current = value;
         try {
@@ -696,7 +701,7 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
             const errorMessage = error instanceof Error ? error.message : String(error);
             addLog(`Ошибка при смене устройства: ${errorMessage}`, 'error');
         }
-    }, [autoReconnect, disconnectWebSocket, connectWebSocket, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle]);
+    }, [autoReconnect, disconnectWebSocket, connectWebSocket, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle, selectedDeviceId]);
 
     const sendCommand = useCallback((co: string, pa?: any) => {
         if (!isIdentified) {
@@ -873,17 +878,16 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
 
                         <div className="flex space-x-2">
                             <Select
-                                value={inputDe}
+                                value={selectedDeviceId || inputDe}
                                 onValueChange={handleDeviceChange}
-                                disabled={isConnected && !autoReconnect}
+                                disabled={!!selectedDeviceId || (isConnected && !autoReconnect)}
                             >
                                 <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
-                                    <SelectValue placeholder="Выберите устройство"/>
+                                    <SelectValue placeholder="Выберите устройство" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
                                     {deviceList.map(id => (
-                                        <SelectItem key={id} value={id}
-                                                    className="hover:bg-gray-100/50 text-xs sm:text-sm">
+                                        <SelectItem key={id} value={id} className="hover:bg-gray-100/50 text-xs sm:text-sm">
                                             {formatDeviceId(id)}
                                         </SelectItem>
                                     ))}
@@ -891,7 +895,7 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
                             </Select>
                             <Button
                                 onClick={handleDeleteDevice}
-                                disabled={closedDel}
+                                disabled={closedDel || !!selectedDeviceId}
                                 className="bg-red-600 hover:bg-red-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
                             >
                                 Удалить
@@ -926,9 +930,9 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
                                     checked={autoReconnect}
                                     onCheckedChange={toggleAutoReconnect}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoReconnect ? 'bg-green-500' : 'bg-white'}`}
+                                    disabled={!!selectedDeviceId}
                                 />
-                                <Label htmlFor="auto-reconnect"
-                                       className="text-xs sm:text-sm font-medium text-gray-700">
+                                <Label htmlFor="auto-reconnect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое переподключение при смене устройства
                                 </Label>
                             </div>
@@ -938,6 +942,7 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
                                     checked={autoConnect}
                                     onCheckedChange={toggleAutoConnect}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoConnect ? 'bg-green-500' : 'bg-white'}`}
+                                    disabled={!!selectedDeviceId}
                                 />
                                 <Label htmlFor="auto-connect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое подключение при загрузке страницы
@@ -949,6 +954,7 @@ export default function SocketClient({onConnectionStatusChange}: SocketClientPro
                                     checked={closedDel}
                                     onCheckedChange={toggleClosedDel}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${closedDel ? 'bg-green-500' : 'bg-white'}`}
+                                    disabled={!!selectedDeviceId}
                                 />
                                 <Label htmlFor="closed-del" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Запретить удаление устройств
