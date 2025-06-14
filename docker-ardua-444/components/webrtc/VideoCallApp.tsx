@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import SocketClient from '../control/SocketClient'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { getSavedRooms, saveRoom, deleteRoom, setDefaultRoom, updateAutoConnect } from '@/app/actions'
+import { getSavedRooms, saveRoom, deleteRoom, setDefaultRoom, updateAutoConnect, getDevices, bindDeviceToRoom, getSavedRoomWithDevice } from '@/app/actions'
 import { debounce } from 'lodash';
 
 type VideoSettings = {
@@ -24,6 +25,16 @@ type SavedRoom = {
     id: string
     isDefault: boolean
     autoConnect: boolean
+    deviceId: string | null
+}
+
+type Device = {
+    idDevice: string
+}
+
+interface SocketClientProps {
+    onConnectionStatusChange?: (isFullyConnected: boolean) => void;
+    selectedDeviceId?: string | null;
 }
 
 export const VideoCallApp = () => {
@@ -61,6 +72,8 @@ export const VideoCallApp = () => {
     const [selectedCodec, setSelectedCodec] = useState<'VP8' | 'H264'>('VP8')
     const [isDeviceConnected, setIsDeviceConnected] = useState(false)
     const [isClient, setIsClient] = useState(false)
+    const [availableDevices, setAvailableDevices] = useState<Device[]>([])
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 
     const webRTCRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -107,14 +120,35 @@ export const VideoCallApp = () => {
         const loadSavedRooms = async () => {
             try {
                 const rooms = await getSavedRooms()
-                setSavedRooms(rooms)
-                const defaultRoom = rooms.find(r => r.isDefault)
+                const roomsWithDevices = await Promise.all(
+                    rooms.map(async (room) => {
+                        const roomWithDevice = await getSavedRoomWithDevice(room.id)
+                        return {
+                            id: room.id,
+                            isDefault: room.isDefault,
+                            autoConnect: room.autoConnect,
+                            deviceId: roomWithDevice.deviceId
+                        }
+                    })
+                )
+                setSavedRooms(roomsWithDevices)
+                const defaultRoom = roomsWithDevices.find(r => r.isDefault)
                 if (defaultRoom) {
                     setRoomId(formatRoomId(defaultRoom.id))
                     setAutoJoin(defaultRoom.autoConnect)
+                    setSelectedDeviceId(defaultRoom.deviceId)
                 }
             } catch (e) {
                 console.error('Failed to load saved rooms', e)
+            }
+        }
+
+        const loadDevices = async () => {
+            try {
+                const devices = await getDevices()
+                setAvailableDevices(devices)
+            } catch (e) {
+                console.error('Failed to load devices', e)
             }
         }
 
@@ -150,6 +184,7 @@ export const VideoCallApp = () => {
         loadSettings()
         loadSavedRooms()
         loadDevices()
+        loadDevicesForMedia()
     }, [])
 
     useEffect(() => {
@@ -173,15 +208,18 @@ export const VideoCallApp = () => {
         return cleanedId.replace(/(.{4})(?=.)/g, '$1-')
     }
 
-    const handleRoomIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                const input = e.target.value.toUpperCase()
-                let cleanedInput = input.replace(/[^A-Z0-9-]/gi, '')
-                if (cleanedInput.length > 19) {
-                    cleanedInput = cleanedInput.substring(0, 19)
-                }
-                const formatted = formatRoomId(cleanedInput)
-                setRoomId(formatted)
-    };
+    const handleRoomIdChange = useCallback(
+        debounce((e: React.ChangeEvent<HTMLInputElement>) => {
+            const input = e.target.value.toUpperCase()
+            let cleanedInput = input.replace(/[^A-Z0-9-]/gi, '')
+            if (cleanedInput.length > 19) {
+                cleanedInput = cleanedInput.substring(0, 19)
+            }
+            const formatted = formatRoomId(cleanedInput)
+            setRoomId(formatted)
+        }, 300),
+        []
+    )
 
     const isRoomIdComplete = roomId.replace(/-/g, '').length === 16
 
@@ -192,7 +230,18 @@ export const VideoCallApp = () => {
             try {
                 await saveRoom(roomId.replace(/-/g, ''), autoJoin)
                 const updatedRooms = await getSavedRooms()
-                setSavedRooms(updatedRooms)
+                const roomsWithDevices = await Promise.all(
+                    updatedRooms.map(async (room) => {
+                        const roomWithDevice = await getSavedRoomWithDevice(room.id)
+                        return {
+                            id: room.id,
+                            isDefault: room.isDefault,
+                            autoConnect: room.autoConnect,
+                            deviceId: roomWithDevice.deviceId
+                        }
+                    })
+                )
+                setSavedRooms(roomsWithDevices)
             } catch (err) {
                 console.error('Ошибка сохранения комнаты:', err)
                 setError((err as Error).message)
@@ -216,11 +265,23 @@ export const VideoCallApp = () => {
             try {
                 await deleteRoom(roomToDelete)
                 const updatedRooms = await getSavedRooms()
-                setSavedRooms(updatedRooms)
+                const roomsWithDevices = await Promise.all(
+                    updatedRooms.map(async (room) => {
+                        const roomWithDevice = await getSavedRoomWithDevice(room.id)
+                        return {
+                            id: room.id,
+                            isDefault: room.isDefault,
+                            autoConnect: room.autoConnect,
+                            deviceId: roomWithDevice.deviceId
+                        }
+                    })
+                )
+                setSavedRooms(roomsWithDevices)
 
                 if (roomId.replace(/-/g, '') === roomToDelete) {
                     setRoomId('')
                     setAutoJoin(false)
+                    setSelectedDeviceId(null)
                 }
             } catch (err) {
                 console.error('Ошибка удаления комнаты:', err)
@@ -234,11 +295,12 @@ export const VideoCallApp = () => {
     )
 
     const handleSelectRoom = useCallback(
-        debounce((roomIdWithoutDashes: string) => {
+        debounce(async (roomIdWithoutDashes: string) => {
             const selectedRoom = savedRooms.find(r => r.id === roomIdWithoutDashes)
             if (selectedRoom) {
                 setRoomId(formatRoomId(roomIdWithoutDashes))
                 setAutoJoin(selectedRoom.autoConnect)
+                setSelectedDeviceId(selectedRoom.deviceId)
             }
         }, 300),
         [savedRooms]
@@ -249,13 +311,85 @@ export const VideoCallApp = () => {
             try {
                 await setDefaultRoom(roomIdWithoutDashes)
                 const updatedRooms = await getSavedRooms()
-                setSavedRooms(updatedRooms)
+                const roomsWithDevices = await Promise.all(
+                    updatedRooms.map(async (room) => {
+                        const roomWithDevice = await getSavedRoomWithDevice(room.id)
+                        return {
+                            id: room.id,
+                            isDefault: room.isDefault,
+                            autoConnect: room.autoConnect,
+                            deviceId: roomWithDevice.deviceId
+                        }
+                    })
+                )
+                setSavedRooms(roomsWithDevices)
+                const selectedRoom = roomsWithDevices.find(r => r.id === roomIdWithoutDashes)
+                if (selectedRoom) {
+                    setRoomId(formatRoomId(roomIdWithoutDashes))
+                    setAutoJoin(selectedRoom.autoConnect)
+                    setSelectedDeviceId(selectedRoom.deviceId)
+                }
             } catch (err) {
                 console.error('Ошибка установки комнаты по умолчанию:', err)
                 setError((err as Error).message)
             }
         }, 300),
         []
+    )
+
+    const handleBindDeviceToRoom = useCallback(
+        debounce(async () => {
+            if (!isRoomIdComplete || !selectedDeviceId) return
+
+            try {
+                await bindDeviceToRoom(roomId.replace(/-/g, ''), selectedDeviceId)
+                const updatedRooms = await getSavedRooms()
+                const roomsWithDevices = await Promise.all(
+                    updatedRooms.map(async (room) => {
+                        const roomWithDevice = await getSavedRoomWithDevice(room.id)
+                        return {
+                            id: room.id,
+                            isDefault: room.isDefault,
+                            autoConnect: room.autoConnect,
+                            deviceId: roomWithDevice.deviceId
+                        }
+                    })
+                )
+                setSavedRooms(roomsWithDevices)
+            } catch (err) {
+                console.error('Ошибка привязки устройства:', err)
+                setError((err as Error).message)
+            }
+        }, 300),
+        [roomId, selectedDeviceId]
+    )
+
+    const handleUnbindDeviceFromRoom = useCallback(
+        debounce(async () => {
+            if (!isRoomIdComplete) return
+
+            try {
+                await bindDeviceToRoom(roomId.replace(/-/g, ''), null)
+                const updatedRooms = await getSavedRooms()
+                const roomsWithDevices = await Promise.all(
+                    updatedRooms.map(async (room) => {
+                        const roomWithDevice = await getSavedRoomWithDevice(room.id)
+                        return {
+                            id: room.id,
+                            isDefault: room.isDefault,
+                            autoConnect: room.autoConnect,
+                            deviceId: roomWithDevice.deviceId
+                        }
+                    })
+                )
+                setSavedRooms(roomsWithDevices)
+                setSelectedDeviceId(null)
+            } catch (err) {
+                console.error('Ошибка отвязки устройства:', err)
+                setError((err as Error).message)
+            }
+        }, 300),
+        [roomId]
     )
 
     const toggleCamera = useCallback(
@@ -289,7 +423,7 @@ export const VideoCallApp = () => {
         if (localStream) {
             localAudioTracks.current = localStream.getAudioTracks();
             localAudioTracks.current.forEach(track => {
-                track.enabled = !muteLocalAudio; // Removed extra parenthesis
+                track.enabled = !muteLocalAudio;
             });
         }
     }, [localStream, muteLocalAudio]);
@@ -325,7 +459,7 @@ export const VideoCallApp = () => {
         localStorage.setItem('videoSettings', JSON.stringify(settings))
     }, [])
 
-    const loadDevices = async () => {
+    const loadDevicesForMedia = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: true,
@@ -646,6 +780,48 @@ export const VideoCallApp = () => {
                         </div>
 
                         <div className={styles.inputGroup}>
+                            <Label htmlFor="device">Привязать устройство к комнате</Label>
+                            <div className="flex space-x-2">
+                                <Select
+                                    value={selectedDeviceId || ''}
+                                    onValueChange={setSelectedDeviceId}
+                                    disabled={isInRoom || isJoining}
+                                >
+                                    <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
+                                        <SelectValue placeholder="Выберите устройство" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
+                                        {availableDevices.map(device => (
+                                            <SelectItem key={device.idDevice} value={device.idDevice} className="hover:bg-gray-100/50 text-xs sm:text-sm">
+                                                {formatRoomId(device.idDevice)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    onClick={handleBindDeviceToRoom}
+                                    disabled={!isRoomIdComplete || !selectedDeviceId}
+                                    className="bg-blue-600 hover:bg-blue-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
+                                >
+                                    Привязать
+                                </Button>
+                                {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
+                                    <Button
+                                        onClick={handleUnbindDeviceFromRoom}
+                                        className="bg-red-600 hover:bg-red-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
+                                    >
+                                        Отвязать
+                                    </Button>
+                                )}
+                            </div>
+                            {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
+                                <span className="text-xs sm:text-sm text-gray-600">
+                  Привязано устройство: {formatRoomId(savedRooms.find(r => r.id === roomId.replace(/-/g, ''))?.deviceId || '')}
+                </span>
+                            )}
+                        </div>
+
+                        <div className={styles.inputGroup}>
                             <Label htmlFor="username">Ваше имя</Label>
                             <Input
                                 id="username"
@@ -700,14 +876,15 @@ export const VideoCallApp = () => {
                                 <ul>
                                     {savedRooms.map((room) => (
                                         <li key={room.id} className={styles.savedRoomItem}>
-                                            <span
-                                                onClick={() => handleSelectRoom(room.id)}
-                                                onTouchEnd={() => handleSelectRoom(room.id)}
-                                                className={room.isDefault ? styles.defaultRoom : ''}
-                                            >
-                                                {formatRoomId(room.id)}
-                                                {room.isDefault && ' (по умолчанию)'}
-                                            </span>
+                      <span
+                          onClick={() => handleSelectRoom(room.id)}
+                          onTouchEnd={() => handleSelectRoom(room.id)}
+                          className={room.isDefault ? styles.defaultRoom : ''}
+                      >
+                        {formatRoomId(room.id)}
+                          {room.isDefault && ' (по умолчанию)'}
+                          {room.deviceId && ` [Устройство: ${formatRoomId(room.deviceId)}]`}
+                      </span>
                                             {!room.isDefault && (
                                                 <button
                                                     onClick={() => handleSetDefaultRoom(room.id)}
@@ -761,7 +938,7 @@ export const VideoCallApp = () => {
                                     devices={devices}
                                     selectedDevices={selectedDevices}
                                     onChange={handleDeviceChange}
-                                    onRefresh={loadDevices}
+                                    onRefresh={loadDevicesForMedia}
                                 />
                             ) : (
                                 <div>Загрузка устройств...</div>
@@ -773,7 +950,7 @@ export const VideoCallApp = () => {
 
             {activeMainTab === 'esp' && (
                 <div className={[styles.tabContent, styles.espTabContent].join(' ')}>
-                    <SocketClient />
+                    <SocketClient onConnectionStatusChange={setIsDeviceConnected} selectedDeviceId={selectedDeviceId} />
                 </div>
             )}
 
@@ -790,32 +967,32 @@ export const VideoCallApp = () => {
                                 {useBackCamera ? '📷⬅️' : '📷➡️'}
                             </button>
                             <button
-                                onClick={() => rotateVideo(0)} // Исправлено: стрелочная функция
-                                onTouchEnd={() => rotateVideo(0)} // Исправлено: стрелочная функция
+                                onClick={() => rotateVideo(0)}
+                                onTouchEnd={() => rotateVideo(0)}
                                 className={[styles.controlButton, videoSettings.rotation === 0 ? styles.active : ''].join(' ')}
                                 title="Обычная ориентация"
                             >
                                 ↻0°
                             </button>
                             <button
-                                onClick={() => rotateVideo(90)} // Исправлено: стрелочная функция
-                                onTouchEnd={() => rotateVideo(90)} // Исправлено: стрелочная функция
+                                onClick={() => rotateVideo(90)}
+                                onTouchEnd={() => rotateVideo(90)}
                                 className={[styles.controlButton, videoSettings.rotation === 90 ? styles.active : ''].join(' ')}
                                 title="Повернуть на 90°"
                             >
                                 ↻90°
                             </button>
                             <button
-                                onClick={() => rotateVideo(180)} // Исправлено: стрелочная функция
-                                onTouchEnd={() => rotateVideo(180)} // Исправлено: стрелочная функция
+                                onClick={() => rotateVideo(180)}
+                                onTouchEnd={() => rotateVideo(180)}
                                 className={[styles.controlButton, videoSettings.rotation === 180 ? styles.active : ''].join(' ')}
                                 title="Повернуть на 180°"
                             >
                                 ↻180°
                             </button>
                             <button
-                                onClick={() => rotateVideo(270)} // Исправлено: стрелочная функция
-                                onTouchEnd={() => rotateVideo(270)} // Исправлено: стрелочная функция
+                                onClick={() => rotateVideo(270)}
+                                onTouchEnd={() => rotateVideo(270)}
                                 className={[styles.controlButton, videoSettings.rotation === 270 ? styles.active : ''].join(' ')}
                                 title="Повернуть на 270°"
                             >
