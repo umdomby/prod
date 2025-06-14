@@ -85,7 +85,7 @@ export const VideoCallApp = () => {
     const [availableDevices, setAvailableDevices] = useState<Device[]>([])
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
     const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-
+    const [showDeviceBoundDialog, setShowDeviceBoundDialog] = useState(false);
     const webRTCRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
@@ -347,30 +347,38 @@ export const VideoCallApp = () => {
 
     const handleBindDeviceToRoom = useCallback(
         debounce(async () => {
-            if (!isRoomIdComplete || !selectedDeviceId) return
+            if (!isRoomIdComplete || !selectedDeviceId) return;
 
             try {
-                await bindDeviceToRoom(roomId.replace(/-/g, ''), selectedDeviceId)
-                const updatedRooms = await getSavedRooms()
+                await bindDeviceToRoom(roomId.replace(/-/g, ''), selectedDeviceId);
+                const updatedRooms = await getSavedRooms();
                 const roomsWithDevices = await Promise.all(
                     updatedRooms.map(async (room) => {
-                        const roomWithDevice = await getSavedRoomWithDevice(room.id)
+                        const roomWithDevice = await getSavedRoomWithDevice(room.id);
                         return {
                             id: room.id,
                             isDefault: room.isDefault,
                             autoConnect: room.autoConnect,
-                            deviceId: roomWithDevice.deviceId
-                        }
+                            deviceId: roomWithDevice.deviceId,
+                        };
                     })
-                )
-                setSavedRooms(roomsWithDevices)
+                );
+                setSavedRooms(roomsWithDevices);
             } catch (err) {
-                console.error('Ошибка привязки устройства:', err)
-                setError((err as Error).message)
+                console.error('Ошибка привязки устройства:', err);
+                if (err instanceof Error && err.name === 'PrismaClientKnownRequestError' && err.message.includes('Unique constraint failed on the fields: (`devicesId`)')) {
+                    // Показать диалоговое окно на 3 секунды
+                    setShowDeviceBoundDialog(true);
+                    setTimeout(() => {
+                        setShowDeviceBoundDialog(false);
+                    }, 3000);
+                } else {
+                    setError((err as Error).message);
+                }
             }
         }, 300),
         [roomId, selectedDeviceId]
-    )
+    );
 
     const handleUnbindDeviceFromRoom = useCallback(
         debounce(async () => {
@@ -1108,6 +1116,15 @@ export const VideoCallApp = () => {
                             Удалить
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showDeviceBoundDialog} onOpenChange={setShowDeviceBoundDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Ошибка привязки устройства</DialogTitle>
+                    </DialogHeader>
+                    <p>Это устройство уже привязано к другой комнате.</p>
                 </DialogContent>
             </Dialog>
         </div>
