@@ -40,7 +40,7 @@ type MessageType = {
 
 type LogEntry = {
     me: string
-    ty: 'client' | 'esp' | 'server' | 'error' | 'success'
+    ty: 'client' | 'esp' | 'server' | 'error' | 'success' | 'info'
 }
 
 interface SocketClientProps {
@@ -67,9 +67,10 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
     const [log, setLog] = useState<LogEntry[]>([])
     const [isConnected, setIsConnected] = useState(false)
     const [isIdentified, setIsIdentified] = useState(false)
-    const [de, setDe] = useState('123')
-    const [inputDe, setInputDe] = useState('123')
+    const [de, setDe] = useState('')
+    const [inputDe, setInputDe] = useState('')
     const [newDe, setNewDe] = useState('')
+    const [noDevices, setNoDevices] = useState(true) // Новое состояние для отслеживания отсутствия устройств
     const [deviceList, setDeviceList] = useState<string[]>([])
     const [espConnected, setEspConnected] = useState(false)
     const [logVisible, setLogVisible] = useState(false)
@@ -164,9 +165,10 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                         connectWebSocket(device.idDevice);
                     }
                 } else {
-                    setDeviceList(['123']);
-                    setInputDe('123');
-                    setDe('123');
+                    setDeviceList([]);
+                    setNoDevices(true); // Нет устройств
+                    setInputDe('');
+                    setDe('');
                     setShowServos(true);
                     setServo1MinInput('0');
                     setServo1MaxInput('180');
@@ -183,6 +185,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                     errorMessage = String(error);
                 }
                 addLog(`Ошибка: ${errorMessage}`, 'error');
+                setNoDevices(true); // В случае ошибки считаем, что устройств нет
             }
         };
         loadDevices();
@@ -396,6 +399,8 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                 await addDevice(cleanId, autoConnect, autoReconnect, closedDel);
                 setDeviceList(prev => [...prev, cleanId]);
                 setInputDe(cleanId);
+                setDe(cleanId);
+                setNoDevices(false); // Устройство добавлено, сбрасываем флаг
                 setNewDe('');
                 currentDeRef.current = cleanId;
                 addLog(`Устройство ${cleanId} добавлено`, 'success');
@@ -412,11 +417,13 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
             try {
                 await deleteDevice(inputDe);
                 const updatedList = deviceList.filter(id => id !== inputDe);
-                const defaultDevice = updatedList.length > 0 ? updatedList[0] : '123';
-                setDeviceList(updatedList.length ? updatedList : ['123']);
+                setDeviceList(updatedList);
+                setNoDevices(updatedList.length === 0); // Обновляем флаг
+                const defaultDevice = updatedList.length > 0 ? updatedList[0] : '';
                 setInputDe(defaultDevice);
                 setDe(defaultDevice);
                 currentDeRef.current = defaultDevice;
+                addLog(`Устройство ${inputDe} удалено`, 'success');
             } catch (error: unknown) {
                 console.error('Ошибка при удалении устройства:', error);
                 const errorMessage = error instanceof Error ? error.message : String(error);
@@ -686,9 +693,16 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
     }, [autoConnect, connectWebSocket, isConnected]);
 
     const handleDeviceChange = useCallback(async (value: string) => {
+        if (noDevices) {
+            addLog('Нет добавленных устройств', 'error');
+            return;
+        }
         if (selectedDeviceId) {
             addLog('Невозможно сменить устройство: оно привязано к комнате', 'error');
             return;
+        }
+        if (value === inputDe) {
+            return; // Игнорируем, если выбрано то же устройство
         }
         setInputDe(value);
         currentDeRef.current = value;
@@ -721,7 +735,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
             const errorMessage = error instanceof Error ? error.message : String(error);
             addLog(`Ошибка при смене устройства: ${errorMessage}`, 'error');
         }
-    }, [autoReconnect, disconnectWebSocket, connectWebSocket, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle, selectedDeviceId]);
+    }, [noDevices, selectedDeviceId, inputDe, autoReconnect, disconnectWebSocket, connectWebSocket, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle]);
 
     const sendCommand = useCallback((co: string, pa?: any) => {
         if (!isIdentified) {
@@ -880,12 +894,12 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                         : 'bg-red-500'
                                 }`}></div>
                                 <span className="text-xs sm:text-sm font-medium text-gray-600">
-                {isConnected
-                    ? (isIdentified
-                        ? (espConnected ? 'Подключено' : 'Ожидание ESP')
-                        : 'Подключение...')
-                    : 'Отключено'}
-              </span>
+                                    {isConnected
+                                        ? (isIdentified
+                                            ? (espConnected ? 'Подключено' : 'Ожидание ESP')
+                                            : 'Подключение...')
+                                        : 'Отключено'}
+                                </span>
                             </div>
                         </div>
 
@@ -900,10 +914,10 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             <Select
                                 value={selectedDeviceId || inputDe}
                                 onValueChange={handleDeviceChange}
-                                disabled={!!selectedDeviceId || (isConnected && !autoReconnect)}
+                                disabled={!!selectedDeviceId || (isConnected && !autoReconnect) || noDevices}
                             >
                                 <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
-                                    <SelectValue placeholder="Выберите устройство" />
+                                    <SelectValue placeholder={noDevices ? "Устройства еще не добавлены" : "Выберите устройство"} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
                                     {deviceList.map(id => (
@@ -915,7 +929,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             </Select>
                             <Button
                                 onClick={handleDeleteDevice}
-                                disabled={closedDel || !!selectedDeviceId}
+                                disabled={closedDel || !!selectedDeviceId || noDevices}
                                 className="bg-red-600 hover:bg-red-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
                             >
                                 Удалить
@@ -923,8 +937,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                         </div>
 
                         <div className="space-y-1 sm:space-y-2">
-                            <Label className="block text-xs sm:text-sm font-medium text-gray-700">Добавить новое
-                                устройство</Label>
+                            <Label className="block text-xs sm:text-sm font-medium text-gray-700">Добавить новое устройство</Label>
                             <div className="flex space-x-2">
                                 <Input
                                     value={newDe}
@@ -950,7 +963,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     checked={autoReconnect}
                                     onCheckedChange={toggleAutoReconnect}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoReconnect ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={!!selectedDeviceId}
+                                    disabled={!!selectedDeviceId || noDevices}
                                 />
                                 <Label htmlFor="auto-reconnect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое переподключение при смене устройства
@@ -962,7 +975,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     checked={autoConnect}
                                     onCheckedChange={toggleAutoConnect}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoConnect ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={!!selectedDeviceId}
+                                    disabled={!!selectedDeviceId || noDevices}
                                 />
                                 <Label htmlFor="auto-connect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое подключение при загрузке страницы
@@ -974,7 +987,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     checked={closedDel}
                                     onCheckedChange={toggleClosedDel}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${closedDel ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={!!selectedDeviceId}
+                                    disabled={!!selectedDeviceId || noDevices}
                                 />
                                 <Label htmlFor="closed-del" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Запретить удаление устройств
@@ -1061,7 +1074,8 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                                         entry.ty === 'esp' ? 'text-green-600' :
                                                             entry.ty === 'server' ? 'text-purple-600' :
                                                                 entry.ty === 'success' ? 'text-teal-600' :
-                                                                    'text-red-600 font-semibold'
+                                                                    entry.ty === 'info' ? 'text-gray-600' : // Новый стиль для 'info'
+                                                                        'text-red-600 font-semibold'
                                                 }`}
                                             >
                                                 {entry.me}
