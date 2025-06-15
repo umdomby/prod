@@ -1232,7 +1232,7 @@ export const useWebRTC = (
         }
     };
 
-    const joinRoom = async (uniqueUsername: string) => {
+    const joinRoom = async (uniqueUsername: string, customRoomId?: string) => {
         setError(null);
         setIsInRoom(false);
         setIsConnected(false);
@@ -1268,19 +1268,16 @@ export const useWebRTC = (
                         } else if (data.type === 'error') {
                             console.error('Ошибка от сервера:', data.data);
                             cleanupEvents();
-                            // Проверяем конкретную ошибку
                             if (data.data === 'Room does not exist. Leader must join first.') {
                                 if (retryAttempts.current < MAX_RETRIES) {
                                     console.log('Комната не существует, повторная попытка через 5 секунд');
-                                    if (retryAttempts.current < MAX_RETRIES) {
-                                        console.log('Планируем повторную попытку через 5 секунд');
-                                        webRTCRetryTimeoutRef.current = setTimeout(() => {
-                                            retryAttempts.current += 1;
-                                            setRetryCount(retryAttempts.current);
-                                            joinRoom(uniqueUsername).catch(console.error);
-                                        }, 5000);
-                                    }
-                                    return; // Прерываем выполнение, чтобы не завершать промис
+                                    console.log('Планируем повторную попытку через 5 секунд');
+                                    webRTCRetryTimeoutRef.current = setTimeout(() => {
+                                        retryAttempts.current += 1;
+                                        setRetryCount(retryAttempts.current);
+                                        joinRoom(uniqueUsername, customRoomId).catch(console.error);
+                                    }, 5000);
+                                    return;
                                 } else {
                                     reject(new Error('Достигнуто максимальное количество попыток подключения'));
                                 }
@@ -1312,16 +1309,17 @@ export const useWebRTC = (
 
                 ws.current.addEventListener('message', onMessage);
 
+                const effectiveRoomId = customRoomId || roomId.replace(/-/g, '');
                 sendWebSocketMessage({
                     type: 'join',
-                    room: roomId,
+                    room: effectiveRoomId,
                     username: uniqueUsername,
                     isLeader: false,
                     preferredCodec,
                 });
                 console.log('Отправлен запрос на подключение:', {
                     action: 'join',
-                    room: roomId,
+                    room: effectiveRoomId,
                     username: uniqueUsername,
                     isLeader: false,
                     preferredCodec,
@@ -1345,7 +1343,7 @@ export const useWebRTC = (
                 webRTCRetryTimeoutRef.current = setTimeout(() => {
                     retryAttempts.current += 1;
                     setRetryCount(retryAttempts.current);
-                    joinRoom(uniqueUsername).catch(console.error);
+                    joinRoom(uniqueUsername, customRoomId).catch(console.error);
                 }, 5000);
             } else {
                 console.error('Исчерпаны все попытки подключения');

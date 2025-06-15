@@ -277,10 +277,22 @@ export async function updateServoSettings(
 
 
 const roomIdSchema = z.string().length(16, 'ID комнаты должен содержать ровно 16 символов (без тире)');
-export async function getSavedRooms() {
+export type GetSavedRoomsResponse = {
+  rooms?: Array<{
+    id: string;
+    isDefault: boolean;
+    autoConnect: boolean;
+    deviceId: string | null;
+    proxyAccess: Array<{ proxyRoomId: string; name: string | null }>;
+  }>;
+  error?: string;
+};
+export async function getSavedRooms(): Promise<GetSavedRoomsResponse> {
   const session = await getUserSession();
+  console.log('getSavedRooms: session:', session);
   if (!session) {
-    throw new Error('Пользователь не аутентифицирован');
+    console.log('getSavedRooms: Пользователь не аутентифицирован');
+    return { error: 'Пользователь не аутентифицирован' };
   }
 
   const rooms = await prisma.savedRoom.findMany({
@@ -288,17 +300,20 @@ export async function getSavedRooms() {
     orderBy: { createdAt: 'asc' },
     include: { proxyAccess: true },
   });
+  console.log('getSavedRooms: Найдено комнат:', rooms.length);
 
-  return rooms.map((room) => ({
-    id: room.roomId,
-    isDefault: room.isDefault,
-    autoConnect: room.autoConnect,
-    deviceId: room.devicesId ? room.devicesId.toString() : null,
-    proxyAccess: room.proxyAccess.map((pa) => ({
-      proxyRoomId: pa.proxyRoomId,
-      name: pa.name || null,
+  return {
+    rooms: rooms.map((room) => ({
+      id: room.roomId,
+      isDefault: room.isDefault,
+      autoConnect: room.autoConnect,
+      deviceId: room.devicesId ? room.devicesId.toString() : null,
+      proxyAccess: room.proxyAccess.map((pa) => ({
+        proxyRoomId: pa.proxyRoomId,
+        name: pa.name || null,
+      })),
     })),
-  }));
+  };
 }
 export async function saveRoom(roomId: string, autoConnect: boolean = false) {
   const session = await getUserSession();
