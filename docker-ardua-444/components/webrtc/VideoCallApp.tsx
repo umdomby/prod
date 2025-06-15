@@ -322,7 +322,7 @@ export const VideoCallApp = () => {
                 await saveRoom(roomId.replace(/-/g, ''), autoJoin)
                 const updatedRooms = await getSavedRooms()
                 const roomsWithDevices = await Promise.all(
-                    updatedRooms.map(async (room) => {
+                    updatedRooms.rooms.map(async (room) => {
                         const roomWithDevice = await getSavedRoomWithDevice(room.id)
                         return {
                             id: room.id,
@@ -357,7 +357,7 @@ export const VideoCallApp = () => {
                 await deleteRoom(roomToDelete)
                 const updatedRooms = await getSavedRooms()
                 const roomsWithDevices = await Promise.all(
-                    updatedRooms.map(async (room) => {
+                    updatedRooms.rooms.map(async (room) => {
                         const roomWithDevice = await getSavedRoomWithDevice(room.id)
                         return {
                             id: room.id,
@@ -454,7 +454,7 @@ export const VideoCallApp = () => {
                 await bindDeviceToRoom(roomId.replace(/-/g, ''), selectedDeviceId);
                 const updatedRooms = await getSavedRooms();
                 const roomsWithDevices = await Promise.all(
-                    updatedRooms.map(async (room) => {
+                    updatedRooms.rooms.map(async (room) => {
                         const roomWithDevice = await getSavedRoomWithDevice(room.id);
                         return {
                             id: room.id,
@@ -489,7 +489,7 @@ export const VideoCallApp = () => {
                 await bindDeviceToRoom(roomId.replace(/-/g, ''), null)
                 const updatedRooms = await getSavedRooms()
                 const roomsWithDevices = await Promise.all(
-                    updatedRooms.map(async (room) => {
+                    updatedRooms.rooms.map(async (room) => {
                         const roomWithDevice = await getSavedRoomWithDevice(room.id)
                         return {
                             id: room.id,
@@ -831,7 +831,7 @@ export const VideoCallApp = () => {
                     return;
                 }
                 const updatedRooms = await getSavedRooms();
-                setSavedRooms(updatedRooms);
+                setSavedRooms(updatedRooms.rooms);
                 setProxyName(''); // Сбрасываем поле ввода после создания
             } catch (err) {
                 console.error('Ошибка включения прокси:', err);
@@ -851,7 +851,7 @@ export const VideoCallApp = () => {
                 }
                 // Обновляем список сохраненных комнат
                 const updatedRooms = await getSavedRooms();
-                setSavedRooms(updatedRooms);
+                setSavedRooms(updatedRooms.rooms);
             } catch (err) {
                 console.error('Ошибка отключения прокси:', err);
                 setError((err as Error).message);
@@ -869,7 +869,7 @@ export const VideoCallApp = () => {
                     return;
                 }
                 const updatedRooms = await getSavedRooms();
-                setSavedRooms(updatedRooms);
+                setSavedRooms(updatedRooms.rooms);
             } catch (err) {
                 console.error('Ошибка удаления прокси:', err);
                 setError((err as Error).message);
@@ -979,9 +979,14 @@ export const VideoCallApp = () => {
                                 placeholder="XXXX-XXXX-XXXX-XXXX"
                                 maxLength={19}
                             />
-                            {savedRooms.some((r) => r.proxyAccess?.some((p) => p.proxyRoomId === roomId.replace(/-/g, ''))) && (
+                            {savedRooms &&
+                              Array.isArray(savedRooms) &&
+                              savedRooms.some((r) =>
+                                Array.isArray(r.proxyAccess) &&
+                                r.proxyAccess.some((p) => p.proxyRoomId === roomId.replace(/-/g, ''))
+                              ) && (
                                 <span className={styles.proxyInfo}>Подключение через прокси-комнату</span>
-                            )}
+                              )}
                         </div>
 
                         <div className={styles.inputGroup}>
