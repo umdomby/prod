@@ -20,7 +20,7 @@ import {
     updateAutoConnect,
     getDevices,
     bindDeviceToRoom,
-    getSavedRoomWithDevice,
+    getSavedRoomWithDevice, joinRoomViaProxy, disableProxyAccess, enableProxyAccess, deleteProxyAccess,
 } from '@/app/actions'
 import { debounce } from 'lodash';
 
@@ -31,12 +31,12 @@ type VideoSettings = {
 }
 
 type SavedRoom = {
-    id: string
-    isDefault: boolean
-    autoConnect: boolean
-    deviceId: string | null
-}
-
+    id: string;
+    isDefault: boolean;
+    autoConnect: boolean;
+    deviceId: string | null;
+    proxyAccess: { proxyRoomId: string; name: string | null }[];
+};
 type Device = {
     idDevice: string
 }
@@ -86,7 +86,8 @@ export const VideoCallApp = () => {
     const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
     const [showDeviceBoundDialog, setShowDeviceBoundDialog] = useState(false);
     const webRTCRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+    const [showProxyExistsDialog, setShowProxyExistsDialog] = useState(false);
+    const [proxyName, setProxyName] = useState('');
     useEffect(() => {
         setIsClient(true)
     }, [])
@@ -196,6 +197,18 @@ export const VideoCallApp = () => {
         loadDevices()
         loadDevicesForMedia()
     }, [])
+
+    useEffect(() => {
+        const loadSavedRooms = async () => {
+            try {
+                const rooms = await getSavedRooms();
+                setSavedRooms(rooms);
+            } catch (e) {
+                console.error('Failed to load saved rooms', e);
+            }
+        };
+        loadSavedRooms();
+    }, [roomId]);
 
     useEffect(() => {
         const savedAutoShowControls = localStorage.getItem('autoShowControls')
@@ -691,6 +704,85 @@ export const VideoCallApp = () => {
         [showCam, showControls, activeMainTab]
     )
 
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const proxyRoomId = urlParams.get('proxyRoomId');
+        if (proxyRoomId) {
+            handleJoinProxyRoom(proxyRoomId);
+        }
+    }, []);
+
+    const handleJoinProxyRoom = async (roomIdProxy: string) => {
+        try {
+            const { roomId, deviceId } = await joinRoomViaProxy(roomIdProxy);
+            setRoomId(formatRoomId(roomIdProxy)); // Показываем прокси-ID пользователю
+            setSelectedDeviceId(deviceId);
+            await joinRoom(username); // Подключаемся к оригинальному roomId
+        } catch (err) {
+            setError((err as Error).message);
+        }
+    };
+
+    const handleEnableProxy = useCallback(
+        debounce(async (roomIdWithoutDashes: string, name: string) => {
+            if (!roomIdWithoutDashes || roomIdWithoutDashes.length !== 16) {
+                setError('Некорректный ID комнаты');
+                return;
+            }
+            try {
+                const response = await enableProxyAccess(roomIdWithoutDashes, name);
+                if (response.error) {
+                    setError(response.error);
+                    return;
+                }
+                const updatedRooms = await getSavedRooms();
+                setSavedRooms(updatedRooms);
+                setProxyName(''); // Сбрасываем поле ввода после создания
+            } catch (err) {
+                console.error('Ошибка включения прокси:', err);
+                setError((err as Error).message);
+            }
+        }, 300),
+        []
+    );
+
+    const handleDisableProxy = useCallback(
+        debounce(async (roomIdWithoutDashes: string) => {
+            try {
+                const response = await disableProxyAccess(roomIdWithoutDashes);
+                if (response.error) {
+                    setError(response.error);
+                    return;
+                }
+                // Обновляем список сохраненных комнат
+                const updatedRooms = await getSavedRooms();
+                setSavedRooms(updatedRooms);
+            } catch (err) {
+                console.error('Ошибка отключения прокси:', err);
+                setError((err as Error).message);
+            }
+        }, 300),
+        []
+    );
+
+    const handleDeleteProxy = useCallback(
+        debounce(async (proxyRoomId: string) => {
+            try {
+                const response = await deleteProxyAccess(proxyRoomId);
+                if (response.error) {
+                    setError(response.error);
+                    return;
+                }
+                const updatedRooms = await getSavedRooms();
+                setSavedRooms(updatedRooms);
+            } catch (err) {
+                console.error('Ошибка удаления прокси:', err);
+                setError((err as Error).message);
+            }
+        }, 300),
+        []
+    );
+
     return (
         <div className={styles.container} suppressHydrationWarning>
             <div ref={videoContainerRef} className={styles.remoteVideoContainer} suppressHydrationWarning>
@@ -792,6 +884,48 @@ export const VideoCallApp = () => {
                                 placeholder="XXXX-XXXX-XXXX-XXXX"
                                 maxLength={19}
                             />
+                        </div>
+
+                        <div className={styles.inputGroup}>
+                            <Label htmlFor="proxyName">Название прокси-комнаты (опционально)</Label>
+                            <Input
+                                id="proxyName"
+                                value={proxyName}
+                                onChange={(e) => setProxyName(e.target.value)}
+                                placeholder="Введите название прокси"
+                                className={styles.input}
+                            />
+                            <Button
+                                onClick={() => handleEnableProxy(roomId.replace(/-/g, ''), proxyName)}
+                                disabled={!isRoomIdComplete}
+                                className={styles.button}
+                            >
+                                Включить прокси-доступ
+                            </Button>
+                            {savedRooms.find(r => r.id === roomId.replace(/-/g, ''))?.proxyAccess?.length > 0 && (
+                                <div className={styles.proxyList}>
+                                    <h4>Прокси-доступы:</h4>
+                                    <ul>
+                                        {savedRooms
+                                            .find(r => r.id === roomId.replace(/-/g, ''))?.proxyAccess
+                                            .map((proxy) => (
+                                                <li key={proxy.proxyRoomId} className={styles.proxyItem}>
+                                        <span>
+                                            Прокси-ID: {formatRoomId(proxy.proxyRoomId)}
+                                            {proxy.name && ` (${proxy.name})`}
+                                        </span>
+                                                    <Button
+                                                        onClick={() => handleDeleteProxy(proxy.proxyRoomId)}
+                                                        className={`${styles.button} ${styles.deleteButton}`}
+                                                        variant="destructive"
+                                                    >
+                                                        Удалить
+                                                    </Button>
+                                                </li>
+                                            ))}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
 
                         {/*<div className={styles.inputGroup}>*/}
@@ -1108,6 +1242,14 @@ export const VideoCallApp = () => {
                         <DialogTitle>Ошибка привязки устройства</DialogTitle>
                     </DialogHeader>
                     <p>Это устройство уже привязано к другой комнате.</p>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={showProxyExistsDialog} onOpenChange={setShowProxyExistsDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Ошибка включения прокси</DialogTitle>
+                    </DialogHeader>
+                    <p>Прокси-доступ для этой комнаты уже включен.</p>
                 </DialogContent>
             </Dialog>
         </div>

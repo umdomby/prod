@@ -9,19 +9,20 @@ datasource db {
 }
 
 model User {
-  id         Int         @id @default(autoincrement())
-  fullName   String
-  email      String      @unique
-  resetToken String?
-  provider   String?
-  providerId String?
-  password   String
-  role       UserRole    @default(USER)
-  img        String?
-  devices    Devices[]
-  savedRooms SavedRoom[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id          Int           @id @default(autoincrement())
+  fullName    String
+  email       String        @unique
+  resetToken  String?
+  provider    String?
+  providerId  String?
+  password    String
+  role        UserRole      @default(USER)
+  img         String?
+  devices     Devices[]
+  savedRooms  SavedRoom[]
+  proxyAccess ProxyAccess[] @relation // Обратное отношение к ProxyAccess
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model Devices {
@@ -54,16 +55,30 @@ model Settings {
 }
 
 model SavedRoom {
-  id          Int      @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   userId      Int
-  user        User     @relation(fields: [userId], references: [id])
-  devicesId   Int?     @unique
-  devices     Devices? @relation(fields: [devicesId], references: [id])
-  roomId      String   @unique
-  isDefault   Boolean  @default(false)
-  autoConnect Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  user        User          @relation(fields: [userId], references: [id])
+  devicesId   Int?          @unique
+  devices     Devices?      @relation(fields: [devicesId], references: [id])
+  roomId      String        @unique
+  isDefault   Boolean       @default(false)
+  autoConnect Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  proxyAccess ProxyAccess[] // Связь с моделью ProxyAccess
+}
+
+model ProxyAccess {
+  id          Int       @id @default(autoincrement())
+  roomId      String
+  room        SavedRoom @relation(fields: [roomId], references: [roomId])
+  proxyRoomId String    @unique
+  name        String?
+  userId      Int? // Пользователь, которому предоставлен доступ (опционально)
+  user        User?     @relation(fields: [userId], references: [id])
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 enum DevicesEnum {

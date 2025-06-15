@@ -286,12 +286,18 @@ export async function getSavedRooms() {
   const rooms = await prisma.savedRoom.findMany({
     where: { userId: parseInt(session.id) },
     orderBy: { createdAt: 'asc' },
+    include: { proxyAccess: true },
   });
 
   return rooms.map((room) => ({
     id: room.roomId,
     isDefault: room.isDefault,
     autoConnect: room.autoConnect,
+    deviceId: room.devicesId ? room.devicesId.toString() : null,
+    proxyAccess: room.proxyAccess.map((pa) => ({
+      proxyRoomId: pa.proxyRoomId,
+      name: pa.name || null,
+    })),
   }));
 }
 export async function saveRoom(roomId: string, autoConnect: boolean = false) {
@@ -515,8 +521,19 @@ export async function bindDeviceToRoom(roomId: string, deviceId: string | null) 
 
   revalidatePath('/');
 }
-
-// Получение комнаты с привязанным устройством
+async function generateUniqueProxyRoomId(): Promise<string> {
+  let proxyRoomId = generateUniqueId(16);
+  let exists = await prisma.proxyAccess.findUnique({
+    where: { proxyRoomId },
+  });
+  while (exists) {
+    proxyRoomId = generateUniqueId(16);
+    exists = await prisma.proxyAccess.findUnique({
+      where: { proxyRoomId },
+    });
+  }
+  return proxyRoomId;
+}
 export async function getSavedRoomWithDevice(roomId: string) {
   const session = await getUserSession();
   if (!session) {
@@ -545,4 +562,145 @@ export async function getSavedRoomWithDevice(roomId: string) {
     autoConnect: room.autoConnect,
     deviceId: room.devices ? room.devices.idDevice : null,
   };
+}
+function generateUniqueId(length: number): string {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+
+  // Проверка уникальности (опционально, для надежности)
+  // Можно добавить асинхронную проверку в базе
+  return result;
+}
+export async function enableProxyAccess(roomId: string, name?: string) {
+  try {
+    console.log('enableProxyAccess: Начало для roomId:', roomId, 'с названием:', name);
+    const session = await getUserSession();
+    if (!session) {
+      return { error: 'Пользователь не аутентифицирован' };
+    }
+
+    const parsedRoomId = roomIdSchema.safeParse(roomId);
+    if (!parsedRoomId.success) {
+      return { error: parsedRoomId.error.errors[0].message };
+    }
+
+    const userId = parseInt(session.id);
+    console.log('enableProxyAccess: userId:', userId);
+
+    const room = await prisma.savedRoom.findUnique({
+      where: { roomId, userId },
+    });
+
+    if (!room) {
+      return { error: 'Комната не найдена или доступ запрещен' };
+    }
+
+    const proxyRoomId = await generateUniqueProxyRoomId();
+    console.log('enableProxyAccess: Сгенерирован proxyRoomId:', proxyRoomId);
+
+    const proxyAccess = await prisma.proxyAccess.create({
+      data: {
+        roomId,
+        proxyRoomId,
+        name: name || null, // Сохраняем название, если указано
+        expiresAt: null,
+      },
+    });
+
+    console.log('enableProxyAccess: Прокси-доступ создан:', proxyAccess);
+    revalidatePath('/');
+    return { proxyRoomId: proxyAccess.proxyRoomId, name: proxyAccess.name };
+  } catch (err) {
+    console.error('Ошибка в enableProxyAccess:', err);
+    return { error: 'Внутренняя ошибка сервера' };
+  }
+}
+export async function disableProxyAccess(roomId: string) {
+  try {
+    const session = await getUserSession();
+    if (!session) {
+      return { error: 'Пользователь не аутентифицирован' };
+    }
+
+    const parsedRoomId = roomIdSchema.safeParse(roomId);
+    if (!parsedRoomId.success) {
+      return { error: parsedRoomId.error.errors[0].message };
+    }
+
+    const userId = parseInt(session.id);
+
+    const room = await prisma.savedRoom.findUnique({
+      where: { roomId, userId },
+    });
+
+    if (!room) {
+      return { error: 'Комната не найдена или доступ запрещен' };
+    }
+
+    await prisma.proxyAccess.deleteMany({
+      where: { roomId },
+    });
+
+    revalidatePath('/');
+    return { message: 'Прокси-доступ отключен' };
+  } catch (err) {
+    console.error('Ошибка в disableProxyAccess:', err);
+    return { error: 'Внутренняя ошибка сервера' };
+  }
+}
+export async function joinRoomViaProxy(roomIdProxy: string) {
+  const parsedRoomIdProxy = roomIdSchema.safeParse(roomIdProxy);
+  if (!parsedRoomIdProxy.success) {
+    throw new Error(parsedRoomIdProxy.error.errors[0].message);
+  }
+
+  const proxyAccess = await prisma.proxyAccess.findUnique({
+    where: { proxyRoomId: roomIdProxy },
+    include: { room: { include: { devices: true } } },
+  });
+
+  if (!proxyAccess) {
+    throw new Error('Прокси-доступ не найден');
+  }
+
+  if (proxyAccess.expiresAt && new Date(proxyAccess.expiresAt) < new Date()) {
+    throw new Error('Прокси-доступ истек');
+  }
+
+  return {
+    roomId: proxyAccess.room.roomId,
+    deviceId: proxyAccess.room.devices?.idDevice || null,
+  };
+}
+export async function deleteProxyAccess(proxyRoomId: string) {
+  try {
+    const session = await getUserSession();
+    if (!session) {
+      return { error: 'Пользователь не аутентифицирован' };
+    }
+
+    const userId = parseInt(session.id);
+
+    const proxyAccess = await prisma.proxyAccess.findUnique({
+      where: { proxyRoomId },
+      include: { room: true },
+    });
+
+    if (!proxyAccess || proxyAccess.room.userId !== userId) {
+      return { error: 'Прокси-доступ не найден или доступ запрещен' };
+    }
+
+    await prisma.proxyAccess.delete({
+      where: { proxyRoomId },
+    });
+
+    revalidatePath('/');
+    return { message: 'Прокси-доступ удален' };
+  } catch (err) {
+    console.error('Ошибка в deleteProxyAccess:', err);
+    return { error: 'Внутренняя ошибка сервера' };
+  }
 }
