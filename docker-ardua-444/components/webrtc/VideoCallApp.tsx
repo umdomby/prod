@@ -101,6 +101,7 @@ export const VideoCallApp = () => {
         Array<{
             id: string;
             isDefault: boolean;
+            autoConnect: boolean;
         }>
     >([]);
     const [showRoomExistsDialog, setShowRoomExistsDialog] = useState(false);
@@ -219,7 +220,7 @@ export const VideoCallApp = () => {
                 } else if (defaultProxyRoom && !roomId) {
                     console.log('Установка defaultProxyRoom:', defaultProxyRoom);
                     setRoomId(formatRoomId(defaultProxyRoom.id));
-                    setAutoJoin(false);
+                    setAutoJoin(defaultProxyRoom.autoConnect); // Используем autoConnect
                     setSelectedDeviceId(null);
                 }
             } catch (e) {
@@ -291,9 +292,13 @@ export const VideoCallApp = () => {
         []
     )
 
-    const formatRoomId = (id: string): string => {
-        const cleanedId = id.replace(/[^A-Z0-9]/gi, '')
-        return cleanedId.replace(/(.{4})(?=.)/g, '$1-')
+    const formatRoomId = (id: string | undefined): string => {
+        if (!id || typeof id !== 'string') {
+            console.warn('formatRoomId: Некорректный ID:', id);
+            return ''; // Возвращаем пустую строку или дефолтное значение
+        }
+        const cleanedId = id.replace(/[^A-Z0-9]/gi, '');
+        return cleanedId.replace(/(.{4})(?=.)/g, '$1-');
     }
 
     const handleRoomIdChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -722,63 +727,68 @@ export const VideoCallApp = () => {
     const handleJoinRoom = useCallback(
         debounce(async () => {
             if (!isRoomIdComplete) {
-                console.warn('ID комнаты не полный, подключение невозможно')
-                setError('ID комнаты должен состоять из 16 символов')
-                return
+                console.warn('ID комнаты не полный, подключение невозможно');
+                setError('ID комнаты должен состоять из 16 символов');
+                return;
             }
 
-            setIsJoining(true)
-            console.log('Попытка подключения к комнате:', roomId)
+            setIsJoining(true);
+            console.log('Попытка подключения к комнате:', roomId);
 
             try {
                 // Проверяем комнату через checkRoom
-                const checkResult = await checkRoom(roomId.replace(/-/g, ''))
-                console.log('Результат checkRoom:', checkResult)
+                const checkResult = await checkRoom(roomId.replace(/-/g, ''));
+                console.log('handleJoinRoom: Проверка комнаты:', {
+                    roomId,
+                    isProxy: checkResult.isProxy,
+                    targetRoomId: checkResult.targetRoomId,
+                    deviceId: checkResult.deviceId,
+                });
                 if (checkResult.error) {
-                    console.error('Ошибка checkRoom:', checkResult.error)
-                    setError(`Ошибка проверки комнаты: ${checkResult.error}`)
-                    setIsJoining(false)
-                    return
+                    console.error('Ошибка checkRoom:', checkResult.error);
+                    setError(`Ошибка проверки комнаты: ${checkResult.error}`);
+                    setIsJoining(false);
+                    return;
                 }
                 if (!checkResult.found) {
-                    console.error('Комната не найдена в SavedRoom или ProxyAccess')
-                    setError('Комната не найдена')
-                    setShowRoomNotExistDialog(true)
-                    setTimeout(() => setShowRoomNotExistDialog(false), 5000)
-                    setIsJoining(false)
-                    return
+                    console.error('Комната не найдена в SavedRoom или ProxyAccess');
+                    setError('Комната не найдена');
+                    setShowRoomNotExistDialog(true);
+                    setTimeout(() => setShowRoomNotExistDialog(false), 5000);
+                    setIsJoining(false);
+                    return;
                 }
 
                 // Устанавливаем targetRoomId и deviceId
-                setTargetRoomId(checkResult.targetRoomId)
-                setSelectedDeviceId(checkResult.deviceId || null)
+                setTargetRoomId(checkResult.targetRoomId);
+                setSelectedDeviceId(checkResult.deviceId || null);
 
                 // Если это прокси-подключение, показываем уведомление
                 if (checkResult.isProxy) {
-                    const proxyNotification = document.createElement('div')
-                    proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg'
-                    proxyNotification.textContent = 'Подключение через прокси-комнату'
-                    document.body.appendChild(proxyNotification)
-                    setTimeout(() => proxyNotification.remove(), 3000)
+                    const proxyNotification = document.createElement('div');
+                    proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
+                    proxyNotification.textContent = 'Подключение через прокси-комнату';
+                    document.body.appendChild(proxyNotification);
+                    setTimeout(() => proxyNotification.remove(), 3000);
                 }
 
                 // Устанавливаем комнату по умолчанию
-                await handleSetDefaultRoom(roomId.replace(/-/g, ''))
+                await handleSetDefaultRoom(roomId.replace(/-/g, ''));
 
                 // Подключаемся к комнате через WebRTC
-                await joinRoom(username, checkResult.targetRoomId)
-                console.log('Успешно подключено к комнате:', roomId)
-                setActiveMainTab('esp')
+                await joinRoom(username, checkResult.targetRoomId);
+                console.log('Успешно подключено к комнате:', roomId);
+                setActiveMainTab('esp');
             } catch (error) {
-                console.error('Ошибка подключения к комнате:', error)
-                setError(`Ошибка подключения: ${(error instanceof Error ? error.message : String(error))}`)
+                console.error('Ошибка подключения к комнате:', error);
+                setError(`Ошибка подключения: ${(error instanceof Error ? error.message : String(error))}`);
             } finally {
-                setIsJoining(false)
-                console.log('Состояние isJoining сброшено')
+                setIsJoining(false);
+                console.log('Состояние isJoining сброшено');
             }
         }, 300),
         [isRoomIdComplete, roomId, username, joinRoom, setError, handleSetDefaultRoom]
-    )
+    );
 
     const handleCancelJoin = useCallback(
         debounce(() => {
@@ -1243,7 +1253,7 @@ export const VideoCallApp = () => {
                                 )}
                                 {savedProxyRooms.length > 0 && (
                                     <>
-                                        {console.log('JSX: Рендеринг savedProxyRooms:', savedProxyRooms)} {/* Добавляем лог */}
+                                        {console.log('JSX: Рендеринг savedProxyRooms:', savedProxyRooms)}
                                         <h3>Сохраненные прокси-комнаты:</h3>
                                         <ul>
                                             {savedProxyRooms.map((proxy) => (
@@ -1255,6 +1265,7 @@ export const VideoCallApp = () => {
           >
             {formatRoomId(proxy.id)}
               {proxy.isDefault && ' (по умолчанию)'}
+              {proxy.autoConnect && ' (автоподключение)'}
           </span>
                                                     <button
                                                         onClick={() => handleSetDefaultProxyRoom(proxy.id)}
@@ -1262,6 +1273,27 @@ export const VideoCallApp = () => {
                                                         className={styles.defaultRoomButton}
                                                     >
                                                         {proxy.isDefault ? 'Убрать по умолчанию' : 'Сделать по умолчанию'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            updateAutoConnect(proxy.id, !proxy.autoConnect);
+                                                            setSavedProxyRooms((prev) =>
+                                                                prev.map((p) =>
+                                                                    p.id === proxy.id ? { ...p, autoConnect: !p.autoConnect } : p
+                                                                )
+                                                            );
+                                                        }}
+                                                        onTouchEnd={() => {
+                                                            updateAutoConnect(proxy.id, !proxy.autoConnect);
+                                                            setSavedProxyRooms((prev) =>
+                                                                prev.map((p) =>
+                                                                    p.id === proxy.id ? { ...p, autoConnect: !p.autoConnect } : p
+                                                                )
+                                                            );
+                                                        }}
+                                                        className={styles.defaultRoomButton}
+                                                    >
+                                                        {proxy.autoConnect ? 'Отключить автоподключение' : 'Включить автоподключение'}
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteProxyRoom(proxy.id)}

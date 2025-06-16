@@ -277,7 +277,7 @@ export async function updateServoSettings(
 
 
 const roomIdSchema = z.string().length(16, 'ID комнаты должен содержать ровно 16 символов (без тире)');
-export type GetSavedRoomsResponse = {
+type GetSavedRoomsResponse = {
   rooms?: Array<{
     id: string;
     isDefault: boolean;
@@ -285,13 +285,18 @@ export type GetSavedRoomsResponse = {
     deviceId: string | null;
     proxyAccess: Array<{ proxyRoomId: string; name: string | null }>;
   }>;
+  proxyRooms?: Array<{
+    id: string;
+    isDefault: boolean;
+    autoConnect: boolean; // Добавляем autoConnect
+  }>;
   error?: string;
 };
 export async function getSavedRooms(): Promise<GetSavedRoomsResponse> {
   const session = await getUserSession();
   console.log('getSavedRooms: session:', session);
   if (!session) {
-    console.log('getSavedRooms: Пользователь не аутентифицирован');
+    console.error('getSavedRooms: Пользователь не аутентифицирован');
     return { error: 'Пользователь не аутентифицирован' };
   }
 
@@ -311,6 +316,14 @@ export async function getSavedRooms(): Promise<GetSavedRoomsResponse> {
 
     console.log('getSavedRooms: Найдено комнат:', rooms.length, 'прокси-комнат:', proxyRooms.length);
 
+    // Проверяем proxyRooms на валидность
+    const validProxyRooms = proxyRooms.filter(
+        (proxy) => typeof proxy.proxyRoomId === 'string' && proxy.proxyRoomId.length > 0
+    );
+    if (proxyRooms.length !== validProxyRooms.length) {
+      console.warn('getSavedRooms: Обнаружены некорректные прокси-комнаты:', proxyRooms);
+    }
+
     return {
       rooms: rooms.map((room) => ({
         id: room.roomId,
@@ -322,9 +335,10 @@ export async function getSavedRooms(): Promise<GetSavedRoomsResponse> {
           name: pa.name || null,
         })),
       })),
-      proxyRooms: proxyRooms.map((proxy) => ({
+      proxyRooms: validProxyRooms.map((proxy) => ({
         id: proxy.proxyRoomId,
         isDefault: proxy.isDefault,
+        autoConnect: proxy.autoConnect,
       })),
     };
   } catch (err) {
@@ -362,7 +376,7 @@ export async function saveRoom(roomId: string, autoConnect: boolean = false) {
 
   if (existingProxyAccess) {
     // Сохраняем в SavedProxy
-    await saveProxyRoom(normalizedRoomId, userId);
+    await saveProxyRoom(normalizedRoomId, userId, autoConnect); // Передаем autoConnect
     return { message: 'Комната сохранена как прокси-комната', isProxy: true };
   }
 
@@ -383,9 +397,10 @@ export async function saveRoom(roomId: string, autoConnect: boolean = false) {
   revalidatePath('/');
   return { message: 'Комната сохранена', isProxy: false };
 }
-async function saveProxyRoom(proxyRoomId: string, userId: number) {
+async function saveProxyRoom(proxyRoomId: string, userId: number, autoConnect: boolean) {
   const parsedProxyRoomId = roomIdSchema.safeParse(proxyRoomId);
   if (!parsedProxyRoomId.success) {
+    console.error('saveProxyRoom: Некорректный proxyRoomId:', proxyRoomId, parsedProxyRoomId.error);
     throw new Error(parsedProxyRoomId.error.errors[0].message);
   }
 
@@ -394,6 +409,7 @@ async function saveProxyRoom(proxyRoomId: string, userId: number) {
   });
 
   if (existingSavedProxy) {
+    console.warn('saveProxyRoom: Прокси-комната уже сохранена:', proxyRoomId);
     throw new Error('Прокси-комната уже сохранена');
   }
 
@@ -401,11 +417,12 @@ async function saveProxyRoom(proxyRoomId: string, userId: number) {
     data: {
       proxyRoomId,
       userId,
-      isDefault: false, // Всегда false
+      isDefault: false,
+      autoConnect,
     },
   });
 
-  console.log('saveProxyRoom: Сохранена прокси-комната:', { proxyRoomId, userId, isDefault: false });
+  console.log('saveProxyRoom: Сохранена прокси-комната:', { proxyRoomId, userId, isDefault: false, autoConnect });
   revalidatePath('/');
 }
 export async function setDefaultProxyRoom(proxyRoomId: string) {
@@ -531,19 +548,36 @@ export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
 
   const userId = parseInt(session.id);
 
+  // Проверяем SavedRoom
   const existingRoom = await prisma.savedRoom.findUnique({
     where: { roomId, userId },
   });
 
-  if (!existingRoom) {
-    console.error(`Комната с ID ${roomId} не найдена для обновления autoConnect для пользователя ${userId}`);
+  // Проверяем SavedProxy
+  const existingProxy = await prisma.savedProxy.findUnique({
+    where: { proxyRoomId: roomId, userId },
+  });
+
+  if (!existingRoom && !existingProxy) {
+    console.error(`Комната или прокси-комната с ID ${roomId} не найдена для пользователя ${userId}`);
     return;
   }
 
-  await prisma.savedRoom.update({
-    where: { roomId, userId },
-    data: { autoConnect },
-  });
+  if (existingRoom) {
+    await prisma.savedRoom.update({
+      where: { roomId, userId },
+      data: { autoConnect },
+    });
+    console.log(`updateAutoConnect: Обновлен autoConnect для SavedRoom ${roomId}: ${autoConnect}`);
+  }
+
+  if (existingProxy) {
+    await prisma.savedProxy.update({
+      where: { proxyRoomId: roomId, userId },
+      data: { autoConnect },
+    });
+    console.log(`updateAutoConnect: Обновлен autoConnect для SavedProxy ${roomId}: ${autoConnect}`);
+  }
 
   revalidatePath('/');
 }
