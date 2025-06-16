@@ -27,7 +27,7 @@ import {
     enableProxyAccess,
     deleteProxyAccess,
     checkRoom,
-    GetSavedRoomsResponse,
+    GetSavedRoomsResponse, resetDefaultRoom,
 } from '@/app/actions'
 import { debounce } from 'lodash';
 
@@ -211,17 +211,19 @@ export const VideoCallApp = () => {
                 setSavedRooms(roomsWithDevices);
                 setSavedProxyRooms(response.proxyRooms || []);
 
+                // Находим единственную дефолтную комнату (либо из SavedRoom, либо из SavedProxy)
                 const defaultRoom = roomsWithDevices.find((r) => r.isDefault);
                 const defaultProxyRoom = (response.proxyRooms || []).find((r) => r.isDefault);
+
                 if (defaultRoom && !roomId) {
                     console.log('Установка defaultRoom:', defaultRoom);
                     setRoomId(formatRoomId(defaultRoom.id));
                     setAutoJoin(defaultRoom.autoConnect);
                     setSelectedDeviceId(defaultRoom.deviceId || null);
-                } else if (defaultProxyRoom && !roomId) {
+                } else if (defaultProxyRoom && !roomId && !defaultRoom) {
                     console.log('Установка defaultProxyRoom:', defaultProxyRoom);
                     setRoomId(formatRoomId(defaultProxyRoom.id));
-                    setAutoJoin(defaultProxyRoom.autoConnect); // Используем autoConnect
+                    setAutoJoin(defaultProxyRoom.autoConnect);
                     setSelectedDeviceId(null);
                 }
             } catch (e) {
@@ -1246,22 +1248,22 @@ export const VideoCallApp = () => {
                                 <ul>
                                     {savedRooms.map((room) => (
                                         <li key={room.id} className={styles.savedRoomItem}>
-                    <span
-                        onClick={() => handleSelectRoom(room.id)}
-                        onTouchEnd={() => handleSelectRoom(room.id)}
-                        className={room.isDefault ? styles.defaultRoom : ''}
-                    >
-                        {formatRoomId(room.id)}
-                    </span>
+    <span
+        onClick={() => handleSelectRoom(room.id)}
+        onTouchEnd={() => handleSelectRoom(room.id)}
+        className={room.isDefault ? styles.defaultRoom : ''}
+    >
+      {formatRoomId(room.id)}
+    </span>
                                             <div className="flex items-center space-x-2">
                                                 <Checkbox
                                                     id={`default-room-${room.id}`}
                                                     checked={room.isDefault}
-                                                    onCheckedChange={(checked) => {
+                                                    onCheckedChange={async (checked) => {
                                                         if (checked) {
-                                                            handleSetDefaultRoom(room.id);
-                                                        } else {
-                                                            // Снимаем флаг isDefault
+                                                            await handleSetDefaultRoom(room.id); // Устанавливаем комнату по умолчанию
+                                                        } else if (room.isDefault) {
+                                                            // Если снимаем флаг с дефолтной комнаты, сбрасываем isDefault локально
                                                             setSavedRooms((prev) =>
                                                                 prev.map((r) => ({ ...r, isDefault: false }))
                                                             );
@@ -1280,9 +1282,7 @@ export const VideoCallApp = () => {
                                                     onCheckedChange={(checked) => {
                                                         updateAutoConnect(room.id, !!checked);
                                                         setSavedRooms((prev) =>
-                                                            prev.map((r) =>
-                                                                r.id === room.id ? { ...r, autoConnect: !!checked } : r
-                                                            )
+                                                            prev.map((r) => (r.id === room.id ? { ...r, autoConnect: !!checked } : r))
                                                         );
                                                     }}
                                                 />
@@ -1299,34 +1299,32 @@ export const VideoCallApp = () => {
                                     ))}
                                     {savedProxyRooms.map((proxy) => (
                                         <li key={proxy.id} className={styles.savedRoomItem}>
-                    <span
-                        onClick={() => handleSelectRoom(proxy.id)}
-                        onTouchEnd={() => handleSelectRoom(proxy.id)}
-                        className={proxy.isDefault ? styles.defaultRoom : ''}
-                    >
-                        {formatRoomId(proxy.id)} (прокси)
-                    </span>
+    <span
+        onClick={() => handleSelectRoom(proxy.id)}
+        onTouchEnd={() => handleSelectRoom(proxy.id)}
+        className={proxy.isDefault ? styles.defaultRoom : ''}
+    >
+      {formatRoomId(proxy.id)} (прокси)
+    </span>
                                             <div className="flex items-center space-x-2">
-                                                <div className="flex items-center space-x-2">
-                                                    <Checkbox
-                                                        id={`default-proxy-${proxy.id}`}
-                                                        checked={proxy.isDefault}
-                                                        onCheckedChange={(checked) => {
-                                                            if (checked) {
-                                                                handleSetDefaultProxyRoom(proxy.id);
-                                                            } else {
-                                                                // Снимаем флаг isDefault
-                                                                setSavedRooms((prev) =>
-                                                                    prev.map((r) => ({ ...r, isDefault: false }))
-                                                                );
-                                                                setSavedProxyRooms((prev) =>
-                                                                    prev.map((p) => ({ ...p, isDefault: false }))
-                                                                );
-                                                            }
-                                                        }}
-                                                    />
-                                                    <Label htmlFor={`default-proxy-${proxy.id}`}>По умолчанию</Label>
-                                                </div>
+                                                <Checkbox
+                                                    id={`default-proxy-${proxy.id}`}
+                                                    checked={proxy.isDefault}
+                                                    onCheckedChange={async (checked) => {
+                                                        if (checked) {
+                                                            await handleSetDefaultProxyRoom(proxy.id); // Устанавливаем прокси-комнату по умолчанию
+                                                        } else if (proxy.isDefault) {
+                                                            // Если снимаем флаг с дефолтной прокси-комнаты, сбрасываем isDefault локально
+                                                            setSavedRooms((prev) =>
+                                                                prev.map((r) => ({ ...r, isDefault: false }))
+                                                            );
+                                                            setSavedProxyRooms((prev) =>
+                                                                prev.map((p) => ({ ...p, isDefault: false }))
+                                                            );
+                                                        }
+                                                    }}
+                                                />
+                                                <Label htmlFor={`default-proxy-${proxy.id}`}>По умолчанию</Label>
                                             </div>
                                             <div className="flex items-center space-x-2">
                                                 <Checkbox
@@ -1335,9 +1333,7 @@ export const VideoCallApp = () => {
                                                     onCheckedChange={(checked) => {
                                                         updateAutoConnect(proxy.id, !!checked);
                                                         setSavedProxyRooms((prev) =>
-                                                            prev.map((p) =>
-                                                                p.id === proxy.id ? { ...p, autoConnect: !!checked } : p
-                                                            )
+                                                            prev.map((p) => (p.id === proxy.id ? { ...p, autoConnect: !!checked } : p))
                                                         );
                                                     }}
                                                 />

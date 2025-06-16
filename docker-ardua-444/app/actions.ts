@@ -457,37 +457,20 @@ export async function setDefaultProxyRoom(proxyRoomId: string) {
   }
 
   try {
-    // Начать транзакцию
     await prisma.$transaction([
-      // Сбросить isDefault для всех SavedRoom текущего пользователя
       prisma.savedRoom.updateMany({
-        where: {
-          userId,
-        },
-        data: {
-          isDefault: false,
-        },
+        where: { userId },
+        data: { isDefault: false },
       }),
-      // Сбросить isDefault для всех SavedProxy текущего пользователя
       prisma.savedProxy.updateMany({
-        where: {
-          userId,
-        },
-        data: {
-          isDefault: false,
-        },
+        where: { userId },
+        data: { isDefault: false },
       }),
-      // Установить isDefault для указанной прокси-комнаты
       prisma.savedProxy.update({
         where: {
-          proxyRoomId_userId: {
-            proxyRoomId,
-            userId,
-          },
+          proxyRoomId_userId: { proxyRoomId, userId },
         },
-        data: {
-          isDefault: true,
-        },
+        data: { isDefault: true },
       }),
     ]);
     console.log('setDefaultProxyRoom: Прокси-комната успешно установлена по умолчанию:', { proxyRoomId });
@@ -546,37 +529,18 @@ export async function setDefaultRoom(roomId: string) {
   }
 
   try {
-    // Начать транзакцию
     await prisma.$transaction([
-      // Сбросить isDefault для всех SavedRoom текущего пользователя
       prisma.savedRoom.updateMany({
-        where: {
-          userId,
-        },
-        data: {
-          isDefault: false,
-        },
+        where: { userId },
+        data: { isDefault: false },
       }),
-      // Сбросить isDefault для всех SavedProxy текущего пользователя
       prisma.savedProxy.updateMany({
-        where: {
-          userId,
-        },
-        data: {
-          isDefault: false,
-        },
+        where: { userId },
+        data: { isDefault: false },
       }),
-      // Установить isDefault для указанной комнаты
       prisma.savedRoom.update({
-        where: {
-          roomId_userId: {
-            roomId,
-            userId,
-          },
-        },
-        data: {
-          isDefault: true,
-        },
+        where: { roomId },
+        data: { isDefault: true },
       }),
     ]);
     console.log('setDefaultRoom: Комната успешно установлена по умолчанию:', { roomId });
@@ -922,7 +886,6 @@ export async function deleteProxyAccess(proxyRoomId: string) {
     throw err;
   }
 }
-
 export async function checkRoom(roomId: string) {
   try {
     const roomIdSchema = z.string().length(16, "ID комнаты должен содержать ровно 16 символов");
