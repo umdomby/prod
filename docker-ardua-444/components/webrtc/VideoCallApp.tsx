@@ -270,10 +270,10 @@ export const VideoCallApp = () => {
                 );
                 setSavedRooms(roomsWithDevices);
                 const defaultRoom = roomsWithDevices.find((r) => r.isDefault);
-                if (defaultRoom) {
-                    setRoomId(formatRoomId(defaultRoom.id));
+                if (defaultRoom && !roomId) {
+                    // Устанавливаем только autoJoin и selectedDeviceId, если roomId пустой
                     setAutoJoin(defaultRoom.autoConnect);
-                    setSelectedDeviceId(defaultRoom.deviceId);
+                    setSelectedDeviceId(defaultRoom.deviceId || null);
                 }
             } catch (e) {
                 console.error('Failed to load saved rooms', e);
@@ -282,7 +282,7 @@ export const VideoCallApp = () => {
             }
         };
         loadSavedRooms();
-    }, [roomId]);
+    }, []);
 
     useEffect(() => {
         const savedAutoShowControls = localStorage.getItem('autoShowControls')
