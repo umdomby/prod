@@ -78,8 +78,6 @@ model SavedProxy {
   user        User     @relation(fields: [userId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  @@unique([proxyRoomId, userId])
 }
 
 model ProxyAccess {

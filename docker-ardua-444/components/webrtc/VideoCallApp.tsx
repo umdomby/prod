@@ -475,20 +475,13 @@ export const VideoCallApp = () => {
                 if (response.error) {
                     console.error('Ошибка загрузки комнат:', response.error);
                     setError(response.error);
-                    setSavedRooms([]);
-                    setSavedProxyRooms([]);
                     return;
                 }
-
                 if (!response.rooms || !Array.isArray(response.rooms)) {
                     console.error('Комнаты не найдены или имеют неверный формат');
                     setError('Комнаты не найдены');
-                    setSavedRooms([]);
-                    setSavedProxyRooms([]);
                     return;
                 }
-
-                console.log('Получены сохраненные комнаты:', response.rooms, 'прокси-комнаты:', response.proxyRooms);
                 const roomsWithDevices = await Promise.all(
                     response.rooms.map(async (room) => {
                         const roomWithDevice = await getSavedRoomWithDevice(room.id);
@@ -506,8 +499,6 @@ export const VideoCallApp = () => {
             } catch (e) {
                 console.error('Не удалось установить комнату по умолчанию:', e);
                 setError('Не удалось установить комнату по умолчанию');
-                setSavedRooms([]);
-                setSavedProxyRooms([]);
             }
         },
         []
@@ -521,20 +512,13 @@ export const VideoCallApp = () => {
                 if (response.error) {
                     console.error('Ошибка загрузки комнат:', response.error);
                     setError(response.error);
-                    setSavedRooms([]);
-                    setSavedProxyRooms([]);
                     return;
                 }
-
                 if (!response.rooms || !Array.isArray(response.rooms)) {
                     console.error('Комнаты не найдены или имеют неверный формат');
                     setError('Комнаты не найдены');
-                    setSavedRooms([]);
-                    setSavedProxyRooms([]);
                     return;
                 }
-
-                console.log('Получены сохраненные комнаты:', response.rooms, 'прокси-комнаты:', response.proxyRooms);
                 const roomsWithDevices = await Promise.all(
                     response.rooms.map(async (room) => {
                         const roomWithDevice = await getSavedRoomWithDevice(room.id);
@@ -552,8 +536,6 @@ export const VideoCallApp = () => {
             } catch (e) {
                 console.error('Не удалось установить прокси-комнату по умолчанию:', e);
                 setError('Не удалось установить прокси-комнату по умолчанию');
-                setSavedRooms([]);
-                setSavedProxyRooms([]);
             }
         },
         []
@@ -668,9 +650,11 @@ export const VideoCallApp = () => {
 
     useEffect(() => {
         if (autoJoin && hasPermission && !isInRoom && isRoomIdComplete && !isJoining && !error) {
-            handleJoinRoom()
+            // Убираем автоматическое подключение
+            // handleJoinRoom();
+            console.log('Автоподключение отключено, ожидается явное действие пользователя');
         }
-    }, [autoJoin, hasPermission, isInRoom, isRoomIdComplete, isJoining, error])
+    }, [autoJoin, hasPermission, isInRoom, isRoomIdComplete, isJoining, error]);
 
     const applyVideoTransform = useCallback((settings: VideoSettings) => {
         const { rotation, flipH, flipV } = settings
@@ -812,18 +796,19 @@ export const VideoCallApp = () => {
 
     const handleCancelJoin = useCallback(
         debounce(() => {
-            console.log('Пользователь прервал попытку подключения')
-            setIsJoining(false)
-            setError(null)
+            console.log('Пользователь прервал попытку подключения');
+            setIsJoining(false);
+            setAutoJoin(false); // Сбрасываем автоподключение
+            setError(null);
             if (webRTCRetryTimeoutRef.current) {
-                clearTimeout(webRTCRetryTimeoutRef.current)
-                webRTCRetryTimeoutRef.current = null
+                clearTimeout(webRTCRetryTimeoutRef.current);
+                webRTCRetryTimeoutRef.current = null;
             }
-            leaveRoom()
-            setActiveMainTab('webrtc')
+            leaveRoom();
+            setActiveMainTab('webrtc');
         }, 300),
         [leaveRoom]
-    )
+    );
 
     const toggleFullscreen = useCallback(
         debounce(async () => {
@@ -1200,7 +1185,11 @@ export const VideoCallApp = () => {
                         <div className={styles.inputGroup}>
                             {isInRoom ? (
                                 <Button
-                                    onClick={leaveRoom}
+                                    onClick={() => {
+                                        leaveRoom();
+                                        setActiveMainTab('webrtc'); // Переключаем вкладку обратно
+                                        updateAutoConnect(roomId.replace(/-/g, ''), false); // Отключаем автоподключение для этой комнаты
+                                    }}
                                     disabled={!isConnected}
                                     className={styles.button}
                                 >
@@ -1254,15 +1243,15 @@ export const VideoCallApp = () => {
                                                     checked={room.isDefault}
                                                     onCheckedChange={(checked) => {
                                                         if (checked) {
+                                                            handleSetDefaultRoom(room.id);
+                                                        } else {
+                                                            // Снимаем флаг isDefault
                                                             setSavedRooms((prev) =>
-                                                                prev.map((r) => ({ ...r, isDefault: r.id === room.id }))
+                                                                prev.map((r) => ({ ...r, isDefault: false }))
                                                             );
                                                             setSavedProxyRooms((prev) =>
                                                                 prev.map((p) => ({ ...p, isDefault: false }))
                                                             );
-                                                            handleSetDefaultRoom(room.id);
-                                                        } else {
-                                                            handleSetDefaultRoom(room.id);
                                                         }
                                                     }}
                                                 />
@@ -1302,24 +1291,26 @@ export const VideoCallApp = () => {
                         {formatRoomId(proxy.id)} (прокси)
                     </span>
                                             <div className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={`default-proxy-${proxy.id}`}
-                                                    checked={proxy.isDefault}
-                                                    onCheckedChange={(checked) => {
-                                                        if (checked) {
-                                                            setSavedRooms((prev) =>
-                                                                prev.map((r) => ({ ...r, isDefault: false }))
-                                                            );
-                                                            setSavedProxyRooms((prev) =>
-                                                                prev.map((p) => ({ ...p, isDefault: p.id === proxy.id }))
-                                                            );
-                                                            handleSetDefaultProxyRoom(proxy.id);
-                                                        } else {
-                                                            handleSetDefaultProxyRoom(proxy.id);
-                                                        }
-                                                    }}
-                                                />
-                                                <Label htmlFor={`default-proxy-${proxy.id}`}>По умолчанию</Label>
+                                                <div className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`default-proxy-${proxy.id}`}
+                                                        checked={proxy.isDefault}
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
+                                                                handleSetDefaultProxyRoom(proxy.id);
+                                                            } else {
+                                                                // Снимаем флаг isDefault
+                                                                setSavedRooms((prev) =>
+                                                                    prev.map((r) => ({ ...r, isDefault: false }))
+                                                                );
+                                                                setSavedProxyRooms((prev) =>
+                                                                    prev.map((p) => ({ ...p, isDefault: false }))
+                                                                );
+                                                            }
+                                                        }}
+                                                    />
+                                                    <Label htmlFor={`default-proxy-${proxy.id}`}>По умолчанию</Label>
+                                                </div>
                                             </div>
                                             <div className="flex items-center space-x-2">
                                                 <Checkbox
