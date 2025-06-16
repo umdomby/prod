@@ -21,7 +21,7 @@ model User {
   devices     Devices[]
   savedRooms  SavedRoom[]
   savedProxy  SavedProxy[]
-  proxyAccess ProxyAccess[] @relation // Обратное отношение к ProxyAccess
+  proxyAccess ProxyAccess[] @relation
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -66,7 +66,7 @@ model SavedRoom {
   autoConnect Boolean       @default(false)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-  proxyAccess ProxyAccess[] // Связь с моделью ProxyAccess
+  proxyAccess ProxyAccess[]
 }
 
 model SavedProxy {
@@ -78,6 +78,8 @@ model SavedProxy {
   user        User     @relation(fields: [userId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@unique([proxyRoomId, userId])
 }
 
 model ProxyAccess {
@@ -86,7 +88,7 @@ model ProxyAccess {
   room        SavedRoom @relation(fields: [roomId], references: [roomId])
   proxyRoomId String    @unique
   name        String?
-  userId      Int? // Пользователь, которому предоставлен доступ (опционально)
+  userId      Int?
   user        User?     @relation(fields: [userId], references: [id])
   expiresAt   DateTime?
   createdAt   DateTime  @default(now())
