@@ -55,6 +55,7 @@ type GetSavedRoomsResponse = {
     proxyRooms?: Array<{
         id: string;
         isDefault: boolean;
+        autoConnect: boolean; // Добавляем autoConnect
     }>;
     error?: string;
 };
@@ -313,22 +314,28 @@ export const VideoCallApp = () => {
 
     const isRoomIdComplete = roomId.replace(/-/g, '').length === 16
 
-    const handleSaveRoom = useCallback(debounce(async () => {
+    const handleSaveRoom = useCallback(
+        debounce(async () => {
             if (!isRoomIdComplete) return;
 
             try {
-                const response = await saveRoom(roomId.replace(/-/g, ''), autoJoin);
-                console.log('handleSaveRoom: Ответ saveRoom:', response); // Добавляем лог
+                console.log('handleSaveRoom: Сохранение комнаты:', { roomId, autoJoin });
+                const normalizedRoomId = roomId.replace(/-/g, '');
+                const response = await saveRoom(normalizedRoomId, autoJoin);
+                console.log('handleSaveRoom: Ответ saveRoom:', response);
                 if (response.message === 'Комната уже существует в сохраненных комнатах') {
                     setShowRoomExistsDialog(true);
                     setTimeout(() => setShowRoomExistsDialog(false), 5000);
                     return;
                 }
                 if (response.isProxy) {
-                    console.log('Комната сохранена как прокси-комната');
+                    console.log('handleSaveRoom: Сохранена как прокси-комната:', normalizedRoomId);
+                    // Проверяем, появилась ли прокси-комната в списке
+                    const updatedRooms = await getSavedRooms();
+                    console.log('handleSaveRoom: Проверка прокси-комнат:', updatedRooms.proxyRooms);
                 }
                 const updatedRooms = await getSavedRooms();
-                console.log('handleSaveRoom: Обновленные комнаты:', updatedRooms); // Добавляем лог
+                console.log('handleSaveRoom: Обновленные комнаты:', updatedRooms);
                 if (updatedRooms.rooms && updatedRooms.proxyRooms) {
                     const roomsWithDevices = await Promise.all(
                         updatedRooms.rooms.map(async (room) => {
@@ -342,14 +349,19 @@ export const VideoCallApp = () => {
                             };
                         })
                     );
+                    // Фильтруем валидные прокси-комнаты
+                    const validProxyRooms = updatedRooms.proxyRooms.filter(
+                        (proxy) => typeof proxy.id === 'string' && proxy.id.length > 0
+                    );
+                    console.log('handleSaveRoom: Установка состояний:', { roomsWithDevices, validProxyRooms });
                     setSavedRooms(roomsWithDevices);
-                    setSavedProxyRooms(updatedRooms.proxyRooms);
+                    setSavedProxyRooms(validProxyRooms);
                 } else {
                     console.error('handleSaveRoom: Неверный формат ответа getSavedRooms:', updatedRooms);
                     setError('Ошибка обновления списка комнат');
                 }
             } catch (err) {
-                console.error('Ошибка сохранения комнаты:', err);
+                console.error('handleSaveRoom: Ошибка:', err);
                 setError((err as Error).message);
             }
         }, 300),
@@ -366,8 +378,15 @@ export const VideoCallApp = () => {
 
     const handleDeleteProxyRoom = useCallback(
         debounce(async (proxyRoomId: string) => {
+            console.log('handleDeleteProxyRoom: Начало удаления прокси-комнаты:', { proxyRoomId });
             try {
-                await deleteProxyAccess(proxyRoomId);
+                const response = await deleteProxyAccess(proxyRoomId);
+                console.log('handleDeleteProxyRoom: Ответ deleteProxyAccess:', response);
+                if (response.error) {
+                    console.error('handleDeleteProxyRoom: Ошибка:', response.error);
+                    setError(response.error);
+                    return;
+                }
                 const updatedRooms = await getSavedRooms();
                 if (updatedRooms.rooms && updatedRooms.proxyRooms) {
                     const roomsWithDevices = await Promise.all(
@@ -384,9 +403,10 @@ export const VideoCallApp = () => {
                     );
                     setSavedRooms(roomsWithDevices);
                     setSavedProxyRooms(updatedRooms.proxyRooms);
+                    console.log('handleDeleteProxyRoom: Обновлены списки комнат:', { roomsWithDevices, proxyRooms: updatedRooms.proxyRooms });
                 }
             } catch (err) {
-                console.error('Ошибка удаления прокси-комнаты:', err);
+                console.error('handleDeleteProxyRoom: Ошибка:', err);
                 setError((err as Error).message);
             }
         }, 300),
@@ -431,7 +451,7 @@ export const VideoCallApp = () => {
 
     const handleSelectRoom = useCallback(
         debounce(async (roomIdWithoutDashes: string) => {
-            console.log('handleSelectRoom: Выбрана комната:', roomIdWithoutDashes); // Добавляем лог
+            console.log('handleSelectRoom: Выбрана комната:', roomIdWithoutDashes);
             const selectedRoom = savedRooms.find((r) => r.id === roomIdWithoutDashes);
             const selectedProxyRoom = savedProxyRooms.find((r) => r.id === roomIdWithoutDashes);
             if (selectedRoom) {
@@ -440,7 +460,7 @@ export const VideoCallApp = () => {
                 setSelectedDeviceId(selectedRoom.deviceId);
             } else if (selectedProxyRoom) {
                 setRoomId(formatRoomId(roomIdWithoutDashes));
-                setAutoJoin(false);
+                setAutoJoin(selectedProxyRoom.autoConnect); // Используем autoConnect прокси-комнаты
                 setSelectedDeviceId(null);
             }
         }, 300),
@@ -1093,24 +1113,24 @@ export const VideoCallApp = () => {
                             </div>
                         )}
 
-                        <div className={styles.inputGroup}>
-                            <div className="flex items-center space-x-2">
-                                <Checkbox
-                                    id="autoJoin"
-                                    checked={autoJoin}
-                                    disabled={!isRoomIdComplete}
-                                    onCheckedChange={(checked) => {
-                                        setAutoJoin(!!checked)
-                                        if (isRoomIdComplete) {
-                                            updateAutoConnect(roomId.replace(/-/g, ''), !!checked)
-                                        }
-                                        localStorage.setItem('autoJoin', checked ? 'true' : 'false')
-                                    }}
-                                    suppressHydrationWarning
-                                />
-                                <Label htmlFor="autoJoin">Автоматическое подключение</Label>
-                            </div>
-                        </div>
+                        {/*<div className={styles.inputGroup}>*/}
+                        {/*    <div className="flex items-center space-x-2">*/}
+                        {/*        <Checkbox*/}
+                        {/*            id="autoJoin"*/}
+                        {/*            checked={autoJoin}*/}
+                        {/*            disabled={!isRoomIdComplete}*/}
+                        {/*            onCheckedChange={(checked) => {*/}
+                        {/*                setAutoJoin(!!checked)*/}
+                        {/*                if (isRoomIdComplete) {*/}
+                        {/*                    updateAutoConnect(roomId.replace(/-/g, ''), !!checked)*/}
+                        {/*                }*/}
+                        {/*                localStorage.setItem('autoJoin', checked ? 'true' : 'false')*/}
+                        {/*            }}*/}
+                        {/*            suppressHydrationWarning*/}
+                        {/*        />*/}
+                        {/*        <Label htmlFor="autoJoin">Автоматическое подключение</Label>*/}
+                        {/*    </div>*/}
+                        {/*</div>*/}
 
                         <div className={styles.inputGroup}>
                             <Label htmlFor="room">ID комнаты</Label>
@@ -1216,114 +1236,134 @@ export const VideoCallApp = () => {
                         </div>
 
                         {(savedRooms.length > 0 || savedProxyRooms.length > 0) && (
-                            <div className={styles.savedRooms}>
-                                {savedRooms.length > 0 && (
-                                    <>
-                                        {console.log('JSX: Рендеринг savedRooms:', savedRooms)} {/* Добавляем лог */}
-                                        <h3>Сохраненные комнаты:</h3>
-                                        <ul>
-                                            {savedRooms.map((room) => (
-                                                <li key={room.id} className={styles.savedRoomItem}>
-          <span
-              onClick={() => handleSelectRoom(room.id)}
-              onTouchEnd={() => handleSelectRoom(room.id)}
-              className={room.isDefault ? styles.defaultRoom : ''}
-          >
-            {formatRoomId(room.id)}
-              {room.isDefault && ' (по умолчанию)'}
-          </span>
-                                                    <button
-                                                        onClick={() => handleSetDefaultRoom(room.id)}
-                                                        onTouchEnd={() => handleSetDefaultRoom(room.id)}
-                                                        className={styles.defaultRoomButton}
-                                                    >
-                                                        {room.isDefault ? 'Убрать по умолчанию' : 'Сделать по умолчанию'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteRoom(room.id)}
-                                                        onTouchEnd={() => handleDeleteRoom(room.id)}
-                                                        className={styles.deleteRoomButton}
-                                                    >
-                                                        Удалить
-                                                    </button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </>
-                                )}
-                                {savedProxyRooms.length > 0 && (
-                                    <>
-                                        {console.log('JSX: Рендеринг savedProxyRooms:', savedProxyRooms)}
-                                        <h3>Сохраненные прокси-комнаты:</h3>
-                                        <ul>
-                                            {savedProxyRooms.map((proxy) => (
-                                                <li key={proxy.id} className={styles.savedRoomItem}>
-          <span
-              onClick={() => handleSelectRoom(proxy.id)}
-              onTouchEnd={() => handleSelectRoom(proxy.id)}
-              className={proxy.isDefault ? styles.defaultRoom : ''}
-          >
-            {formatRoomId(proxy.id)}
-              {proxy.isDefault && ' (по умолчанию)'}
-              {proxy.autoConnect && ' (автоподключение)'}
-          </span>
-                                                    <button
-                                                        onClick={() => handleSetDefaultProxyRoom(proxy.id)}
-                                                        onTouchEnd={() => handleSetDefaultProxyRoom(proxy.id)}
-                                                        className={styles.defaultRoomButton}
-                                                    >
-                                                        {proxy.isDefault ? 'Убрать по умолчанию' : 'Сделать по умолчанию'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            updateAutoConnect(proxy.id, !proxy.autoConnect);
-                                                            setSavedProxyRooms((prev) =>
-                                                                prev.map((p) =>
-                                                                    p.id === proxy.id ? { ...p, autoConnect: !p.autoConnect } : p
-                                                                )
+                            <>
+                                <h3>Сохраненные комнаты:</h3>
+                                <ul>
+                                    {savedRooms.map((room) => (
+                                        <li key={room.id} className={styles.savedRoomItem}>
+                    <span
+                        onClick={() => handleSelectRoom(room.id)}
+                        onTouchEnd={() => handleSelectRoom(room.id)}
+                        className={room.isDefault ? styles.defaultRoom : ''}
+                    >
+                        {formatRoomId(room.id)}
+                    </span>
+                                            <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`default-room-${room.id}`}
+                                                    checked={room.isDefault}
+                                                    onCheckedChange={(checked) => {
+                                                        if (checked) {
+                                                            setSavedRooms((prev) =>
+                                                                prev.map((r) => ({ ...r, isDefault: r.id === room.id }))
                                                             );
-                                                        }}
-                                                        onTouchEnd={() => {
-                                                            updateAutoConnect(proxy.id, !proxy.autoConnect);
                                                             setSavedProxyRooms((prev) =>
-                                                                prev.map((p) =>
-                                                                    p.id === proxy.id ? { ...p, autoConnect: !p.autoConnect } : p
-                                                                )
+                                                                prev.map((p) => ({ ...p, isDefault: false }))
                                                             );
-                                                        }}
-                                                        className={styles.defaultRoomButton}
-                                                    >
-                                                        {proxy.autoConnect ? 'Отключить автоподключение' : 'Включить автоподключение'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteProxyRoom(proxy.id)}
-                                                        onTouchEnd={() => handleDeleteProxyRoom(proxy.id)}
-                                                        className={styles.deleteRoomButton}
-                                                    >
-                                                        Удалить
-                                                    </button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </>
-                                )}
-                                <div className={styles.inputGroup}>
-                                    <Label htmlFor="codec">Кодек трансляции</Label>
-                                    <select
-                                        id="codec"
-                                        value={selectedCodec}
-                                        onChange={handleCodecChange}
-                                        disabled={isInRoom}
-                                        className={styles.codecSelect}
-                                    >
-                                        <option value="VP8">VP8</option>
-                                        <option value="AV1" disabled>AV1 - в разработке</option>
-                                        <option value="H264" disabled>H264 - в разработке</option>
-                                        <option value="VP9" disabled>VP9 - в разработке</option>
-                                    </select>
-                                </div>
-                            </div>
+                                                            handleSetDefaultRoom(room.id);
+                                                        } else {
+                                                            handleSetDefaultRoom(room.id);
+                                                        }
+                                                    }}
+                                                />
+                                                <Label htmlFor={`default-room-${room.id}`}>По умолчанию</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`autoConnect-room-${room.id}`}
+                                                    checked={room.autoConnect}
+                                                    onCheckedChange={(checked) => {
+                                                        updateAutoConnect(room.id, !!checked);
+                                                        setSavedRooms((prev) =>
+                                                            prev.map((r) =>
+                                                                r.id === room.id ? { ...r, autoConnect: !!checked } : r
+                                                            )
+                                                        );
+                                                    }}
+                                                />
+                                                <Label htmlFor={`autoConnect-room-${room.id}`}>Автоподключение</Label>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteRoom(room.id)}
+                                                onTouchEnd={() => handleDeleteRoom(room.id)}
+                                                className={styles.deleteRoomButton}
+                                            >
+                                                Удалить
+                                            </button>
+                                        </li>
+                                    ))}
+                                    {savedProxyRooms.map((proxy) => (
+                                        <li key={proxy.id} className={styles.savedRoomItem}>
+                    <span
+                        onClick={() => handleSelectRoom(proxy.id)}
+                        onTouchEnd={() => handleSelectRoom(proxy.id)}
+                        className={proxy.isDefault ? styles.defaultRoom : ''}
+                    >
+                        {formatRoomId(proxy.id)} (прокси)
+                    </span>
+                                            <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`default-proxy-${proxy.id}`}
+                                                    checked={proxy.isDefault}
+                                                    onCheckedChange={(checked) => {
+                                                        if (checked) {
+                                                            setSavedRooms((prev) =>
+                                                                prev.map((r) => ({ ...r, isDefault: false }))
+                                                            );
+                                                            setSavedProxyRooms((prev) =>
+                                                                prev.map((p) => ({ ...p, isDefault: p.id === proxy.id }))
+                                                            );
+                                                            handleSetDefaultProxyRoom(proxy.id);
+                                                        } else {
+                                                            handleSetDefaultProxyRoom(proxy.id);
+                                                        }
+                                                    }}
+                                                />
+                                                <Label htmlFor={`default-proxy-${proxy.id}`}>По умолчанию</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`autoConnect-proxy-${proxy.id}`}
+                                                    checked={proxy.autoConnect}
+                                                    onCheckedChange={(checked) => {
+                                                        updateAutoConnect(proxy.id, !!checked);
+                                                        setSavedProxyRooms((prev) =>
+                                                            prev.map((p) =>
+                                                                p.id === proxy.id ? { ...p, autoConnect: !!checked } : p
+                                                            )
+                                                        );
+                                                    }}
+                                                />
+                                                <Label htmlFor={`autoConnect-proxy-${proxy.id}`}>Автоподключение</Label>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteProxyRoom(proxy.id)}
+                                                onTouchEnd={() => handleDeleteProxyRoom(proxy.id)}
+                                                className={styles.deleteRoomButton}
+                                            >
+                                                Удалить
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </>
                         )}
+
+                        <div className={styles.inputGroup}>
+                            <Label htmlFor="codec">Кодек трансляции</Label>
+                            <select
+                                id="codec"
+                                value={selectedCodec}
+                                onChange={handleCodecChange}
+                                disabled={isInRoom}
+                                className={styles.codecSelect}
+                            >
+                                <option value="VP8">VP8</option>
+                                <option value="AV1" disabled>AV1 - в разработке</option>
+                                <option value="H264" disabled>H264 - в разработке</option>
+                                <option value="VP9" disabled>VP9 - в разработке</option>
+                            </select>
+                        </div>
 
                         <div className={styles.inputGroup}>
                             <Label htmlFor="device">Привязать устройство к комнате</Label>

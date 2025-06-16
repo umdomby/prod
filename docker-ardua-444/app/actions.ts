@@ -347,83 +347,99 @@ export async function getSavedRooms(): Promise<GetSavedRoomsResponse> {
   }
 }
 export async function saveRoom(roomId: string, autoConnect: boolean = false) {
+  console.log('saveRoom: Начало сохранения комнаты:', { roomId, autoConnect });
   const session = await getUserSession();
   if (!session) {
+    console.error('saveRoom: Пользователь не аутентифицирован');
     throw new Error('Пользователь не аутентифицирован');
   }
 
   const parsedRoomId = roomIdSchema.safeParse(roomId.replace(/-/g, ''));
   if (!parsedRoomId.success) {
+    console.error('saveRoom: Некорректный roomId:', roomId, parsedRoomId.error);
     throw new Error(parsedRoomId.error.errors[0].message);
   }
 
   const normalizedRoomId = parsedRoomId.data;
   const userId = parseInt(session.id);
 
-  // Проверка существования в SavedRoom
-  const existingSavedRoom = await prisma.savedRoom.findUnique({
-    where: { roomId: normalizedRoomId },
-  });
+  try {
+    // Проверка существования в SavedRoom
+    const existingSavedRoom = await prisma.savedRoom.findUnique({
+      where: { roomId: normalizedRoomId },
+    });
 
-  if (existingSavedRoom) {
-    throw new Error('Комната уже существует в сохраненных комнатах');
+    if (existingSavedRoom) {
+      console.warn('saveRoom: Комната уже существует:', normalizedRoomId);
+      throw new Error('Комната уже существует в сохраненных комнатах');
+    }
+
+    // Проверка существования в ProxyAccess
+    const existingProxyAccess = await prisma.proxyAccess.findUnique({
+      where: { proxyRoomId: normalizedRoomId },
+    });
+
+    if (existingProxyAccess) {
+      console.log('saveRoom: Найдена прокси-комната, сохраняем в SavedProxy');
+      await saveProxyRoom(normalizedRoomId, userId, autoConnect);
+      return { message: 'Комната сохранена как прокси-комната', isProxy: true };
+    }
+
+    // Сохраняем в SavedRoom, если нет в ProxyAccess
+    const roomCount = await prisma.savedRoom.count({
+      where: { userId },
+    });
+
+    const newRoom = await prisma.savedRoom.create({
+      data: {
+        roomId: normalizedRoomId,
+        userId,
+        isDefault: roomCount === 0 && !(await prisma.savedProxy.findFirst({ where: { userId, isDefault: true } })),
+        autoConnect,
+      },
+    });
+
+    console.log('saveRoom: Успешно сохранена комната:', newRoom);
+    revalidatePath('/');
+    return { message: 'Комната сохранена', isProxy: false };
+  } catch (err) {
+    console.error('saveRoom: Ошибка при сохранении:', err);
+    throw err;
   }
-
-  // Проверка существования в ProxyAccess
-  const existingProxyAccess = await prisma.proxyAccess.findUnique({
-    where: { proxyRoomId: normalizedRoomId },
-  });
-
-  if (existingProxyAccess) {
-    // Сохраняем в SavedProxy
-    await saveProxyRoom(normalizedRoomId, userId, autoConnect); // Передаем autoConnect
-    return { message: 'Комната сохранена как прокси-комната', isProxy: true };
-  }
-
-  // Сохраняем в SavedRoom, если нет в ProxyAccess
-  const roomCount = await prisma.savedRoom.count({
-    where: { userId },
-  });
-
-  await prisma.savedRoom.create({
-    data: {
-      roomId: normalizedRoomId,
-      userId,
-      isDefault: roomCount === 0 && !(await prisma.savedProxy.findFirst({ where: { userId, isDefault: true } })),
-      autoConnect,
-    },
-  });
-
-  revalidatePath('/');
-  return { message: 'Комната сохранена', isProxy: false };
 }
 async function saveProxyRoom(proxyRoomId: string, userId: number, autoConnect: boolean) {
+  console.log('saveProxyRoom: Начало сохранения прокси-комнаты:', { proxyRoomId, userId, autoConnect });
   const parsedProxyRoomId = roomIdSchema.safeParse(proxyRoomId);
   if (!parsedProxyRoomId.success) {
     console.error('saveProxyRoom: Некорректный proxyRoomId:', proxyRoomId, parsedProxyRoomId.error);
     throw new Error(parsedProxyRoomId.error.errors[0].message);
   }
 
-  const existingSavedProxy = await prisma.savedProxy.findFirst({
-    where: { proxyRoomId, userId },
-  });
+  try {
+    const existingSavedProxy = await prisma.savedProxy.findFirst({
+      where: { proxyRoomId, userId },
+    });
 
-  if (existingSavedProxy) {
-    console.warn('saveProxyRoom: Прокси-комната уже сохранена:', proxyRoomId);
-    throw new Error('Прокси-комната уже сохранена');
+    if (existingSavedProxy) {
+      console.warn('saveProxyRoom: Прокси-комната уже сохранена:', proxyRoomId);
+      throw new Error('Прокси-комната уже сохранена');
+    }
+
+    const newProxy = await prisma.savedProxy.create({
+      data: {
+        proxyRoomId,
+        userId,
+        isDefault: false,
+        autoConnect,
+      },
+    });
+
+    console.log('saveProxyRoom: Успешно сохранена прокси-комната:', newProxy);
+    revalidatePath('/');
+  } catch (err) {
+    console.error('saveProxyRoom: Ошибка при сохранении:', err);
+    throw err;
   }
-
-  await prisma.savedProxy.create({
-    data: {
-      proxyRoomId,
-      userId,
-      isDefault: false,
-      autoConnect,
-    },
-  });
-
-  console.log('saveProxyRoom: Сохранена прокси-комната:', { proxyRoomId, userId, isDefault: false, autoConnect });
-  revalidatePath('/');
 }
 export async function setDefaultProxyRoom(proxyRoomId: string) {
   const session = await getUserSession();
@@ -535,51 +551,53 @@ export async function setDefaultRoom(roomId: string) {
   revalidatePath('/');
 }
 export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
+  console.log('updateAutoConnect: Начало обновления:', { roomId, autoConnect });
   const session = await getUserSession();
   if (!session) {
+    console.error('updateAutoConnect: Пользователь не аутентифицирован');
     throw new Error('Пользователь не аутентифицирован');
   }
 
+  const userId = parseInt(session.id);
   const parsedRoomId = roomIdSchema.safeParse(roomId);
   if (!parsedRoomId.success) {
-    console.error(`Некорректный ID комнаты для autoConnect: ${roomId}, ошибка: ${parsedRoomId.error.errors[0].message}`);
-    return;
+    console.error('updateAutoConnect: Некорректный roomId:', roomId, parsedRoomId.error);
+    throw new Error(parsedRoomId.error.errors[0].message);
   }
 
-  const userId = parseInt(session.id);
-
-  // Проверяем SavedRoom
-  const existingRoom = await prisma.savedRoom.findUnique({
-    where: { roomId, userId },
-  });
-
-  // Проверяем SavedProxy
-  const existingProxy = await prisma.savedProxy.findUnique({
-    where: { proxyRoomId: roomId, userId },
-  });
-
-  if (!existingRoom && !existingProxy) {
-    console.error(`Комната или прокси-комната с ID ${roomId} не найдена для пользователя ${userId}`);
-    return;
-  }
-
-  if (existingRoom) {
-    await prisma.savedRoom.update({
-      where: { roomId, userId },
-      data: { autoConnect },
+  try {
+    // Проверка в SavedRoom
+    const existingRoom = await prisma.savedRoom.findUnique({
+      where: { roomId },
     });
-    console.log(`updateAutoConnect: Обновлен autoConnect для SavedRoom ${roomId}: ${autoConnect}`);
-  }
 
-  if (existingProxy) {
-    await prisma.savedProxy.update({
+    if (existingRoom) {
+      console.log('updateAutoConnect: Обновление SavedRoom:', { roomId, autoConnect });
+      await prisma.savedRoom.update({
+        where: { roomId },
+        data: { autoConnect },
+      });
+      return;
+    }
+
+    // Проверка в SavedProxy
+    const existingProxy = await prisma.savedProxy.findFirst({ // Заменяем findUnique на findFirst
       where: { proxyRoomId: roomId, userId },
-      data: { autoConnect },
     });
-    console.log(`updateAutoConnect: Обновлен autoConnect для SavedProxy ${roomId}: ${autoConnect}`);
-  }
 
-  revalidatePath('/');
+    if (existingProxy) {
+      console.log('updateAutoConnect: Обновление SavedProxy:', { proxyRoomId: roomId, userId, autoConnect });
+      await prisma.savedProxy.update({
+        where: { id: existingProxy.id }, // Используем id для обновления
+        data: { autoConnect },
+      });
+    } else {
+      console.warn('updateAutoConnect: Прокси-комната не найдена:', { proxyRoomId: roomId, userId });
+    }
+  } catch (err) {
+    console.error('updateAutoConnect: Ошибка:', err);
+    throw err;
+  }
 }
 
 export async function sendDeviceSettingsToESP(idDevice: string) {
@@ -823,32 +841,40 @@ export async function joinRoomViaProxy(roomIdProxy: string) {
   };
 }
 export async function deleteProxyAccess(proxyRoomId: string) {
+  console.log('deleteProxyAccess: Начало удаления прокси-комнаты:', { proxyRoomId });
+  const session = await getUserSession();
+  if (!session) {
+    console.error('deleteProxyAccess: Пользователь не аутентифицирован');
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const userId = parseInt(session.id);
+  const parsedProxyRoomId = roomIdSchema.safeParse(proxyRoomId);
+  if (!parsedProxyRoomId.success) {
+    console.error('deleteProxyAccess: Некорректный proxyRoomId:', proxyRoomId, parsedProxyRoomId.error);
+    throw new Error(parsedProxyRoomId.error.errors[0].message);
+  }
+
   try {
-    const session = await getUserSession();
-    if (!session) {
-      return { error: 'Пользователь не аутентифицирован' };
-    }
-
-    const userId = parseInt(session.id);
-
-    const proxyAccess = await prisma.proxyAccess.findUnique({
-      where: { proxyRoomId },
-      include: { room: true },
+    const existingProxy = await prisma.savedProxy.findFirst({
+      where: { proxyRoomId, userId },
     });
 
-    if (!proxyAccess || proxyAccess.room.userId !== userId) {
-      return { error: 'Прокси-доступ не найден или доступ запрещен' };
+    if (!existingProxy) {
+      console.warn('deleteProxyAccess: Прокси-комната не найдена:', { proxyRoomId, userId });
+      return { message: 'Прокси-комната не найдена' };
     }
 
-    await prisma.proxyAccess.delete({
-      where: { proxyRoomId },
+    await prisma.savedProxy.delete({
+      where: { id: existingProxy.id },
     });
 
+    console.log('deleteProxyAccess: Успешно удалена прокси-комната:', { proxyRoomId, userId });
     revalidatePath('/');
-    return { message: 'Прокси-доступ удален' };
+    return { message: 'Прокси-комната удалена' };
   } catch (err) {
-    console.error('Ошибка в deleteProxyAccess:', err);
-    return { error: 'Внутренняя ошибка сервера' };
+    console.error('deleteProxyAccess: Ошибка:', err);
+    throw err;
   }
 }
 
