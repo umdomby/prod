@@ -719,3 +719,55 @@ export async function deleteProxyAccess(proxyRoomId: string) {
     return { error: 'Внутренняя ошибка сервера' };
   }
 }
+
+export async function checkRoom(roomId: string) {
+  try {
+    const roomIdSchema = z.string().length(16, "ID комнаты должен содержать ровно 16 символов");
+    const normalizedRoomId = roomId.replace(/[^A-Z0-9]/gi, "");
+    const parsedRoomId = roomIdSchema.safeParse(normalizedRoomId);
+    if (!parsedRoomId.success) {
+      console.error('checkRoom: Некорректный ID комнаты:', normalizedRoomId, parsedRoomId.error.errors[0].message);
+      return { error: parsedRoomId.error.errors[0].message };
+    }
+    console.log('checkRoom: Проверка комнаты:', normalizedRoomId);
+    const savedRoom = await prisma.savedRoom.findUnique({
+      where: { roomId: normalizedRoomId },
+      include: { devices: true }, // Исправлено: device → devices
+    });
+    if (savedRoom) {
+      console.log('checkRoom: Найдена SavedRoom:', { roomId: savedRoom.roomId, deviceId: savedRoom.devices?.idDevice });
+      return {
+        found: true,
+        isProxy: false,
+        targetRoomId: normalizedRoomId,
+        deviceId: savedRoom.devices?.idDevice ?? null,
+      };
+    }
+    const proxyAccess = await prisma.proxyAccess.findUnique({
+      where: { proxyRoomId: normalizedRoomId },
+      include: { room: { include: { devices: true } } }, // Исправлено: device → devices
+    });
+    if (proxyAccess) {
+      console.log('checkRoom: Найден ProxyAccess:', {
+        proxyRoomId: proxyAccess.proxyRoomId,
+        targetRoomId: proxyAccess.room.roomId,
+        deviceId: proxyAccess.room.devices?.idDevice,
+      });
+      if (proxyAccess.expiresAt && new Date(proxyAccess.expiresAt) < new Date()) {
+        console.error('checkRoom: Прокси-доступ истек:', proxyAccess.expiresAt);
+        return { error: "Прокси-доступ истек" };
+      }
+      return {
+        found: true,
+        isProxy: true,
+        targetRoomId: proxyAccess.room.roomId,
+        deviceId: proxyAccess.room.devices?.idDevice ?? null,
+      };
+    }
+    console.log('checkRoom: Комната не найдена:', normalizedRoomId);
+    return { found: false, error: "Комната не найдена" };
+  } catch (err) {
+    console.error("checkRoom: Ошибка проверки комнаты:", err);
+    return { error: `Ошибка проверки комнаты: ${(err as Error).message}` };
+  }
+}

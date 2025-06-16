@@ -25,6 +25,7 @@ import {
     disableProxyAccess,
     enableProxyAccess,
     deleteProxyAccess,
+    checkRoom, // Импортируем checkRoom
     GetSavedRoomsResponse,
 } from '@/app/actions'
 import { debounce } from 'lodash';
@@ -94,6 +95,8 @@ export const VideoCallApp = () => {
     const [showProxyExistsDialog, setShowProxyExistsDialog] = useState(false);
     const [proxyName, setProxyName] = useState('');
     const [showRoomNotExistDialog, setShowRoomNotExistDialog] = useState(false);
+    const [targetRoomId, setTargetRoomId] = useState('');
+
     useEffect(() => {
         setIsClient(true)
     }, [])
@@ -554,10 +557,10 @@ export const VideoCallApp = () => {
     }, [remoteStream, muteRemoteAudio])
 
     useEffect(() => {
-        if (autoJoin && hasPermission && !isInRoom && isRoomIdComplete) {
+        if (autoJoin && hasPermission && !isInRoom && isRoomIdComplete && !isJoining && !error) {
             handleJoinRoom()
         }
-    }, [autoJoin, hasPermission, isRoomIdComplete])
+    }, [autoJoin, hasPermission, isInRoom, isRoomIdComplete, isJoining, error])
 
     const applyVideoTransform = useCallback((settings: VideoSettings) => {
         const { rotation, flipH, flipV } = settings
@@ -641,14 +644,49 @@ export const VideoCallApp = () => {
 
             setIsJoining(true)
             console.log('Попытка подключения к комнате:', roomId)
+
             try {
+                // Проверяем комнату через checkRoom
+                const checkResult = await checkRoom(roomId.replace(/-/g, ''))
+                console.log('Результат checkRoom:', checkResult)
+                if (checkResult.error) {
+                    console.error('Ошибка checkRoom:', checkResult.error)
+                    setError(`Ошибка проверки комнаты: ${checkResult.error}`)
+                    setIsJoining(false)
+                    return
+                }
+                if (!checkResult.found) {
+                    console.error('Комната не найдена в SavedRoom или ProxyAccess')
+                    setError('Комната не найдена')
+                    setShowRoomNotExistDialog(true)
+                    setTimeout(() => setShowRoomNotExistDialog(false), 5000)
+                    setIsJoining(false)
+                    return
+                }
+
+                // Устанавливаем targetRoomId и deviceId
+                setTargetRoomId(checkResult.targetRoomId)
+                setSelectedDeviceId(checkResult.deviceId || null)
+
+                // Если это прокси-подключение, показываем уведомление
+                if (checkResult.isProxy) {
+                    const proxyNotification = document.createElement('div')
+                    proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg'
+                    proxyNotification.textContent = 'Подключение через прокси-комнату'
+                    document.body.appendChild(proxyNotification)
+                    setTimeout(() => proxyNotification.remove(), 3000)
+                }
+
+                // Устанавливаем комнату по умолчанию
                 await handleSetDefaultRoom(roomId.replace(/-/g, ''))
-                await joinRoom(username)
+
+                // Подключаемся к комнате через WebRTC
+                await joinRoom(username, checkResult.targetRoomId)
                 console.log('Успешно подключено к комнате:', roomId)
                 setActiveMainTab('esp')
             } catch (error) {
                 console.error('Ошибка подключения к комнате:', error)
-                setError('Ошибка подключения к комнате: ' + (error instanceof Error ? error.message : String(error)))
+                setError(`Ошибка подключения: ${(error instanceof Error ? error.message : String(error))}`)
             } finally {
                 setIsJoining(false)
                 console.log('Состояние isJoining сброшено')
@@ -803,20 +841,30 @@ export const VideoCallApp = () => {
 
     const handleJoinProxyRoom = async (roomIdProxy: string) => {
         try {
-            const response = await joinRoomViaProxy(roomIdProxy);
+            const response = await joinRoomViaProxy(roomIdProxy.replace(/-/g, ''))
+            console.log('Результат joinRoomViaProxy:', response)
             if (response.error) {
-                setError(response.error);
-                return;
+                console.error('Ошибка joinRoomViaProxy:', response.error)
+                setError(`Ошибка подключения через прокси: ${response.error}`)
+                return
             }
-            const { roomId, deviceId, proxyRoomId } = response;
-            setRoomId(formatRoomId(proxyRoomId)); // Показываем только proxyRoomId в UI
-            setSelectedDeviceId(deviceId);
-            await joinRoom(username, roomId); // Передаем оригинальный roomId
+            const { roomId, deviceId } = response
+            setRoomId(formatRoomId(roomIdProxy)) // Показываем proxyRoomId в UI
+            setTargetRoomId(roomId)
+            setSelectedDeviceId(deviceId || null)
+            const proxyNotification = document.createElement('div')
+            proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg'
+            proxyNotification.textContent = 'Подключение через прокси-комнату'
+            document.body.appendChild(proxyNotification)
+            setTimeout(() => proxyNotification.remove(), 3000)
+            await joinRoom(username, roomId)
+            console.log('Успешно подключено через прокси к комнате:', formatRoomId(roomIdProxy))
+            setActiveMainTab('esp')
         } catch (err) {
-            console.error('Ошибка подключения через прокси:', err);
-            setError((err as Error).message);
+            console.error('Ошибка подключения через прокси:', err)
+            setError(`Ошибка подключения через прокси: ${(err as Error).message}`)
         }
-    };
+    }
 
     const handleEnableProxy = useCallback(
         debounce(async (roomIdWithoutDashes: string, name: string) => {
@@ -979,14 +1027,6 @@ export const VideoCallApp = () => {
                                 placeholder="XXXX-XXXX-XXXX-XXXX"
                                 maxLength={19}
                             />
-                            {savedRooms &&
-                              Array.isArray(savedRooms) &&
-                              savedRooms.some((r) =>
-                                Array.isArray(r.proxyAccess) &&
-                                r.proxyAccess.some((p) => p.proxyRoomId === roomId.replace(/-/g, ''))
-                              ) && (
-                                <span className={styles.proxyInfo}>Подключение через прокси-комнату</span>
-                              )}
                         </div>
 
                         <div className={styles.inputGroup}>

@@ -106,6 +106,12 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
 
     const [inputVoltage, setInputVoltage] = useState<number | null>(null);
 
+    const [isProxy, setIsProxy] = useState(false);
+
+    useEffect(() => {
+        setIsProxy(!!selectedDeviceId);
+    }, [selectedDeviceId]);
+
     const addLog = useCallback((msg: string, ty: LogEntry['ty']) => {
         setLog(prev => [...prev.slice(-100), {me: `${new Date().toLocaleTimeString()}: ${msg}`, ty}]);
     }, []);
@@ -922,7 +928,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             <Select
                                 value={selectedDeviceId || inputDe}
                                 onValueChange={handleDeviceChange}
-                                disabled={!!selectedDeviceId || (isConnected && !autoReconnect)}
+                                disabled={isProxy || (isConnected && !autoReconnect)}
                             >
                                 <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
                                     <SelectValue placeholder={noDevices ? "Устройства еще не добавлены" : "Выберите устройство"} />
@@ -968,10 +974,10 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             <div className="flex items-center space-x-2">
                                 <Checkbox
                                     id="auto-reconnect"
-                                    checked={autoReconnect}
-                                    onCheckedChange={toggleAutoReconnect}
-                                    className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoReconnect ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={!!selectedDeviceId} // Удаляем noDevices из условия
+                                    checked={isProxy ? true : autoReconnect}
+                                    onCheckedChange={isProxy ? undefined : toggleAutoReconnect}
+                                    className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${isProxy || autoReconnect ? 'bg-green-500' : 'bg-white'}`}
+                                    disabled={isProxy}
                                 />
                                 <Label htmlFor="auto-reconnect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое переподключение при смене устройства
@@ -980,11 +986,11 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             <div className="flex items-center space-x-2">
                                 <Checkbox
                                     id="auto-connect"
-                                    checked={autoConnect}
-                                    onCheckedChange={toggleAutoConnect}
-                                    className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${autoConnect ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={!!selectedDeviceId} // Удаляем noDevices из условия
-                                />
+                                    checked={isProxy ? true : autoConnect}
+                                    onCheckedChange={isProxy ? undefined : toggleAutoConnect}
+                                    className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${isProxy || autoConnect ? 'bg-green-500' : 'bg-white'}`}
+                                    disabled={isProxy}
+                                    />
                                 <Label htmlFor="auto-connect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое подключение при загрузке страницы
                                 </Label>
@@ -992,10 +998,10 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             <div className="flex items-center space-x-2">
                                 <Checkbox
                                     id="closed-del"
-                                    checked={closedDel}
-                                    onCheckedChange={toggleClosedDel}
-                                    className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${closedDel ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={!!selectedDeviceId} // Удаляем noDevices из условия
+                                    checked={isProxy ? true : closedDel}
+                                    onCheckedChange={isProxy ? undefined : toggleClosedDel}
+                                    className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${isProxy || closedDel ? 'bg-green-500' : 'bg-white'}`}
+                                    disabled={isProxy}
                                 />
                                 <Label htmlFor="closed-del" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Запретить удаление устройств
@@ -1016,6 +1022,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                         onBlur={(e) => handleServoInputBlur('servo1Min', e.target.value)}
                                         placeholder="0"
                                         className="bg-gray-700 text-white border-gray-600"
+                                        disabled={isProxy}
                                     />
                                 </div>
                                 <div>
@@ -1027,6 +1034,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                         onBlur={(e) => handleServoInputBlur('servo1Max', e.target.value)}
                                         placeholder="0"
                                         className={`bg-gray-700 text-white border-gray-600 ${parseInt(servo1MaxInput || '0') < servo1MinAngle ? 'border-red-500' : ''}`}
+                                        disabled={isProxy}
                                     />
                                 </div>
                                 <div>
@@ -1038,6 +1046,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                         onBlur={(e) => handleServoInputBlur('servo2Min', e.target.value)}
                                         placeholder="0"
                                         className="bg-gray-700 text-white border-gray-600"
+                                        disabled={isProxy}
                                     />
                                 </div>
                                 <div>
@@ -1049,6 +1058,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                         onBlur={(e) => handleServoInputBlur('servo2Max', e.target.value)}
                                         placeholder="0"
                                         className={`bg-gray-700 text-white border-gray-600 ${parseInt(servo2MaxInput || '0') < servo2MinAngle ? 'border-red-500' : ''}`}
+                                        disabled={isProxy}
                                     />
                                 </div>
                             </div>
