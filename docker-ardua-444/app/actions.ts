@@ -441,45 +441,6 @@ async function saveProxyRoom(proxyRoomId: string, userId: number, autoConnect: b
     throw err;
   }
 }
-export async function setDefaultProxyRoom(proxyRoomId: string) {
-  console.log('setDefaultProxyRoom: Начало установки прокси-комнаты по умолчанию:', { proxyRoomId });
-  const session = await getUserSession();
-  if (!session) {
-    console.error('setDefaultProxyRoom: Пользователь не аутентифицирован');
-    throw new Error('Пользователь не аутентифицирован');
-  }
-
-  const userId = parseInt(session.id);
-  const parsedRoomId = roomIdSchema.safeParse(proxyRoomId);
-  if (!parsedRoomId.success) {
-    console.error('setDefaultProxyRoom: Некорректный proxyRoomId:', proxyRoomId, parsedRoomId.error);
-    throw new Error(parsedRoomId.error.errors[0].message);
-  }
-
-  try {
-    await prisma.$transaction([
-      prisma.savedRoom.updateMany({
-        where: { userId },
-        data: { isDefault: false },
-      }),
-      prisma.savedProxy.updateMany({
-        where: { userId },
-        data: { isDefault: false },
-      }),
-      prisma.savedProxy.update({
-        where: {
-          proxyRoomId_userId: { proxyRoomId, userId },
-        },
-        data: { isDefault: true },
-      }),
-    ]);
-    console.log('setDefaultProxyRoom: Прокси-комната успешно установлена по умолчанию:', { proxyRoomId });
-    revalidatePath('/');
-  } catch (err) {
-    console.error('setDefaultProxyRoom: Ошибка:', err);
-    throw err;
-  }
-}
 export async function deleteRoom(roomId: string) {
   const session = await getUserSession();
   if (!session) {
@@ -513,8 +474,8 @@ export async function deleteRoom(roomId: string) {
 
   revalidatePath('/');
 }
-export async function setDefaultRoom(roomId: string) {
-  console.log('setDefaultRoom: Начало установки комнаты по умолчанию:', { roomId });
+export async function setDefaultRoom(roomId: string, isProxy: boolean = false) {
+  console.log('setDefaultRoom: Начало установки комнаты по умолчанию:', { roomId, isProxy });
   const session = await getUserSession();
   if (!session) {
     console.error('setDefaultRoom: Пользователь не аутентифицирован');
@@ -529,6 +490,7 @@ export async function setDefaultRoom(roomId: string) {
   }
 
   try {
+    // Сначала сбрасываем все дефолтные значения
     await prisma.$transaction([
       prisma.savedRoom.updateMany({
         where: { userId },
@@ -538,17 +500,54 @@ export async function setDefaultRoom(roomId: string) {
         where: { userId },
         data: { isDefault: false },
       }),
-      prisma.savedRoom.update({
-        where: { roomId },
-        data: { isDefault: true },
-      }),
     ]);
-    console.log('setDefaultRoom: Комната успешно установлена по умолчанию:', { roomId });
+
+    // Затем устанавливаем новое дефолтное значение
+    if (isProxy) {
+      await prisma.savedProxy.update({
+        where: {
+          proxyRoomId: roomId,
+          userId: userId,
+        },
+        data: { isDefault: true },
+      });
+    } else {
+      await prisma.savedRoom.update({
+        where: {
+          roomId: roomId,
+          userId: userId,
+        },
+        data: { isDefault: true },
+      });
+    }
+
+    console.log('setDefaultRoom: Комната успешно установлена по умолчанию:', { roomId, isProxy });
     revalidatePath('/');
   } catch (err) {
     console.error('setDefaultRoom: Ошибка:', err);
     throw err;
   }
+}
+export async function resetDefaultRoom() {
+  const session = await getUserSession();
+  if (!session) {
+    throw new Error('Пользователь не аутентифицирован');
+  }
+
+  const userId = parseInt(session.id);
+
+  await prisma.$transaction([
+    prisma.savedRoom.updateMany({
+      where: { userId },
+      data: { isDefault: false },
+    }),
+    prisma.savedProxy.updateMany({
+      where: { userId },
+      data: { isDefault: false },
+    }),
+  ]);
+
+  revalidatePath('/');
 }
 export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
   console.log('updateAutoConnect: Начало обновления:', { roomId, autoConnect });

@@ -17,7 +17,6 @@ import {
     saveRoom,
     deleteRoom,
     setDefaultRoom,
-    setDefaultProxyRoom, // Добавляем setDefaultProxyRoom
     updateAutoConnect,
     getDevices,
     bindDeviceToRoom,
@@ -27,7 +26,7 @@ import {
     enableProxyAccess,
     deleteProxyAccess,
     checkRoom,
-    GetSavedRoomsResponse, resetDefaultRoom,
+    resetDefaultRoom,
 } from '@/app/actions'
 import { debounce } from 'lodash';
 
@@ -501,43 +500,6 @@ export const VideoCallApp = () => {
             } catch (e) {
                 console.error('Не удалось установить комнату по умолчанию:', e);
                 setError('Не удалось установить комнату по умолчанию');
-            }
-        },
-        []
-    );
-
-    const handleSetDefaultProxyRoom = useCallback(
-        async (proxyRoomId: string) => {
-            try {
-                await setDefaultProxyRoom(proxyRoomId.replace(/-/g, ''));
-                const response = await getSavedRooms();
-                if (response.error) {
-                    console.error('Ошибка загрузки комнат:', response.error);
-                    setError(response.error);
-                    return;
-                }
-                if (!response.rooms || !Array.isArray(response.rooms)) {
-                    console.error('Комнаты не найдены или имеют неверный формат');
-                    setError('Комнаты не найдены');
-                    return;
-                }
-                const roomsWithDevices = await Promise.all(
-                    response.rooms.map(async (room) => {
-                        const roomWithDevice = await getSavedRoomWithDevice(room.id);
-                        return {
-                            id: room.id,
-                            isDefault: room.isDefault,
-                            autoConnect: room.autoConnect,
-                            deviceId: roomWithDevice.deviceId,
-                            proxyAccess: room.proxyAccess,
-                        };
-                    })
-                );
-                setSavedRooms(roomsWithDevices);
-                setSavedProxyRooms(response.proxyRooms || []);
-            } catch (e) {
-                console.error('Не удалось установить прокси-комнату по умолчанию:', e);
-                setError('Не удалось установить прокси-комнату по умолчанию');
             }
         },
         []
@@ -1261,15 +1223,9 @@ export const VideoCallApp = () => {
                                                     checked={room.isDefault}
                                                     onCheckedChange={async (checked) => {
                                                         if (checked) {
-                                                            await handleSetDefaultRoom(room.id); // Устанавливаем комнату по умолчанию
+                                                            await setDefaultRoom(room.id, false); // false - это не прокси
                                                         } else if (room.isDefault) {
-                                                            // Если снимаем флаг с дефолтной комнаты, сбрасываем isDefault локально
-                                                            setSavedRooms((prev) =>
-                                                                prev.map((r) => ({ ...r, isDefault: false }))
-                                                            );
-                                                            setSavedProxyRooms((prev) =>
-                                                                prev.map((p) => ({ ...p, isDefault: false }))
-                                                            );
+                                                            await resetDefaultRoom();
                                                         }
                                                     }}
                                                 />
@@ -1312,15 +1268,9 @@ export const VideoCallApp = () => {
                                                     checked={proxy.isDefault}
                                                     onCheckedChange={async (checked) => {
                                                         if (checked) {
-                                                            await handleSetDefaultProxyRoom(proxy.id); // Устанавливаем прокси-комнату по умолчанию
+                                                            await setDefaultRoom(proxy.id, true); // true - это прокси
                                                         } else if (proxy.isDefault) {
-                                                            // Если снимаем флаг с дефолтной прокси-комнаты, сбрасываем isDefault локально
-                                                            setSavedRooms((prev) =>
-                                                                prev.map((r) => ({ ...r, isDefault: false }))
-                                                            );
-                                                            setSavedProxyRooms((prev) =>
-                                                                prev.map((p) => ({ ...p, isDefault: false }))
-                                                            );
+                                                            await resetDefaultRoom();
                                                         }
                                                     }}
                                                 />
