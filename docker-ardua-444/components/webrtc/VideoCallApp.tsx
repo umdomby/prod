@@ -17,6 +17,7 @@ import {
     saveRoom,
     deleteRoom,
     setDefaultRoom,
+    setDefaultProxyRoom, // Добавляем setDefaultProxyRoom
     updateAutoConnect,
     getDevices,
     bindDeviceToRoom,
@@ -25,7 +26,7 @@ import {
     disableProxyAccess,
     enableProxyAccess,
     deleteProxyAccess,
-    checkRoom, // Импортируем checkRoom
+    checkRoom,
     GetSavedRoomsResponse,
 } from '@/app/actions'
 import { debounce } from 'lodash';
@@ -42,6 +43,20 @@ type SavedRoom = {
     autoConnect: boolean;
     deviceId: string | null;
     proxyAccess: { proxyRoomId: string; name: string | null }[];
+};
+type GetSavedRoomsResponse = {
+    rooms?: Array<{
+        id: string;
+        isDefault: boolean;
+        autoConnect: boolean;
+        deviceId: string | null;
+        proxyAccess: Array<{ proxyRoomId: string; name: string | null }>;
+    }>;
+    proxyRooms?: Array<{
+        id: string;
+        isDefault: boolean;
+    }>;
+    error?: string;
 };
 type Device = {
     idDevice: string
@@ -82,6 +97,13 @@ export const VideoCallApp = () => {
     const localAudioTracks = useRef<MediaStreamTrack[]>([])
     const [useBackCamera, setUseBackCamera] = useState(false)
     const [savedRooms, setSavedRooms] = useState<SavedRoom[]>([])
+    const [savedProxyRooms, setSavedProxyRooms] = useState<
+        Array<{
+            id: string;
+            isDefault: boolean;
+        }>
+    >([]);
+    const [showRoomExistsDialog, setShowRoomExistsDialog] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [roomToDelete, setRoomToDelete] = useState<string | null>(null)
     const [selectedCodec, setSelectedCodec] = useState<'VP8' | 'H264'>('VP8')
@@ -158,7 +180,8 @@ export const VideoCallApp = () => {
                 if (response.error) {
                     console.error('Ошибка загрузки комнат:', response.error);
                     setError(response.error);
-                    setSavedRooms([]); // Устанавливаем пустой массив, чтобы избежать дальнейших ошибок
+                    setSavedRooms([]);
+                    setSavedProxyRooms([]);
                     return;
                 }
 
@@ -166,10 +189,11 @@ export const VideoCallApp = () => {
                     console.error('Комнаты не найдены или имеют неверный формат');
                     setError('Комнаты не найдены');
                     setSavedRooms([]);
+                    setSavedProxyRooms([]);
                     return;
                 }
 
-                console.log('Получены сохраненные комнаты:', response.rooms);
+                console.log('Получены сохраненные комнаты:', response.rooms, 'прокси-комнаты:', response.proxyRooms);
                 const roomsWithDevices = await Promise.all(
                     response.rooms.map(async (room) => {
                         const roomWithDevice = await getSavedRoomWithDevice(room.id);
@@ -183,17 +207,26 @@ export const VideoCallApp = () => {
                     })
                 );
                 setSavedRooms(roomsWithDevices);
+                setSavedProxyRooms(response.proxyRooms || []);
 
                 const defaultRoom = roomsWithDevices.find((r) => r.isDefault);
-                if (defaultRoom) {
+                const defaultProxyRoom = (response.proxyRooms || []).find((r) => r.isDefault);
+                if (defaultRoom && !roomId) {
+                    console.log('Установка defaultRoom:', defaultRoom);
                     setRoomId(formatRoomId(defaultRoom.id));
                     setAutoJoin(defaultRoom.autoConnect);
-                    setSelectedDeviceId(defaultRoom.deviceId);
+                    setSelectedDeviceId(defaultRoom.deviceId || null);
+                } else if (defaultProxyRoom && !roomId) {
+                    console.log('Установка defaultProxyRoom:', defaultProxyRoom);
+                    setRoomId(formatRoomId(defaultProxyRoom.id));
+                    setAutoJoin(false);
+                    setSelectedDeviceId(null);
                 }
             } catch (e) {
                 console.error('Failed to load saved rooms', e);
                 setError('Не удалось загрузить сохраненные комнаты');
                 setSavedRooms([]);
+                setSavedProxyRooms([]);
             }
         };
 
@@ -241,48 +274,6 @@ export const VideoCallApp = () => {
         loadDevicesForMedia()
     }, [])
 
-    useEffect(() => {
-        const loadSavedRooms = async () => {
-            try {
-                const response: GetSavedRoomsResponse = await getSavedRooms();
-                if (response.error) {
-                    setError(response.error);
-                    setSavedRooms([]);
-                    return;
-                }
-                if (!response.rooms || !Array.isArray(response.rooms)) {
-                    setError('Комнаты не найдены');
-                    setSavedRooms([]);
-                    return;
-                }
-                console.log('Получены сохраненные комнаты:', response.rooms);
-                const roomsWithDevices = await Promise.all(
-                    response.rooms.map(async (room) => {
-                        const roomWithDevice = await getSavedRoomWithDevice(room.id);
-                        return {
-                            id: room.id,
-                            isDefault: room.isDefault,
-                            autoConnect: room.autoConnect,
-                            deviceId: roomWithDevice.deviceId,
-                            proxyAccess: room.proxyAccess,
-                        };
-                    })
-                );
-                setSavedRooms(roomsWithDevices);
-                const defaultRoom = roomsWithDevices.find((r) => r.isDefault);
-                if (defaultRoom && !roomId) {
-                    // Устанавливаем только autoJoin и selectedDeviceId, если roomId пустой
-                    setAutoJoin(defaultRoom.autoConnect);
-                    setSelectedDeviceId(defaultRoom.deviceId || null);
-                }
-            } catch (e) {
-                console.error('Failed to load saved rooms', e);
-                setError('Не удалось загрузить сохраненные комнаты');
-                setSavedRooms([]);
-            }
-        };
-        loadSavedRooms();
-    }, []);
 
     useEffect(() => {
         const savedAutoShowControls = localStorage.getItem('autoShowControls')
@@ -317,32 +308,48 @@ export const VideoCallApp = () => {
 
     const isRoomIdComplete = roomId.replace(/-/g, '').length === 16
 
-    const handleSaveRoom = useCallback(
-        debounce(async () => {
-            if (!isRoomIdComplete) return
+    const handleSaveRoom = useCallback(debounce(async () => {
+            if (!isRoomIdComplete) return;
 
             try {
-                await saveRoom(roomId.replace(/-/g, ''), autoJoin)
-                const updatedRooms = await getSavedRooms()
-                const roomsWithDevices = await Promise.all(
-                    updatedRooms.rooms.map(async (room) => {
-                        const roomWithDevice = await getSavedRoomWithDevice(room.id)
-                        return {
-                            id: room.id,
-                            isDefault: room.isDefault,
-                            autoConnect: room.autoConnect,
-                            deviceId: roomWithDevice.deviceId
-                        }
-                    })
-                )
-                setSavedRooms(roomsWithDevices)
+                const response = await saveRoom(roomId.replace(/-/g, ''), autoJoin);
+                console.log('handleSaveRoom: Ответ saveRoom:', response); // Добавляем лог
+                if (response.message === 'Комната уже существует в сохраненных комнатах') {
+                    setShowRoomExistsDialog(true);
+                    setTimeout(() => setShowRoomExistsDialog(false), 5000);
+                    return;
+                }
+                if (response.isProxy) {
+                    console.log('Комната сохранена как прокси-комната');
+                }
+                const updatedRooms = await getSavedRooms();
+                console.log('handleSaveRoom: Обновленные комнаты:', updatedRooms); // Добавляем лог
+                if (updatedRooms.rooms && updatedRooms.proxyRooms) {
+                    const roomsWithDevices = await Promise.all(
+                        updatedRooms.rooms.map(async (room) => {
+                            const roomWithDevice = await getSavedRoomWithDevice(room.id);
+                            return {
+                                id: room.id,
+                                isDefault: room.isDefault,
+                                autoConnect: room.autoConnect,
+                                deviceId: roomWithDevice.deviceId,
+                                proxyAccess: room.proxyAccess,
+                            };
+                        })
+                    );
+                    setSavedRooms(roomsWithDevices);
+                    setSavedProxyRooms(updatedRooms.proxyRooms);
+                } else {
+                    console.error('handleSaveRoom: Неверный формат ответа getSavedRooms:', updatedRooms);
+                    setError('Ошибка обновления списка комнат');
+                }
             } catch (err) {
-                console.error('Ошибка сохранения комнаты:', err)
-                setError((err as Error).message)
+                console.error('Ошибка сохранения комнаты:', err);
+                setError((err as Error).message);
             }
         }, 300),
         [roomId, autoJoin]
-    )
+    );
 
     const handleDeleteRoom = useCallback(
         debounce((roomIdWithoutDashes: string) => {
@@ -351,6 +358,35 @@ export const VideoCallApp = () => {
         }, 300),
         []
     )
+
+    const handleDeleteProxyRoom = useCallback(
+        debounce(async (proxyRoomId: string) => {
+            try {
+                await deleteProxyAccess(proxyRoomId);
+                const updatedRooms = await getSavedRooms();
+                if (updatedRooms.rooms && updatedRooms.proxyRooms) {
+                    const roomsWithDevices = await Promise.all(
+                        updatedRooms.rooms.map(async (room) => {
+                            const roomWithDevice = await getSavedRoomWithDevice(room.id);
+                            return {
+                                id: room.id,
+                                isDefault: room.isDefault,
+                                autoConnect: room.autoConnect,
+                                deviceId: roomWithDevice.deviceId,
+                                proxyAccess: room.proxyAccess,
+                            };
+                        })
+                    );
+                    setSavedRooms(roomsWithDevices);
+                    setSavedProxyRooms(updatedRooms.proxyRooms);
+                }
+            } catch (err) {
+                console.error('Ошибка удаления прокси-комнаты:', err);
+                setError((err as Error).message);
+            }
+        }, 300),
+        []
+    );
 
     const confirmDeleteRoom = useCallback(
         debounce(async () => {
@@ -390,25 +426,32 @@ export const VideoCallApp = () => {
 
     const handleSelectRoom = useCallback(
         debounce(async (roomIdWithoutDashes: string) => {
-            const selectedRoom = savedRooms.find(r => r.id === roomIdWithoutDashes)
+            console.log('handleSelectRoom: Выбрана комната:', roomIdWithoutDashes); // Добавляем лог
+            const selectedRoom = savedRooms.find((r) => r.id === roomIdWithoutDashes);
+            const selectedProxyRoom = savedProxyRooms.find((r) => r.id === roomIdWithoutDashes);
             if (selectedRoom) {
-                setRoomId(formatRoomId(roomIdWithoutDashes))
-                setAutoJoin(selectedRoom.autoConnect)
-                setSelectedDeviceId(selectedRoom.deviceId)
+                setRoomId(formatRoomId(roomIdWithoutDashes));
+                setAutoJoin(selectedRoom.autoConnect);
+                setSelectedDeviceId(selectedRoom.deviceId);
+            } else if (selectedProxyRoom) {
+                setRoomId(formatRoomId(roomIdWithoutDashes));
+                setAutoJoin(false);
+                setSelectedDeviceId(null);
             }
         }, 300),
-        [savedRooms]
-    )
+        [savedRooms, savedProxyRooms]
+    );
 
     const handleSetDefaultRoom = useCallback(
         async (roomId: string) => {
             try {
-                await setDefaultRoom(roomId);
+                await setDefaultRoom(roomId.replace(/-/g, ''));
                 const response = await getSavedRooms();
                 if (response.error) {
                     console.error('Ошибка загрузки комнат:', response.error);
                     setError(response.error);
                     setSavedRooms([]);
+                    setSavedProxyRooms([]);
                     return;
                 }
 
@@ -416,10 +459,11 @@ export const VideoCallApp = () => {
                     console.error('Комнаты не найдены или имеют неверный формат');
                     setError('Комнаты не найдены');
                     setSavedRooms([]);
+                    setSavedProxyRooms([]);
                     return;
                 }
 
-                console.log('Получены сохраненные комнаты:', response.rooms);
+                console.log('Получены сохраненные комнаты:', response.rooms, 'прокси-комнаты:', response.proxyRooms);
                 const roomsWithDevices = await Promise.all(
                     response.rooms.map(async (room) => {
                         const roomWithDevice = await getSavedRoomWithDevice(room.id);
@@ -433,20 +477,61 @@ export const VideoCallApp = () => {
                     })
                 );
                 setSavedRooms(roomsWithDevices);
-
-                const defaultRoom = roomsWithDevices.find((r) => r.isDefault);
-                if (defaultRoom) {
-                    setRoomId(formatRoomId(defaultRoom.id));
-                    setAutoJoin(defaultRoom.autoConnect);
-                    setSelectedDeviceId(defaultRoom.deviceId);
-                }
+                setSavedProxyRooms(response.proxyRooms || []);
             } catch (e) {
                 console.error('Не удалось установить комнату по умолчанию:', e);
                 setError('Не удалось установить комнату по умолчанию');
                 setSavedRooms([]);
+                setSavedProxyRooms([]);
             }
         },
-        [setRoomId, setAutoJoin, setSelectedDeviceId]
+        []
+    );
+
+    const handleSetDefaultProxyRoom = useCallback(
+        async (proxyRoomId: string) => {
+            try {
+                await setDefaultProxyRoom(proxyRoomId.replace(/-/g, ''));
+                const response = await getSavedRooms();
+                if (response.error) {
+                    console.error('Ошибка загрузки комнат:', response.error);
+                    setError(response.error);
+                    setSavedRooms([]);
+                    setSavedProxyRooms([]);
+                    return;
+                }
+
+                if (!response.rooms || !Array.isArray(response.rooms)) {
+                    console.error('Комнаты не найдены или имеют неверный формат');
+                    setError('Комнаты не найдены');
+                    setSavedRooms([]);
+                    setSavedProxyRooms([]);
+                    return;
+                }
+
+                console.log('Получены сохраненные комнаты:', response.rooms, 'прокси-комнаты:', response.proxyRooms);
+                const roomsWithDevices = await Promise.all(
+                    response.rooms.map(async (room) => {
+                        const roomWithDevice = await getSavedRoomWithDevice(room.id);
+                        return {
+                            id: room.id,
+                            isDefault: room.isDefault,
+                            autoConnect: room.autoConnect,
+                            deviceId: roomWithDevice.deviceId,
+                            proxyAccess: room.proxyAccess,
+                        };
+                    })
+                );
+                setSavedRooms(roomsWithDevices);
+                setSavedProxyRooms(response.proxyRooms || []);
+            } catch (e) {
+                console.error('Не удалось установить прокси-комнату по умолчанию:', e);
+                setError('Не удалось установить прокси-комнату по умолчанию');
+                setSavedRooms([]);
+                setSavedProxyRooms([]);
+            }
+        },
+        []
     );
 
     const handleBindDeviceToRoom = useCallback(
@@ -1120,40 +1205,76 @@ export const VideoCallApp = () => {
                             </Button>
                         </div>
 
-                        {savedRooms.length > 0 && (
+                        {(savedRooms.length > 0 || savedProxyRooms.length > 0) && (
                             <div className={styles.savedRooms}>
-                                <h3>Сохраненные комнаты:</h3>
-                                <ul>
-                                    {savedRooms.map((room) => (
-                                        <li key={room.id} className={styles.savedRoomItem}>
-                      <span
-                          onClick={() => handleSelectRoom(room.id)}
-                          onTouchEnd={() => handleSelectRoom(room.id)}
-                          className={room.isDefault ? styles.defaultRoom : ''}
-                      >
-                        {formatRoomId(room.id)}
-                          {room.isDefault && ' (по умолчанию)'}
-                          {/*{room.deviceId && ` [Устройство: ${formatRoomId(room.deviceId)}]`}*/}
-                      </span>
-                                            {!room.isDefault && (
-                                                <button
-                                                    onClick={() => handleSetDefaultRoom(room.id)}
-                                                    onTouchEnd={() => handleSetDefaultRoom(room.id)}
-                                                    className={styles.defaultRoomButton}
-                                                >
-                                                    Сделать по умолчанию
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => handleDeleteRoom(room.id)}
-                                                onTouchEnd={() => handleDeleteRoom(room.id)}
-                                                className={styles.deleteRoomButton}
-                                            >
-                                                Удалить
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
+                                {savedRooms.length > 0 && (
+                                    <>
+                                        {console.log('JSX: Рендеринг savedRooms:', savedRooms)} {/* Добавляем лог */}
+                                        <h3>Сохраненные комнаты:</h3>
+                                        <ul>
+                                            {savedRooms.map((room) => (
+                                                <li key={room.id} className={styles.savedRoomItem}>
+          <span
+              onClick={() => handleSelectRoom(room.id)}
+              onTouchEnd={() => handleSelectRoom(room.id)}
+              className={room.isDefault ? styles.defaultRoom : ''}
+          >
+            {formatRoomId(room.id)}
+              {room.isDefault && ' (по умолчанию)'}
+          </span>
+                                                    <button
+                                                        onClick={() => handleSetDefaultRoom(room.id)}
+                                                        onTouchEnd={() => handleSetDefaultRoom(room.id)}
+                                                        className={styles.defaultRoomButton}
+                                                    >
+                                                        {room.isDefault ? 'Убрать по умолчанию' : 'Сделать по умолчанию'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteRoom(room.id)}
+                                                        onTouchEnd={() => handleDeleteRoom(room.id)}
+                                                        className={styles.deleteRoomButton}
+                                                    >
+                                                        Удалить
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </>
+                                )}
+                                {savedProxyRooms.length > 0 && (
+                                    <>
+                                        {console.log('JSX: Рендеринг savedProxyRooms:', savedProxyRooms)} {/* Добавляем лог */}
+                                        <h3>Сохраненные прокси-комнаты:</h3>
+                                        <ul>
+                                            {savedProxyRooms.map((proxy) => (
+                                                <li key={proxy.id} className={styles.savedRoomItem}>
+          <span
+              onClick={() => handleSelectRoom(proxy.id)}
+              onTouchEnd={() => handleSelectRoom(proxy.id)}
+              className={proxy.isDefault ? styles.defaultRoom : ''}
+          >
+            {formatRoomId(proxy.id)}
+              {proxy.isDefault && ' (по умолчанию)'}
+          </span>
+                                                    <button
+                                                        onClick={() => handleSetDefaultProxyRoom(proxy.id)}
+                                                        onTouchEnd={() => handleSetDefaultProxyRoom(proxy.id)}
+                                                        className={styles.defaultRoomButton}
+                                                    >
+                                                        {proxy.isDefault ? 'Убрать по умолчанию' : 'Сделать по умолчанию'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteProxyRoom(proxy.id)}
+                                                        onTouchEnd={() => handleDeleteProxyRoom(proxy.id)}
+                                                        className={styles.deleteRoomButton}
+                                                    >
+                                                        Удалить
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </>
+                                )}
                                 <div className={styles.inputGroup}>
                                     <Label htmlFor="codec">Кодек трансляции</Label>
                                     <select
@@ -1402,6 +1523,14 @@ export const VideoCallApp = () => {
                         <DialogTitle>Комната недоступна</DialogTitle>
                     </DialogHeader>
                     <p>Лидер еще не подключился к комнате. Пожалуйста, подождите или свяжитесь с лидером.</p>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={showRoomExistsDialog} onOpenChange={setShowRoomExistsDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Комната уже существует</DialogTitle>
+                    </DialogHeader>
+                    <p>Такая комната уже сохранена в списке сохраненных комнат.</p>
                 </DialogContent>
             </Dialog>
         </div>
