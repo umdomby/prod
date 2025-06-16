@@ -1016,8 +1016,24 @@ export const VideoCallApp = () => {
                     setError(response.error);
                     return;
                 }
+                // Обновляем список комнат и прокси-доступов
                 const updatedRooms = await getSavedRooms();
-                setSavedRooms(updatedRooms.rooms);
+                if (updatedRooms.rooms && updatedRooms.proxyRooms) {
+                    const roomsWithDevices = await Promise.all(
+                        updatedRooms.rooms.map(async (room) => {
+                            const roomWithDevice = await getSavedRoomWithDevice(room.id);
+                            return {
+                                id: room.id,
+                                isDefault: room.isDefault,
+                                autoConnect: room.autoConnect,
+                                deviceId: roomWithDevice.deviceId,
+                                proxyAccess: room.proxyAccess,
+                            };
+                        })
+                    );
+                    setSavedRooms(roomsWithDevices);
+                    setSavedProxyRooms(updatedRooms.proxyRooms);
+                }
             } catch (err) {
                 console.error('Ошибка удаления прокси:', err);
                 setError((err as Error).message);

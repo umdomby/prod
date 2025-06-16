@@ -877,7 +877,7 @@ export async function joinRoomViaProxy(roomIdProxy: string) {
   };
 }
 export async function deleteProxyAccess(proxyRoomId: string) {
-  console.log('deleteProxyAccess: Начало удаления прокси-комнаты:', { proxyRoomId });
+  console.log('deleteProxyAccess: Начало удаления прокси-доступа:', { proxyRoomId });
   const session = await getUserSession();
   if (!session) {
     console.error('deleteProxyAccess: Пользователь не аутентифицирован');
@@ -892,22 +892,31 @@ export async function deleteProxyAccess(proxyRoomId: string) {
   }
 
   try {
-    const existingProxy = await prisma.savedProxy.findFirst({
-      where: { proxyRoomId, userId },
+    // Проверяем существование прокси-доступа
+    const existingProxyAccess = await prisma.proxyAccess.findUnique({
+      where: { proxyRoomId },
+      include: { room: true },
     });
 
-    if (!existingProxy) {
-      console.warn('deleteProxyAccess: Прокси-комната не найдена:', { proxyRoomId, userId });
-      return { message: 'Прокси-комната не найдена' };
+    if (!existingProxyAccess) {
+      console.warn('deleteProxyAccess: Прокси-доступ не найден:', { proxyRoomId });
+      return { message: 'Прокси-доступ не найден' };
     }
 
-    await prisma.savedProxy.delete({
-      where: { id: existingProxy.id },
+    // Проверяем, что пользователь имеет доступ к комнате
+    if (existingProxyAccess.room.userId !== userId) {
+      console.error('deleteProxyAccess: Доступ запрещен:', { proxyRoomId, userId });
+      throw new Error('Доступ запрещен');
+    }
+
+    // Удаляем прокси-доступ
+    await prisma.proxyAccess.delete({
+      where: { proxyRoomId },
     });
 
-    console.log('deleteProxyAccess: Успешно удалена прокси-комната:', { proxyRoomId, userId });
+    console.log('deleteProxyAccess: Успешно удален прокси-доступ:', { proxyRoomId });
     revalidatePath('/');
-    return { message: 'Прокси-комната удалена' };
+    return { message: 'Прокси-доступ удален' };
   } catch (err) {
     console.error('deleteProxyAccess: Ошибка:', err);
     throw err;
