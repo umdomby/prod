@@ -413,6 +413,9 @@ export const VideoCallApp = () => {
                         setAutoJoin(false);
                         setSelectedDeviceId(null);
                     }
+                } else {
+                    console.error('handleDeleteProxyRoom: Неверный формат ответа getSavedRooms:', updatedRooms);
+                    setError('Ошибка обновления списка комнат');
                 }
             } catch (err) {
                 console.error('handleDeleteProxyRoom: Ошибка:', err);
@@ -1294,9 +1297,27 @@ export const VideoCallApp = () => {
                                                     checked={proxy.isDefault}
                                                     onCheckedChange={async (checked) => {
                                                         if (checked) {
-                                                            await setDefaultRoom(proxy.id, true); // true - это прокси
+                                                            await handleSetDefaultRoom(formatRoomId(proxy.id)); // Используем handleSetDefaultRoom
                                                         } else if (proxy.isDefault) {
                                                             await resetDefaultRoom();
+                                                            // Обновляем состояние после сброса
+                                                            const response = await getSavedRooms();
+                                                            if (response.rooms && response.proxyRooms) {
+                                                                const roomsWithDevices = await Promise.all(
+                                                                    response.rooms.map(async (r) => {
+                                                                        const roomWithDevice = await getSavedRoomWithDevice(r.id);
+                                                                        return {
+                                                                            id: r.id,
+                                                                            isDefault: r.isDefault,
+                                                                            autoConnect: r.autoConnect,
+                                                                            deviceId: roomWithDevice.deviceId,
+                                                                            proxyAccess: r.proxyAccess,
+                                                                        };
+                                                                    })
+                                                                );
+                                                                setSavedRooms(roomsWithDevices);
+                                                                setSavedProxyRooms(response.proxyRooms);
+                                                            }
                                                         }
                                                     }}
                                                 />

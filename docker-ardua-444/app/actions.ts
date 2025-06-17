@@ -915,31 +915,41 @@ export async function deleteProxyAccess(proxyRoomId: string) {
       include: { room: true },
     });
 
-    if (!existingProxyAccess) {
-      console.warn('deleteProxyAccess: Прокси-доступ не найден:', { proxyRoomId });
-      return { message: 'Прокси-доступ не найден' };
+    // Проверяем существование SavedProxy для текущего пользователя
+    const existingSavedProxy = await prisma.savedProxy.findFirst({
+      where: { proxyRoomId, userId },
+    });
+
+    if (!existingProxyAccess && !existingSavedProxy) {
+      console.warn('deleteProxyAccess: Прокси-доступ и SavedProxy не найдены:', { proxyRoomId });
+      return { message: 'Прокси-доступ или сохранённая прокси-комната не найдены' };
     }
 
-    // Проверяем, что пользователь имеет доступ к комнате
-    if (existingProxyAccess.room.userId !== userId) {
-      console.error('deleteProxyAccess: Доступ запрещен:', { proxyRoomId, userId });
-      throw new Error('Доступ запрещен');
-    }
+    // Если пользователь является владельцем комнаты (для ProxyAccess)
+    const isRoomOwner = existingProxyAccess && existingProxyAccess.room.userId === userId;
 
     await prisma.$transaction([
-      // Удаляем прокси-доступ
-      prisma.proxyAccess.delete({
-        where: { proxyRoomId },
-      }),
-      // Удаляем связанную SavedProxy запись
-      prisma.savedProxy.deleteMany({
-        where: { proxyRoomId },
-      }),
+      // Удаляем ProxyAccess, если пользователь является владельцем комнаты
+      ...(isRoomOwner && existingProxyAccess
+          ? [
+            prisma.proxyAccess.delete({
+              where: { proxyRoomId },
+            }),
+          ]
+          : []),
+      // Удаляем SavedProxy для текущего пользователя, если она существует
+      ...(existingSavedProxy
+          ? [
+            prisma.savedProxy.deleteMany({
+              where: { proxyRoomId, userId },
+            }),
+          ]
+          : []),
     ]);
 
-    console.log('deleteProxyAccess: Успешно удален прокси-доступ и связанные прокси-комнаты:', { proxyRoomId });
+    console.log('deleteProxyAccess: Успешно удалены прокси-доступ и/или сохранённая прокси-комната:', { proxyRoomId });
     revalidatePath('/');
-    return { message: 'Прокси-доступ и связанные прокси-комнаты удалены' };
+    return { message: 'Прокси-доступ и/или сохранённая прокси-комната удалены' };
   } catch (err) {
     console.error('deleteProxyAccess: Ошибка:', err);
     throw err;
