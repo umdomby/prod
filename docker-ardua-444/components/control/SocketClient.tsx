@@ -1,6 +1,6 @@
 // file: components/control/SocketClient.tsx
 "use client"
-import {useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef} from 'react'
+import {useState, useEffect, useRef, useCallback} from 'react'
 import {Button} from "@/components/ui/button"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Input} from "@/components/ui/input"
@@ -46,12 +46,9 @@ type LogEntry = {
 interface SocketClientProps {
     onConnectionStatusChange?: (isFullyConnected: boolean) => void;
     selectedDeviceId?: string | null;
-    targetRoomId?: string | null; // Уже должно быть
-    onLeaveRoom?: () => void;
 }
 
-const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, onLeaveRoom }: SocketClientProps, ref) => {
-    // Декомпозируем useServo внутри тела компонента
+export default function SocketClient({onConnectionStatusChange, selectedDeviceId}: SocketClientProps) {
     const {
         servoAngle,
         servo2Angle,
@@ -111,61 +108,13 @@ const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, o
 
     const [isProxy, setIsProxy] = useState(false);
 
-    const addLog = useCallback((msg: string, ty: LogEntry['ty']) => {
-        setLog(prev => [...prev.slice(-100), {me: `${new Date().toLocaleTimeString()}: ${msg}`, ty}]);
-    }, []);
-
-    const cleanupWebSocket = useCallback(() => {
-        if (socketRef.current) {
-            socketRef.current.onopen = null;
-            socketRef.current.onclose = null;
-            socketRef.current.onmessage = null;
-            socketRef.current.onerror = null;
-            if (socketRef.current.readyState === WebSocket.OPEN) {
-                socketRef.current.close();
-            }
-            socketRef.current = null;
-        }
-    }, []);
-
-    const disconnectWebSocket = useCallback(() => {
-        return new Promise<void>((resolve) => {
-            cleanupWebSocket();
-            setIsConnected(false);
-            setIsIdentified(false);
-            setEspConnected(false);
-            setAutoReconnect(false);
-            addLog("Отключено вручную", 'server');
-            reconnectAttemptRef.current = 5;
-            if (reconnectTimerRef.current) {
-                clearTimeout(reconnectTimerRef.current);
-                reconnectTimerRef.current = null;
-            }
-            if (commandTimeoutRef.current) {
-                clearTimeout(commandTimeoutRef.current);
-                commandTimeoutRef.current = null;
-            }
-            resolve();
-        });
-    }, [addLog, cleanupWebSocket]);
-
-
-    useImperativeHandle(ref, () => ({
-        disconnect: disconnectWebSocket,
-    }));
-
-
-    useEffect(() => {
-        if (onLeaveRoom) {
-            return () => {
-                disconnectWebSocket();
-            };
-        }
-    }, [onLeaveRoom, disconnectWebSocket]);
-
     useEffect(() => {
         setIsProxy(!!selectedDeviceId);
     }, [selectedDeviceId]);
+
+    const addLog = useCallback((msg: string, ty: LogEntry['ty']) => {
+        setLog(prev => [...prev.slice(-100), {me: `${new Date().toLocaleTimeString()}: ${msg}`, ty}]);
+    }, []);
 
     // Загрузка устройств и настроек из базы данных
     useEffect(() => {
@@ -491,6 +440,19 @@ const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, o
         }
     }, [inputDe, deviceList, closedDel, addLog]);
 
+    const cleanupWebSocket = useCallback(() => {
+        if (socketRef.current) {
+            socketRef.current.onopen = null;
+            socketRef.current.onclose = null;
+            socketRef.current.onmessage = null;
+            socketRef.current.onerror = null;
+            if (socketRef.current.readyState === WebSocket.OPEN) {
+                socketRef.current.close();
+            }
+            socketRef.current = null;
+        }
+    }, []);
+
     const toggleServosVisibility = useCallback(async () => {
         try {
             setShowServos(prev => !prev);
@@ -695,10 +657,27 @@ const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, o
         socketRef.current = ws;
     }, [addLog, cleanupWebSocket]);
 
+    // Определение disconnectWebSocket
+    const disconnectWebSocket = useCallback(() => {
+        return new Promise<void>((resolve) => {
+            cleanupWebSocket();
+            setIsConnected(false);
+            setIsIdentified(false);
+            setEspConnected(false);
+            addLog("Отключено вручную", 'server');
+            reconnectAttemptRef.current = 5;
+
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
+            resolve();
+        });
+    }, [addLog, cleanupWebSocket]);
 
     // useEffect для переподключения при смене selectedDeviceId
     useEffect(() => {
-        if (selectedDeviceId && selectedDeviceId !== inputDe && isConnected) { // Проверяем isConnected
+        if (selectedDeviceId && selectedDeviceId !== inputDe) {
             const reconnect = async () => {
                 try {
                     await disconnectWebSocket();
@@ -713,7 +692,7 @@ const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, o
             };
             reconnect();
         }
-    }, [selectedDeviceId, inputDe, isConnected, disconnectWebSocket, connectWebSocket, addLog, formatDeviceId]);
+    }, [selectedDeviceId, inputDe, disconnectWebSocket, connectWebSocket, addLog, formatDeviceId]);
 
     useEffect(() => {
         if (autoConnect && !isConnected) {
@@ -767,29 +746,23 @@ const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, o
     }, [noDevices, selectedDeviceId, inputDe, autoReconnect, disconnectWebSocket, connectWebSocket, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle]);
 
     const sendCommand = useCallback((co: string, pa?: any) => {
-        if (!isConnected) {
-            addLog("WebSocket не подключен", 'error');
-            return;
-        }
         if (!isIdentified) {
             addLog("Невозможно отправить команду: не идентифицирован", 'error');
             return;
         }
+
         if (socketRef.current?.readyState === WebSocket.OPEN) {
-            const deviceId = isProxy ? selectedDeviceId : de;
-            if (!deviceId) {
-                addLog("ID устройства не определён", 'error');
-                return;
-            }
             const msg = JSON.stringify({
                 co,
                 pa,
-                de: deviceId,
+                de,
                 ts: Date.now(),
-                expectAck: true,
+                expectAck: true
             });
+
             socketRef.current.send(msg);
-            addLog(`Отправлена команда на ${deviceId}: ${co}`, 'client');
+            addLog(`Отправлена команда на ${de}: ${co}`, 'client');
+
             if (commandTimeoutRef.current) clearTimeout(commandTimeoutRef.current);
             commandTimeoutRef.current = setTimeout(() => {
                 if (espConnected) {
@@ -800,7 +773,7 @@ const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, o
         } else {
             addLog("WebSocket не готов!", 'error');
         }
-    }, [addLog, de, isIdentified, espConnected, isConnected, isProxy, selectedDeviceId]);
+    }, [addLog, de, isIdentified, espConnected]);
 
     const createMotorHandler = useCallback((mo: 'A' | 'B') => { // motor → mo
         const lastCommandRef = mo === 'A' ? lastMotorACommandRef : lastMotorBCommandRef
@@ -1285,5 +1258,4 @@ const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, o
             </div>
         </div>
     );
-});
-export default SocketClient;
+}
