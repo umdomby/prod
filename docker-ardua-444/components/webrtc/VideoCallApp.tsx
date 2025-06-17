@@ -1230,7 +1230,24 @@ export const VideoCallApp = () => {
                                 </Button>
                             ) : isJoining ? (
                                 <Button
-                                    onClick={handleCancelJoin}
+                                    // onClick={handleCancelJoin}
+                                    onClick={() => {
+                                        handleCancelJoin;
+                                        setAutoJoin(false);
+                                        setRoomId('');
+                                        setIsJoining(false);
+                                        setError(null);
+                                        leaveRoom();
+                                        hasAttemptedAutoJoin.current = false;
+                                        if (webRTCRetryTimeoutRef.current) {
+                                            clearTimeout(webRTCRetryTimeoutRef.current);
+                                            webRTCRetryTimeoutRef.current = null;
+                                        }
+                                        setShowDisconnectDialog(true); // Показываем уведомление
+                                        setTimeout(() => setShowDisconnectDialog(false), 3000); // Автозакрытие через 3 секунды
+
+                                    }}
+
                                     className={styles.button}
                                     variant="destructive"
                                 >
@@ -1246,26 +1263,6 @@ export const VideoCallApp = () => {
                                 </Button>
                             )}
                         </div>
-
-                        <Button
-                            onClick={() => {
-                                setAutoJoin(false);
-                                setRoomId('');
-                                setIsJoining(false);
-                                setError(null);
-                                leaveRoom();
-                                hasAttemptedAutoJoin.current = false;
-                                if (webRTCRetryTimeoutRef.current) {
-                                    clearTimeout(webRTCRetryTimeoutRef.current);
-                                    webRTCRetryTimeoutRef.current = null;
-                                }
-                                setShowDisconnectDialog(true); // Показываем уведомление
-                                setTimeout(() => setShowDisconnectDialog(false), 3000); // Автозакрытие через 3 секунды
-                            }}
-                            className={styles.button}
-                        >
-                            Отключить автоподключение
-                        </Button>
 
                         <div className={styles.inputGroup}>
                             <Button
