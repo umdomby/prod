@@ -120,6 +120,7 @@ export const VideoCallApp = () => {
     const [showRoomNotExistDialog, setShowRoomNotExistDialog] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState('');
     const hasAttemptedAutoJoin = useRef(false);
+    const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
 
     useEffect(() => {
         setIsClient(true)
@@ -221,8 +222,20 @@ export const VideoCallApp = () => {
                     setRoomId(formatRoomId(defaultProxyRoom.id));
                     setAutoJoin(defaultProxyRoom.autoConnect);
                     setSelectedDeviceId(null);
+                } else if (roomsWithDevices.length > 0 && !roomId) {
+                    // Если нет дефолтной комнаты, выбираем первую сохраненную
+                    console.log('Установка первой сохраненной комнаты:', roomsWithDevices[0]);
+                    setRoomId(formatRoomId(roomsWithDevices[0].id));
+                    setAutoJoin(roomsWithDevices[0].autoConnect);
+                    setSelectedDeviceId(roomsWithDevices[0].deviceId || null);
+                } else if (response.proxyRooms?.length > 0 && !roomId && !roomsWithDevices.length) {
+                    // Если нет обычных комнат, выбираем первую прокси-комнату
+                    console.log('Установка первой прокси-комнаты:', response.proxyRooms[0]);
+                    setRoomId(formatRoomId(response.proxyRooms[0].id));
+                    setAutoJoin(response.proxyRooms[0].autoConnect);
+                    setSelectedDeviceId(null);
                 } else {
-                    setAutoJoin(false); // Сбрасываем autoJoin, если нет дефолтной комнаты
+                    setAutoJoin(false);
                 }
             } catch (e) {
                 console.error('Failed to load saved rooms', e);
@@ -467,10 +480,12 @@ export const VideoCallApp = () => {
                 setRoomId(formatRoomId(roomIdWithoutDashes));
                 setAutoJoin(selectedRoom.autoConnect);
                 setSelectedDeviceId(selectedRoom.deviceId);
+                hasAttemptedAutoJoin.current = false; // Сбрасываем флаг для новой комнаты
             } else if (selectedProxyRoom) {
                 setRoomId(formatRoomId(roomIdWithoutDashes));
-                setAutoJoin(selectedProxyRoom.autoConnect); // Используем autoConnect прокси-комнаты
+                setAutoJoin(selectedProxyRoom.autoConnect);
                 setSelectedDeviceId(null);
+                hasAttemptedAutoJoin.current = false; // Сбрасываем флаг для новой комнаты
             }
         }, 300),
         [savedRooms, savedProxyRooms]
@@ -793,21 +808,27 @@ export const VideoCallApp = () => {
             !hasAttemptedAutoJoin.current
         ) {
             console.log('Инициируется автоподключение к комнате:', roomId);
-            hasAttemptedAutoJoin.current = true; // Устанавливаем флаг
+            hasAttemptedAutoJoin.current = true;
             handleJoinRoom();
         } else if (error && autoJoin && hasAttemptedAutoJoin.current) {
             console.warn('Ошибка автоподключения, отключение autoJoin:', error);
             setAutoJoin(false);
-            updateAutoConnect(roomId.replace(/-/g, ''), false); // Отключаем автоподключение в базе
+            updateAutoConnect(roomId.replace(/-/g, ''), false);
             setSavedRooms((prev) =>
                 prev.map((r) => (r.id === roomId.replace(/-/g, '') ? { ...r, autoConnect: false } : r))
             );
             setSavedProxyRooms((prev) =>
                 prev.map((p) => (p.id === roomId.replace(/-/g, '') ? { ...p, autoConnect: false } : p))
             );
-            hasAttemptedAutoJoin.current = false; // Сбрасываем флаг для будущих попыток
+            hasAttemptedAutoJoin.current = false;
         }
     }, [autoJoin, hasPermission, isInRoom, isRoomIdComplete, isJoining, error, handleJoinRoom, roomId, updateAutoConnect]);
+
+// Добавим новый useEffect для сброса hasAttemptedAutoJoin при изменении roomId
+    useEffect(() => {
+        hasAttemptedAutoJoin.current = false;
+        console.log('Сброс hasAttemptedAutoJoin при изменении roomId:', roomId);
+    }, [roomId]);
 
     const handleCancelJoin = useCallback(
         debounce(() => {
@@ -1230,8 +1251,16 @@ export const VideoCallApp = () => {
                             onClick={() => {
                                 setAutoJoin(false);
                                 setRoomId('');
-                                leaveRoom();
+                                setIsJoining(false);
                                 setError(null);
+                                leaveRoom();
+                                hasAttemptedAutoJoin.current = false;
+                                if (webRTCRetryTimeoutRef.current) {
+                                    clearTimeout(webRTCRetryTimeoutRef.current);
+                                    webRTCRetryTimeoutRef.current = null;
+                                }
+                                setShowDisconnectDialog(true); // Показываем уведомление
+                                setTimeout(() => setShowDisconnectDialog(false), 3000); // Автозакрытие через 3 секунды
                             }}
                             className={styles.button}
                         >
@@ -1647,6 +1676,17 @@ export const VideoCallApp = () => {
                     <p>Не удалось подключиться к комнате после нескольких попыток. Пожалуйста, проверьте, подключен ли лидер.</p>
                     <DialogFooter>
                         <Button onClick={() => setError(null)}>Закрыть</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Автоподключение отключено</DialogTitle>
+                    </DialogHeader>
+                    <p>Вы отключили автоподключение. Выберите новую комнату для подключения.</p>
+                    <DialogFooter>
+                        <Button onClick={() => setShowDisconnectDialog(false)}>Закрыть</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

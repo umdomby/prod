@@ -469,13 +469,22 @@ export const useWebRTC = (
             ws.current = null;
         }
 
+        if (webRTCRetryTimeoutRef.current) {
+            clearTimeout(webRTCRetryTimeoutRef.current);
+            webRTCRetryTimeoutRef.current = null;
+        }
+
+        retryAttempts.current = 0;
+        setRetryCount(0);
+        shouldCreateOffer.current = false;
         setUsers([]);
         setIsInRoom(false);
         setIsConnected(false);
         setIsCallActive(false);
         setIsLeader(false);
-        setRetryCount(0);
         setError(null);
+        setLocalStream(null);
+        setRemoteStream(null);
         console.log('Состояния сброшены после leaveRoom');
     };
 
@@ -1265,6 +1274,9 @@ export const useWebRTC = (
                             cleanupEvents();
                             setIsInRoom(true);
                             setUsers(data.data?.users || []);
+                            setError(null); // Сбрасываем ошибку при успешном подключении
+                            retryAttempts.current = 0; // Сбрасываем счетчик попыток
+                            setRetryCount(0);
                             resolve();
                         } else if (data.type === 'error') {
                             console.error('Ошибка от сервера:', data.data);
