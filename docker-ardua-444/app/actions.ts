@@ -385,6 +385,14 @@ export async function saveRoom(roomId: string, autoConnect: boolean = false) {
       return { message: 'Комната сохранена как прокси-комната', isProxy: true };
     }
 
+    // Проверяем, есть ли уже дефолтная комната
+    const hasDefaultRoom = await prisma.savedRoom.findFirst({
+      where: { userId, isDefault: true },
+    });
+    const hasDefaultProxy = await prisma.savedProxy.findFirst({
+      where: { userId, isDefault: true },
+    });
+
     // Сохраняем в SavedRoom, если нет в ProxyAccess
     const roomCount = await prisma.savedRoom.count({
       where: { userId },
@@ -394,7 +402,7 @@ export async function saveRoom(roomId: string, autoConnect: boolean = false) {
       data: {
         roomId: normalizedRoomId,
         userId,
-        isDefault: roomCount === 0 && !(await prisma.savedProxy.findFirst({ where: { userId, isDefault: true } })),
+        isDefault: !hasDefaultRoom && !hasDefaultProxy && roomCount === 0,
         autoConnect,
       },
     });
@@ -454,11 +462,24 @@ export async function deleteRoom(roomId: string) {
 
   const userId = parseInt(session.id);
 
-  const deletedRoom = await prisma.savedRoom.delete({
-    where: { roomId, userId },
-  });
+  await prisma.$transaction([
+    // Удаляем все прокси-доступы для комнаты
+    prisma.proxyAccess.deleteMany({
+      where: { roomId },
+    }),
+    // Удаляем все связанные SavedProxy записи
+    prisma.savedProxy.deleteMany({
+      where: { proxyRoomId: { in: (await prisma.proxyAccess.findMany({ where: { roomId } })).map(p => p.proxyRoomId) } },
+    }),
+    // Удаляем саму комнату
+    prisma.savedRoom.delete({
+      where: { roomId, userId },
+    }),
+  ]);
 
-  if (deletedRoom.isDefault) {
+  // Если удаленная комната была дефолтной, устанавливаем новую дефолтную
+  const deletedRoom = await prisma.savedRoom.findUnique({ where: { roomId } });
+  if (deletedRoom?.isDefault) {
     const nextRoom = await prisma.savedRoom.findFirst({
       where: { userId },
       orderBy: { createdAt: 'asc' },
@@ -469,6 +490,19 @@ export async function deleteRoom(roomId: string) {
         where: { id: nextRoom.id },
         data: { isDefault: true },
       });
+    } else {
+      // Если нет других комнат, проверяем SavedProxy
+      const nextProxy = await prisma.savedProxy.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      if (nextProxy) {
+        await prisma.savedProxy.update({
+          where: { id: nextProxy.id },
+          data: { isDefault: true },
+        });
+      }
     }
   }
 
@@ -490,7 +524,7 @@ export async function setDefaultRoom(roomId: string, isProxy: boolean = false) {
   }
 
   try {
-    // Сначала сбрасываем все дефолтные значения
+    // Сбрасываем isDefault для всех комнат и прокси-комнат пользователя
     await prisma.$transaction([
       prisma.savedRoom.updateMany({
         where: { userId },
@@ -502,12 +536,25 @@ export async function setDefaultRoom(roomId: string, isProxy: boolean = false) {
       }),
     ]);
 
-    // Затем устанавливаем новое дефолтное значение
+    // Устанавливаем новую дефолтную комнату
     if (isProxy) {
-      await prisma.savedProxy.update({
+      // Находим запись SavedProxy по proxyRoomId и userId
+      const proxyRoom = await prisma.savedProxy.findFirst({
         where: {
           proxyRoomId: roomId,
           userId: userId,
+        },
+      });
+
+      if (!proxyRoom) {
+        console.error('setDefaultRoom: Прокси-комната не найдена:', { roomId, userId });
+        throw new Error('Прокси-комната не найдена');
+      }
+
+      // Обновляем запись, используя id
+      await prisma.savedProxy.update({
+        where: {
+          id: proxyRoom.id,
         },
         data: { isDefault: true },
       });
@@ -804,12 +851,19 @@ export async function disableProxyAccess(roomId: string) {
       return { error: 'Комната не найдена или доступ запрещен' };
     }
 
-    await prisma.proxyAccess.deleteMany({
-      where: { roomId },
-    });
+    await prisma.$transaction([
+      // Удаляем все прокси-доступы для комнаты
+      prisma.proxyAccess.deleteMany({
+        where: { roomId },
+      }),
+      // Удаляем все связанные SavedProxy записи
+      prisma.savedProxy.deleteMany({
+        where: { proxyRoomId: { in: (await prisma.proxyAccess.findMany({ where: { roomId } })).map(p => p.proxyRoomId) } },
+      }),
+    ]);
 
     revalidatePath('/');
-    return { message: 'Прокси-доступ отключен' };
+    return { message: 'Прокси-доступ отключен и связанные прокси-комнаты удалены' };
   } catch (err) {
     console.error('Ошибка в disableProxyAccess:', err);
     return { error: 'Внутренняя ошибка сервера' };
@@ -872,14 +926,20 @@ export async function deleteProxyAccess(proxyRoomId: string) {
       throw new Error('Доступ запрещен');
     }
 
-    // Удаляем прокси-доступ
-    await prisma.proxyAccess.delete({
-      where: { proxyRoomId },
-    });
+    await prisma.$transaction([
+      // Удаляем прокси-доступ
+      prisma.proxyAccess.delete({
+        where: { proxyRoomId },
+      }),
+      // Удаляем связанную SavedProxy запись
+      prisma.savedProxy.deleteMany({
+        where: { proxyRoomId },
+      }),
+    ]);
 
-    console.log('deleteProxyAccess: Успешно удален прокси-доступ:', { proxyRoomId });
+    console.log('deleteProxyAccess: Успешно удален прокси-доступ и связанные прокси-комнаты:', { proxyRoomId });
     revalidatePath('/');
-    return { message: 'Прокси-доступ удален' };
+    return { message: 'Прокси-доступ и связанные прокси-комнаты удалены' };
   } catch (err) {
     console.error('deleteProxyAccess: Ошибка:', err);
     throw err;

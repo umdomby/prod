@@ -210,9 +210,11 @@ export const VideoCallApp = () => {
                 setSavedRooms(roomsWithDevices);
                 setSavedProxyRooms(response.proxyRooms || []);
 
-                // Находим единственную дефолтную комнату (либо из SavedRoom, либо из SavedProxy)
+                // Находим единственную дефолтную комнату
                 const defaultRoom = roomsWithDevices.find((r) => r.isDefault);
                 const defaultProxyRoom = (response.proxyRooms || []).find((r) => r.isDefault);
+
+                console.log('Дефолтная комната:', { defaultRoom, defaultProxyRoom });
 
                 if (defaultRoom && !roomId) {
                     console.log('Установка defaultRoom:', defaultRoom);
@@ -405,13 +407,19 @@ export const VideoCallApp = () => {
                     setSavedRooms(roomsWithDevices);
                     setSavedProxyRooms(updatedRooms.proxyRooms);
                     console.log('handleDeleteProxyRoom: Обновлены списки комнат:', { roomsWithDevices, proxyRooms: updatedRooms.proxyRooms });
+                    // Если удаленная прокси-комната была выбрана, сбрасываем roomId
+                    if (roomId.replace(/-/g, '') === proxyRoomId) {
+                        setRoomId('');
+                        setAutoJoin(false);
+                        setSelectedDeviceId(null);
+                    }
                 }
             } catch (err) {
                 console.error('handleDeleteProxyRoom: Ошибка:', err);
                 setError((err as Error).message);
             }
         }, 300),
-        []
+        [roomId]
     );
 
     const confirmDeleteRoom = useCallback(
@@ -1223,9 +1231,27 @@ export const VideoCallApp = () => {
                                                     checked={room.isDefault}
                                                     onCheckedChange={async (checked) => {
                                                         if (checked) {
-                                                            await setDefaultRoom(room.id, false); // false - это не прокси
+                                                            await handleSetDefaultRoom(room.id); // Используем handleSetDefaultRoom
                                                         } else if (room.isDefault) {
                                                             await resetDefaultRoom();
+                                                            // Обновляем состояние после сброса
+                                                            const response = await getSavedRooms();
+                                                            if (response.rooms && response.proxyRooms) {
+                                                                const roomsWithDevices = await Promise.all(
+                                                                    response.rooms.map(async (r) => {
+                                                                        const roomWithDevice = await getSavedRoomWithDevice(r.id);
+                                                                        return {
+                                                                            id: r.id,
+                                                                            isDefault: r.isDefault,
+                                                                            autoConnect: r.autoConnect,
+                                                                            deviceId: roomWithDevice.deviceId,
+                                                                            proxyAccess: r.proxyAccess,
+                                                                        };
+                                                                    })
+                                                                );
+                                                                setSavedRooms(roomsWithDevices);
+                                                                setSavedProxyRooms(response.proxyRooms);
+                                                            }
                                                         }
                                                     }}
                                                 />
