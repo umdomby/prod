@@ -46,7 +46,8 @@ type LogEntry = {
 interface SocketClientProps {
     onConnectionStatusChange?: (isFullyConnected: boolean) => void;
     selectedDeviceId?: string | null;
-    onLeaveRoom?: () => void; // Новый пропс
+    targetRoomId?: string | null; // Уже должно быть
+    onLeaveRoom?: () => void;
 }
 
 const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, onLeaveRoom }: SocketClientProps, ref) => {
@@ -775,15 +776,20 @@ const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, o
             return;
         }
         if (socketRef.current?.readyState === WebSocket.OPEN) {
+            const deviceId = isProxy ? selectedDeviceId : de;
+            if (!deviceId) {
+                addLog("ID устройства не определён", 'error');
+                return;
+            }
             const msg = JSON.stringify({
                 co,
                 pa,
-                de,
+                de: deviceId,
                 ts: Date.now(),
                 expectAck: true,
             });
             socketRef.current.send(msg);
-            addLog(`Отправлена команда на ${de}: ${co}`, 'client');
+            addLog(`Отправлена команда на ${deviceId}: ${co}`, 'client');
             if (commandTimeoutRef.current) clearTimeout(commandTimeoutRef.current);
             commandTimeoutRef.current = setTimeout(() => {
                 if (espConnected) {
@@ -794,7 +800,7 @@ const SocketClient = forwardRef(({ onConnectionStatusChange, selectedDeviceId, o
         } else {
             addLog("WebSocket не готов!", 'error');
         }
-    }, [addLog, de, isIdentified, espConnected, isConnected]);
+    }, [addLog, de, isIdentified, espConnected, isConnected, isProxy, selectedDeviceId]);
 
     const createMotorHandler = useCallback((mo: 'A' | 'B') => { // motor → mo
         const lastCommandRef = mo === 'A' ? lastMotorACommandRef : lastMotorBCommandRef

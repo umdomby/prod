@@ -735,26 +735,13 @@ export async function sendDeviceSettingsToESP(idDevice: string) {
 // app/actions.ts
 export async function bindDeviceToRoom(roomId: string, deviceId: string | null) {
   try {
-    const existingRoom = await prisma.savedRoom.findUnique({
-      where: { id: roomId },
-    });
-    if (!existingRoom) {
-      return { error: 'Комната не найдена' };
-    }
-    const existingBinding = await prisma.savedRoom.findFirst({
-      where: { devicesId: deviceId },
-    });
-    if (existingBinding && deviceId) {
-      return { error: 'Устройство уже привязано к другой комнате' };
-    }
     const updatedRoom = await prisma.savedRoom.update({
       where: { id: roomId },
       data: { devicesId: deviceId },
     });
-    return { success: true, room: updatedRoom };
+    return updatedRoom;
   } catch (error) {
-    console.error('Ошибка в bindDeviceToRoom:', error);
-    return { error: 'Внутренняя ошибка сервера' };
+    throw new Error(`Failed to bind device to room: ${error.message}`);
   }
 }
 async function generateUniqueProxyRoomId(): Promise<string> {

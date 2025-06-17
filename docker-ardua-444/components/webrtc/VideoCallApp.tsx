@@ -577,7 +577,11 @@ export const VideoCallApp = () => {
 
     const handleUnbindDeviceFromRoom = useCallback(
         debounce(async () => {
-            if (!isRoomIdComplete) return;
+            if (!isRoomIdComplete) {
+                console.log('ID комнаты не полный, отвязка невозможна:', roomId);
+                setError('ID комнаты должен состоять из 16 символов');
+                return;
+            }
 
             try {
                 const currentRoom = savedRooms.find((r) => r.id === roomId.replace(/-/g, ''));
@@ -585,6 +589,7 @@ export const VideoCallApp = () => {
                     console.log('Устройство уже отвязанно от комнаты:', roomId);
                     return;
                 }
+                console.log('Отвязка устройства от комнаты:', { roomId: roomId.replace(/-/g, ''), deviceId: currentRoom.deviceId });
                 await bindDeviceToRoom(roomId.replace(/-/g, ''), null);
                 const updatedRooms = await getSavedRooms();
                 const roomsWithDevices = await Promise.all(
@@ -601,12 +606,13 @@ export const VideoCallApp = () => {
                 );
                 setSavedRooms(roomsWithDevices);
                 setSelectedDeviceId(null);
+                console.log('Устройство успешно отвязанно, обновлённые комнаты:', roomsWithDevices);
             } catch (err) {
                 console.error('Ошибка отвязки устройства:', err);
                 setError((err as Error).message);
             }
         }, 300),
-        [roomId, savedRooms]
+        [roomId, savedRooms, isRoomIdComplete, setError]
     );
 
     const toggleCamera = useCallback(
@@ -970,30 +976,31 @@ export const VideoCallApp = () => {
 
     const handleJoinProxyRoom = async (roomIdProxy: string) => {
         try {
-            const response = await joinRoomViaProxy(roomIdProxy.replace(/-/g, ''))
-            console.log('Результат joinRoomViaProxy:', response)
+            const response = await joinRoomViaProxy(roomIdProxy.replace(/-/g, ''));
+            console.log('Результат joinRoomViaProxy:', response);
             if (response.error) {
-                console.error('Ошибка joinRoomViaProxy:', response.error)
-                setError(`Ошибка подключения через прокси: ${response.error}`)
-                return
+                console.error('Ошибка joinRoomViaProxy:', response.error);
+                setError(`Ошибка подключения через прокси: ${response.error}`);
+                return;
             }
-            const { roomId, deviceId } = response
-            setRoomId(formatRoomId(roomIdProxy)) // Показываем proxyRoomId в UI
-            setTargetRoomId(roomId)
-            setSelectedDeviceId(deviceId || null)
-            const proxyNotification = document.createElement('div')
-            proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg'
-            proxyNotification.textContent = 'Подключение через прокси-комнату'
-            document.body.appendChild(proxyNotification)
-            setTimeout(() => proxyNotification.remove(), 3000)
-            await joinRoom(username, roomId)
-            console.log('Успешно подключено через прокси к комнате:', formatRoomId(roomIdProxy))
-            setActiveMainTab('esp')
+            const { roomId, deviceId } = response;
+            setRoomId(formatRoomId(roomIdProxy));
+            setTargetRoomId(roomId);
+            setSelectedDeviceId(deviceId || null);
+            console.log('Прокси-подключение: targetRoomId=', roomId, 'deviceId=', deviceId); // Добавлен лог
+            const proxyNotification = document.createElement('div');
+            proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
+            proxyNotification.textContent = 'Подключение через прокси-комнату';
+            document.body.appendChild(proxyNotification);
+            setTimeout(() => proxyNotification.remove(), 3000);
+            await joinRoom(username, roomId);
+            console.log('Успешно подключено через прокси к комнате:', formatRoomId(roomIdProxy));
+            setActiveMainTab('esp');
         } catch (err) {
-            console.error('Ошибка подключения через прокси:', err)
-            setError(`Ошибка подключения через прокси: ${(err as Error).message}`)
+            console.error('Ошибка подключения через прокси:', err);
+            setError(`Ошибка подключения через прокси: ${(err as Error).message}`);
         }
-    }
+    };
 
     const handleEnableProxy = useCallback(
         debounce(async (roomIdWithoutDashes: string, name: string) => {
@@ -1529,6 +1536,7 @@ export const VideoCallApp = () => {
                     ref={socketClientRef}
                     onConnectionStatusChange={setIsDeviceConnected}
                     selectedDeviceId={selectedDeviceId}
+                    targetRoomId={targetRoomId || null} // Добавляем значение по умолчанию
                 />
             )}
 
