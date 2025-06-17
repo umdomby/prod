@@ -765,7 +765,7 @@ export const VideoCallApp = () => {
                 // Если это прокси-подключение, показываем уведомление
                 if (checkResult.isProxy) {
                     const proxyNotification = document.createElement('div');
-                    proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
+                    proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white mt-10 px-4 py-2 rounded shadow-lg';
                     proxyNotification.textContent = 'Подключение через прокси-комнату';
                     document.body.appendChild(proxyNotification);
                     setTimeout(() => proxyNotification.remove(), 3000);
