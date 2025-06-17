@@ -62,11 +62,6 @@ type Device = {
     idDevice: string
 }
 
-interface SocketClientProps {
-    onConnectionStatusChange?: (isFullyConnected: boolean) => void;
-    selectedDeviceId?: string | null;
-}
-
 export const VideoCallApp = () => {
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
     const [selectedDevices, setSelectedDevices] = useState({
@@ -121,6 +116,7 @@ export const VideoCallApp = () => {
     const [targetRoomId, setTargetRoomId] = useState('');
     const hasAttemptedAutoJoin = useRef(false);
     const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+    const socketClientRef = useRef<{ disconnect: () => void } | null>(null);
 
     useEffect(() => {
         setIsClient(true)
@@ -581,31 +577,37 @@ export const VideoCallApp = () => {
 
     const handleUnbindDeviceFromRoom = useCallback(
         debounce(async () => {
-            if (!isRoomIdComplete) return
+            if (!isRoomIdComplete) return;
 
             try {
-                await bindDeviceToRoom(roomId.replace(/-/g, ''), null)
-                const updatedRooms = await getSavedRooms()
+                const currentRoom = savedRooms.find((r) => r.id === roomId.replace(/-/g, ''));
+                if (!currentRoom?.deviceId) {
+                    console.log('Устройство уже отвязанно от комнаты:', roomId);
+                    return;
+                }
+                await bindDeviceToRoom(roomId.replace(/-/g, ''), null);
+                const updatedRooms = await getSavedRooms();
                 const roomsWithDevices = await Promise.all(
                     updatedRooms.rooms.map(async (room) => {
-                        const roomWithDevice = await getSavedRoomWithDevice(room.id)
+                        const roomWithDevice = await getSavedRoomWithDevice(room.id);
                         return {
                             id: room.id,
                             isDefault: room.isDefault,
                             autoConnect: room.autoConnect,
-                            deviceId: roomWithDevice.deviceId
-                        }
+                            deviceId: roomWithDevice.deviceId,
+                            proxyAccess: room.proxyAccess,
+                        };
                     })
-                )
-                setSavedRooms(roomsWithDevices)
-                setSelectedDeviceId(null)
+                );
+                setSavedRooms(roomsWithDevices);
+                setSelectedDeviceId(null);
             } catch (err) {
-                console.error('Ошибка отвязки устройства:', err)
-                setError((err as Error).message)
+                console.error('Ошибка отвязки устройства:', err);
+                setError((err as Error).message);
             }
         }, 300),
-        [roomId]
-    )
+        [roomId, savedRooms]
+    );
 
     const toggleCamera = useCallback(
         debounce(() => {
@@ -735,14 +737,7 @@ export const VideoCallApp = () => {
             console.log('Попытка подключения к комнате:', roomId);
 
             try {
-                // Проверяем комнату через checkRoom
                 const checkResult = await checkRoom(roomId.replace(/-/g, ''));
-                console.log('handleJoinRoom: Проверка комнаты:', {
-                    roomId,
-                    isProxy: checkResult.isProxy,
-                    targetRoomId: checkResult.targetRoomId,
-                    deviceId: checkResult.deviceId,
-                });
                 if (checkResult.error) {
                     console.error('Ошибка checkRoom:', checkResult.error);
                     setError(`Ошибка проверки комнаты: ${checkResult.error}`);
@@ -758,11 +753,9 @@ export const VideoCallApp = () => {
                     return;
                 }
 
-                // Устанавливаем targetRoomId и deviceId
                 setTargetRoomId(checkResult.targetRoomId);
                 setSelectedDeviceId(checkResult.deviceId || null);
 
-                // Если это прокси-подключение, показываем уведомление
                 if (checkResult.isProxy) {
                     const proxyNotification = document.createElement('div');
                     proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
@@ -771,10 +764,13 @@ export const VideoCallApp = () => {
                     setTimeout(() => proxyNotification.remove(), 3000);
                 }
 
-                // Устанавливаем комнату по умолчанию
                 await handleSetDefaultRoom(roomId.replace(/-/g, ''));
 
-                // Подключаемся к комнате через WebRTC
+                // Закрываем предыдущее WebSocket-соединение перед новым подключением
+                if (socketClientRef.current) {
+                    await socketClientRef.current.disconnect();
+                }
+
                 await joinRoom(username, checkResult.targetRoomId);
                 console.log('Успешно подключено к комнате:', roomId);
                 setActiveMainTab('esp');
@@ -1215,16 +1211,32 @@ export const VideoCallApp = () => {
                         <div className={styles.inputGroup}>
                             {isInRoom ? (
                                 <Button
-                                    onClick={() => {
-                                        leaveRoom();
-                                        setActiveMainTab('webrtc');
-                                        setIsJoining(false);
-                                        setAutoJoin(false);
-                                        updateAutoConnect(roomId.replace(/-/g, ''), false);
-                                        hasAttemptedAutoJoin.current = false;
-                                        if (webRTCRetryTimeoutRef.current) {
-                                            clearTimeout(webRTCRetryTimeoutRef.current);
-                                            webRTCRetryTimeoutRef.current = null;
+                                    onClick={async () => {
+                                        try {
+                                            await leaveRoom();
+                                            if (socketClientRef.current) {
+                                                await socketClientRef.current.disconnect();
+                                            }
+                                            if (roomId && roomId.replace(/-/g, '').length === 16) {
+                                                console.log('Отвязываем устройство от комнаты:', roomId);
+                                                await bindDeviceToRoom(roomId.replace(/-/g, ''), null);
+                                            } else {
+                                                console.warn('Некорректный roomId для отвязки устройства:', roomId);
+                                            }
+                                            setSelectedDeviceId(null); // Сбрасываем selectedDeviceId
+                                            setActiveMainTab('webrtc');
+                                            setIsJoining(false);
+                                            setAutoJoin(false);
+                                            if (roomId) {
+                                                await updateAutoConnect(roomId.replace(/-/g, ''), false);
+                                            }
+                                            hasAttemptedAutoJoin.current = false;
+                                            if (webRTCRetryTimeoutRef.current) {
+                                                clearTimeout(webRTCRetryTimeoutRef.current);
+                                                webRTCRetryTimeoutRef.current = null;
+                                            }
+                                        } catch (error) {
+                                            console.error('Ошибка при покидании комнаты:', error);
                                         }
                                     }}
                                     disabled={!isConnected}
@@ -1253,19 +1265,29 @@ export const VideoCallApp = () => {
                         </div>
 
                         <Button
-                            onClick={() => {
-                                leaveRoom();
-                                setAutoJoin(false);
-                                setIsJoining(false);
-                                setError(null);
-                                setActiveMainTab('webrtc');
-                                hasAttemptedAutoJoin.current = false;
-                                if (webRTCRetryTimeoutRef.current) {
-                                    clearTimeout(webRTCRetryTimeoutRef.current);
-                                    webRTCRetryTimeoutRef.current = null;
+                            onClick={async () => {
+                                try {
+                                    await leaveRoom();
+                                    if (roomId && roomId.replace(/-/g, '').length === 16) {
+                                        console.log('Отвязываем устройство от комнаты:', roomId);
+                                        await bindDeviceToRoom(roomId.replace(/-/g, ''), null); // Отвязываем устройство
+                                    } else {
+                                        console.warn('Некорректный roomId для отвязки устройства:', roomId);
+                                    }
+                                    setAutoJoin(false);
+                                    setIsJoining(false);
+                                    setError(null);
+                                    setActiveMainTab('webrtc');
+                                    hasAttemptedAutoJoin.current = false;
+                                    if (webRTCRetryTimeoutRef.current) {
+                                        clearTimeout(webRTCRetryTimeoutRef.current);
+                                        webRTCRetryTimeoutRef.current = null;
+                                    }
+                                    setShowDisconnectDialog(true);
+                                    setTimeout(() => setShowDisconnectDialog(false), 3000);
+                                } catch (error) {
+                                    console.error('Ошибка при отключении:', error);
                                 }
-                                setShowDisconnectDialog(true);
-                                setTimeout(() => setShowDisconnectDialog(false), 3000);
                             }}
                             className={styles.button}
                         >
@@ -1504,6 +1526,7 @@ export const VideoCallApp = () => {
 
             {activeMainTab === 'esp' && (
                 <SocketClient
+                    ref={socketClientRef}
                     onConnectionStatusChange={setIsDeviceConnected}
                     selectedDeviceId={selectedDeviceId}
                 />

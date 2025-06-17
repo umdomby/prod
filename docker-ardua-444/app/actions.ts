@@ -235,12 +235,42 @@ export async function updateServoSettings(
 
   const userId = parseInt(session.id);
 
+  // Ищем устройство и связанные комнаты
   const device = await prisma.devices.findUnique({
     where: { idDevice: parsedIdDevice.data },
+    include: {
+      savedRoom: true, // Ожидаем одну комнату или null
+    },
   });
 
-  if (!device || device.userId !== userId) {
-    throw new Error('Устройство не найдено или доступ запрещен');
+  if (!device) {
+    throw new Error('Устройство не найдено');
+  }
+
+  // Проверяем, является ли пользователь владельцем устройства
+  if (device.userId === userId) {
+    // Владелец устройства — продолжаем
+  } else {
+    // Проверяем доступ через прокси
+    const roomId = device.savedRoom ? device.savedRoom.roomId : null;
+    if (!roomId) {
+      throw new Error('Устройство не связано с комнатой');
+    }
+
+    const proxyAccess = await prisma.proxyAccess.findFirst({
+      where: {
+        roomId,
+      },
+      include: { room: true },
+    });
+
+    if (!proxyAccess) {
+      throw new Error('Доступ запрещен: нет прокси-доступа к комнате с этим устройством');
+    }
+
+    if (proxyAccess.expiresAt && new Date(proxyAccess.expiresAt) < new Date()) {
+      throw new Error('Прокси-доступ истек');
+    }
   }
 
   const updateData: any = {};
@@ -271,6 +301,26 @@ export async function updateServoSettings(
       servoView: settings.servoView ?? true,
     },
   });
+
+  // Отправка настроек на устройство
+  try {
+    const response = await fetch('https://ardua.site:444/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idDevice: idDevice,
+        settings: updateData,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Ошибка отправки настроек на устройство:', response.statusText);
+      throw new Error(`Ошибка отправки настроек: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Ошибка при отправке настроек:', error);
+    throw error;
+  }
 
   revalidatePath('/');
 }
@@ -682,51 +732,30 @@ export async function sendDeviceSettingsToESP(idDevice: string) {
 }
 
 // Привязка устройства к комнате
+// app/actions.ts
 export async function bindDeviceToRoom(roomId: string, deviceId: string | null) {
-  const session = await getUserSession();
-  if (!session) {
-    throw new Error('Пользователь не аутентифицирован');
-  }
-
-  const parsedRoomId = roomIdSchema.safeParse(roomId);
-  if (!parsedRoomId.success) {
-    throw new Error(parsedRoomId.error.errors[0].message);
-  }
-
-  const userId = parseInt(session.id);
-
-  const room = await prisma.savedRoom.findUnique({
-    where: { roomId, userId },
-  });
-
-  if (!room) {
-    throw new Error('Комната не найдена');
-  }
-
-  let device = null;
-  if (deviceId) {
-    const parsedDeviceId = deviceIdSchema.safeParse(deviceId);
-    if (!parsedDeviceId.success) {
-      throw new Error(parsedDeviceId.error.errors[0].message);
-    }
-
-    device = await prisma.devices.findUnique({
-      where: { idDevice: parsedDeviceId.data },
+  try {
+    const existingRoom = await prisma.savedRoom.findUnique({
+      where: { id: roomId },
     });
-
-    if (!device || device.userId !== userId) {
-      throw new Error('Устройство не найдено или доступ запрещен');
+    if (!existingRoom) {
+      return { error: 'Комната не найдена' };
     }
+    const existingBinding = await prisma.savedRoom.findFirst({
+      where: { devicesId: deviceId },
+    });
+    if (existingBinding && deviceId) {
+      return { error: 'Устройство уже привязано к другой комнате' };
+    }
+    const updatedRoom = await prisma.savedRoom.update({
+      where: { id: roomId },
+      data: { devicesId: deviceId },
+    });
+    return { success: true, room: updatedRoom };
+  } catch (error) {
+    console.error('Ошибка в bindDeviceToRoom:', error);
+    return { error: 'Внутренняя ошибка сервера' };
   }
-
-  await prisma.savedRoom.update({
-    where: { roomId, userId },
-    data: {
-      devicesId: device ? device.id : null,
-    },
-  });
-
-  revalidatePath('/');
 }
 async function generateUniqueProxyRoomId(): Promise<string> {
   let proxyRoomId = generateUniqueId(16);
