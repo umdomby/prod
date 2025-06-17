@@ -270,7 +270,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                 }
 
                 if (isValid && Object.keys(updateData).length > 0) {
-                    await updateServoSettings(inputDe, updateData);
+                    await updateServoSettings(inputDe, updateData, isProxy);
                     if (socketRef.current?.readyState === WebSocket.OPEN) {
                         if (field === 'servo1Min' || field === 'servo1Max') {
                             socketRef.current.send(JSON.stringify({

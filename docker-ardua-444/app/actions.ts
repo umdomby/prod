@@ -221,7 +221,8 @@ export async function updateServoSettings(
       b1?: boolean;
       b2?: boolean;
       servoView?: boolean;
-    }
+    },
+    isProxy: boolean = false
 ) {
   const session = await getUserSession();
   if (!session) {
@@ -237,40 +238,48 @@ export async function updateServoSettings(
 
   const device = await prisma.devices.findUnique({
     where: { idDevice: parsedIdDevice.data },
+    include: { settings: true },
   });
 
-  if (!device || device.userId !== userId) {
-    throw new Error('Устройство не найдено или доступ запрещен');
+  if (!device) {
+    throw new Error('Устройство не найдено');
   }
 
-  const updateData: any = {};
-  if (settings.servo1MinAngle !== undefined) updateData.servo1MinAngle = settings.servo1MinAngle;
-  if (settings.servo1MaxAngle !== undefined) updateData.servo1MaxAngle = settings.servo1MaxAngle;
-  if (settings.servo2MinAngle !== undefined) updateData.servo2MinAngle = settings.servo2MinAngle;
-  if (settings.servo2MaxAngle !== undefined) updateData.servo2MaxAngle = settings.servo2MaxAngle;
-  if (settings.b1 !== undefined) updateData.b1 = settings.b1;
-  if (settings.b2 !== undefined) updateData.b2 = settings.b2;
-  if (settings.servoView !== undefined) updateData.servoView = settings.servoView;
+  // if (!isProxy && device.userId !== userId) {
+  //   throw new Error('Устройство не найдено или доступ запрещен');
+  // }
 
-  if (Object.keys(updateData).length === 0) {
-    console.log('Нет данных для обновления в Settings');
-    return;
+  if (!isProxy) {
+
+    const updateData: any = {};
+    if (settings.servo1MinAngle !== undefined) updateData.servo1MinAngle = settings.servo1MinAngle;
+    if (settings.servo1MaxAngle !== undefined) updateData.servo1MaxAngle = settings.servo1MaxAngle;
+    if (settings.servo2MinAngle !== undefined) updateData.servo2MinAngle = settings.servo2MinAngle;
+    if (settings.servo2MaxAngle !== undefined) updateData.servo2MaxAngle = settings.servo2MaxAngle;
+    if (settings.b1 !== undefined) updateData.b1 = settings.b1;
+    if (settings.b2 !== undefined) updateData.b2 = settings.b2;
+    if (settings.servoView !== undefined) updateData.servoView = settings.servoView;
+
+    if (Object.keys(updateData).length === 0) {
+      console.log('Нет данных для обновления в Settings');
+      return;
+    }
+
+    await prisma.settings.upsert({
+      where: {devicesId: device.id},
+      update: updateData,
+      create: {
+        devicesId: device.id,
+        servo1MinAngle: settings.servo1MinAngle ?? 0,
+        servo1MaxAngle: settings.servo1MaxAngle ?? 180,
+        servo2MinAngle: settings.servo2MinAngle ?? 0,
+        servo2MaxAngle: settings.servo2MaxAngle ?? 180,
+        b1: settings.b1 ?? false,
+        b2: settings.b2 ?? false,
+        servoView: settings.servoView ?? true,
+      },
+    });
   }
-
-  await prisma.settings.upsert({
-    where: { devicesId: device.id },
-    update: updateData,
-    create: {
-      devicesId: device.id,
-      servo1MinAngle: settings.servo1MinAngle ?? 0,
-      servo1MaxAngle: settings.servo1MaxAngle ?? 180,
-      servo2MinAngle: settings.servo2MinAngle ?? 0,
-      servo2MaxAngle: settings.servo2MaxAngle ?? 180,
-      b1: settings.b1 ?? false,
-      b2: settings.b2 ?? false,
-      servoView: settings.servoView ?? true,
-    },
-  });
 
   revalidatePath('/');
 }
@@ -653,14 +662,15 @@ export async function sendDeviceSettingsToESP(idDevice: string) {
     throw new Error(parsedIdDevice.error.errors[0].message);
   }
 
-  const userId = parseInt(session.id);
+  // const userId = parseInt(session.id);
 
   const device = await prisma.devices.findUnique({
     where: { idDevice: parsedIdDevice.data },
     include: { settings: true },
   });
 
-  if (!device || device.userId !== userId) {
+  //if (!device || device.userId !== userId) {
+  if (!device) {
     throw new Error('Устройство не найдено или доступ запрещен');
   }
 
