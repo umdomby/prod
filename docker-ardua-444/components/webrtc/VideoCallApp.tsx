@@ -1089,25 +1089,6 @@ export const VideoCallApp = () => {
                             </div>
                         )}
 
-                        {/*<div className={styles.inputGroup}>*/}
-                        {/*    <div className="flex items-center space-x-2">*/}
-                        {/*        <Checkbox*/}
-                        {/*            id="autoJoin"*/}
-                        {/*            checked={autoJoin}*/}
-                        {/*            disabled={!isRoomIdComplete}*/}
-                        {/*            onCheckedChange={(checked) => {*/}
-                        {/*                setAutoJoin(!!checked)*/}
-                        {/*                if (isRoomIdComplete) {*/}
-                        {/*                    updateAutoConnect(roomId.replace(/-/g, ''), !!checked)*/}
-                        {/*                }*/}
-                        {/*                localStorage.setItem('autoJoin', checked ? 'true' : 'false')*/}
-                        {/*            }}*/}
-                        {/*            suppressHydrationWarning*/}
-                        {/*        />*/}
-                        {/*        <Label htmlFor="autoJoin">Автоматическое подключение</Label>*/}
-                        {/*    </div>*/}
-                        {/*</div>*/}
-
                         <div className={styles.inputGroup}>
                             <Label htmlFor="room">ID комнаты</Label>
                             <Input
