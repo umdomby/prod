@@ -651,14 +651,6 @@ export const VideoCallApp = () => {
         }
     }, [remoteStream, muteRemoteAudio])
 
-    // useEffect(() => {
-    //     if (autoJoin && hasPermission && !isInRoom && isRoomIdComplete && !isJoining && !error) {
-    //         // Убираем автоматическое подключение
-    //         // handleJoinRoom();
-    //         console.log('Автоподключение отключено, ожидается явное действие пользователя');
-    //     }
-    // }, [autoJoin, hasPermission, isInRoom, isRoomIdComplete, isJoining, error]);
-
     const applyVideoTransform = useCallback((settings: VideoSettings) => {
         const { rotation, flipH, flipV } = settings
         let transform = ''
@@ -810,8 +802,9 @@ export const VideoCallApp = () => {
             console.log('Инициируется автоподключение к комнате:', roomId);
             hasAttemptedAutoJoin.current = true;
             handleJoinRoom();
-        } else if (error && autoJoin && hasAttemptedAutoJoin.current) {
+        } else if (error && autoJoin) {
             console.warn('Ошибка автоподключения, отключение autoJoin:', error);
+            leaveRoom(); // Полная очистка соединения
             setAutoJoin(false);
             updateAutoConnect(roomId.replace(/-/g, ''), false);
             setSavedRooms((prev) =>
@@ -821,8 +814,12 @@ export const VideoCallApp = () => {
                 prev.map((p) => (p.id === roomId.replace(/-/g, '') ? { ...p, autoConnect: false } : p))
             );
             hasAttemptedAutoJoin.current = false;
+            if (webRTCRetryTimeoutRef.current) {
+                clearTimeout(webRTCRetryTimeoutRef.current);
+                webRTCRetryTimeoutRef.current = null;
+            }
         }
-    }, [autoJoin, hasPermission, isInRoom, isRoomIdComplete, isJoining, error, handleJoinRoom, roomId, updateAutoConnect]);
+    }, [autoJoin, hasPermission, isInRoom, isRoomIdComplete, isJoining, error, handleJoinRoom, roomId, updateAutoConnect, leaveRoom]);
 
 // Добавим новый useEffect для сброса hasAttemptedAutoJoin при изменении roomId
     useEffect(() => {
@@ -1220,8 +1217,15 @@ export const VideoCallApp = () => {
                                 <Button
                                     onClick={() => {
                                         leaveRoom();
-                                        setActiveMainTab('webrtc'); // Переключаем вкладку обратно
-                                        updateAutoConnect(roomId.replace(/-/g, ''), false); // Отключаем автоподключение для этой комнаты
+                                        setActiveMainTab('webrtc');
+                                        setIsJoining(false);
+                                        setAutoJoin(false);
+                                        updateAutoConnect(roomId.replace(/-/g, ''), false);
+                                        hasAttemptedAutoJoin.current = false;
+                                        if (webRTCRetryTimeoutRef.current) {
+                                            clearTimeout(webRTCRetryTimeoutRef.current);
+                                            webRTCRetryTimeoutRef.current = null;
+                                        }
                                     }}
                                     disabled={!isConnected}
                                     className={styles.button}
@@ -1250,18 +1254,18 @@ export const VideoCallApp = () => {
 
                         <Button
                             onClick={() => {
+                                leaveRoom();
                                 setAutoJoin(false);
-                                // setRoomId('');
                                 setIsJoining(false);
                                 setError(null);
-                                leaveRoom();
+                                setActiveMainTab('webrtc');
                                 hasAttemptedAutoJoin.current = false;
                                 if (webRTCRetryTimeoutRef.current) {
                                     clearTimeout(webRTCRetryTimeoutRef.current);
                                     webRTCRetryTimeoutRef.current = null;
                                 }
-                                setShowDisconnectDialog(true); // Показываем уведомление
-                                setTimeout(() => setShowDisconnectDialog(false), 3000); // Автозакрытие через 3 секунды
+                                setShowDisconnectDialog(true);
+                                setTimeout(() => setShowDisconnectDialog(false), 3000);
                             }}
                             className={styles.button}
                         >

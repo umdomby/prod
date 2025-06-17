@@ -463,20 +463,45 @@ export const useWebRTC = (
             }
         }
 
+        // Полная очистка WebRTC
         cleanup();
         if (ws.current) {
-            ws.current.close();
+            ws.current.onmessage = null;
+            ws.current.onopen = null;
+            ws.current.onclose = null;
+            ws.current.onerror = null;
+            try {
+                ws.current.close();
+            } catch (e) {
+                console.warn('Ошибка при закрытии WebSocket:', e);
+            }
             ws.current = null;
         }
 
+        // Очистка всех таймеров
         if (webRTCRetryTimeoutRef.current) {
             clearTimeout(webRTCRetryTimeoutRef.current);
             webRTCRetryTimeoutRef.current = null;
         }
+        if (connectionTimeout.current) {
+            clearTimeout(connectionTimeout.current);
+            connectionTimeout.current = null;
+        }
+        if (statsInterval.current) {
+            clearInterval(statsInterval.current);
+            statsInterval.current = null;
+        }
+        if (videoCheckTimeout.current) {
+            clearTimeout(videoCheckTimeout.current);
+            videoCheckTimeout.current = null;
+        }
 
+        // Сброс всех состояний
         retryAttempts.current = 0;
         setRetryCount(0);
         shouldCreateOffer.current = false;
+        isNegotiating.current = false;
+        pendingIceCandidates.current = [];
         setUsers([]);
         setIsInRoom(false);
         setIsConnected(false);
@@ -485,7 +510,10 @@ export const useWebRTC = (
         setError(null);
         setLocalStream(null);
         setRemoteStream(null);
-        console.log('Состояния сброшены после leaveRoom');
+        setRoomInfo({});
+        setStream(null);
+        setActiveCodec(null);
+        console.log('Состояния полностью сброшены после leaveRoom');
     };
 
     const startVideoCheckTimer = () => {
@@ -1142,48 +1170,51 @@ export const useWebRTC = (
             }
         };
     };
-
-// Модифицируем функцию resetConnection
     const resetConnection = async () => {
-        console.log(`Запуск resetConnection, попытка #${retryAttempts.current + 1}`);
-
-        if (retryAttempts.current >= MAX_RETRIES) {
-            console.error('Достигнуто максимальное количество попыток переподключения:', MAX_RETRIES);
-            setError('Не удалось восстановить соединение после нескольких попыток');
-            leaveRoom();
-            return;
-        }
-
-        const { isIOS, isSafari } = detectPlatform();
-        const baseDelay = isIOS || isSafari ? 5000 : 2000;
-        const retryDelay = Math.min(baseDelay * (retryAttempts.current + 1), 15000);
-
-        console.log(`Ожидание перед переподключением: ${retryDelay}ms`);
-        cleanup();
-        retryAttempts.current += 1;
-        setRetryCount(retryAttempts.current);
-
-        setTimeout(async () => {
-            try {
-                console.log('Попытка повторного входа в комнату');
-                await joinRoom(username);
-                console.log('Переподключение успешно, сброс счетчика попыток');
-                retryAttempts.current = 0;
-                setRetryCount(0);
-            } catch (err) {
-                console.error('Ошибка переподключения:', err);
-                setError(`Ошибка переподключения: ${err instanceof Error ? err.message : String(err)}`);
-                if (retryAttempts.current < MAX_RETRIES) {
-                    console.log('Планируем следующую попытку переподключения');
-                    resetConnection();
-                } else {
-                    console.error('Исчерпаны все попытки переподключения');
-                    setError('Не удалось восстановить соединение после максимального количества попыток');
-                    leaveRoom();
-                }
-            }
-        }, retryDelay);
+        console.log('Запуск resetConnection');
+        leaveRoom(); // Полная очистка соединения
     };
+// Модифицируем функцию resetConnection
+//     const resetConnection = async () => {
+//         console.log(`Запуск resetConnection, попытка #${retryAttempts.current + 1}`);
+//
+//         if (retryAttempts.current >= MAX_RETRIES) {
+//             console.error('Достигнуто максимальное количество попыток переподключения:', MAX_RETRIES);
+//             setError('Не удалось восстановить соединение после нескольких попыток');
+//             leaveRoom();
+//             return;
+//         }
+//
+//         const { isIOS, isSafari } = detectPlatform();
+//         const baseDelay = isIOS || isSafari ? 5000 : 2000;
+//         const retryDelay = Math.min(baseDelay * (retryAttempts.current + 1), 15000);
+//
+//         console.log(`Ожидание перед переподключением: ${retryDelay}ms`);
+//         cleanup();
+//         retryAttempts.current += 1;
+//         setRetryCount(retryAttempts.current);
+//
+//         setTimeout(async () => {
+//             try {
+//                 console.log('Попытка повторного входа в комнату');
+//                 await joinRoom(username);
+//                 console.log('Переподключение успешно, сброс счетчика попыток');
+//                 retryAttempts.current = 0;
+//                 setRetryCount(0);
+//             } catch (err) {
+//                 console.error('Ошибка переподключения:', err);
+//                 setError(`Ошибка переподключения: ${err instanceof Error ? err.message : String(err)}`);
+//                 if (retryAttempts.current < MAX_RETRIES) {
+//                     console.log('Планируем следующую попытку переподключения');
+//                     resetConnection();
+//                 } else {
+//                     console.error('Исчерпаны все попытки переподключения');
+//                     setError('Не удалось восстановить соединение после максимального количества попыток');
+//                     leaveRoom();
+//                 }
+//             }
+//         }, retryDelay);
+//     };
 
     const restartMediaDevices = async () => {
         try {
@@ -1243,6 +1274,8 @@ export const useWebRTC = (
     };
 
     const joinRoom = async (uniqueUsername: string, customRoomId?: string) => {
+        console.log('Запуск joinRoom, полная очистка перед новым соединением');
+        leaveRoom(); // Полная очистка перед новым соединением
         setError(null);
         setIsInRoom(false);
         setIsConnected(false);
