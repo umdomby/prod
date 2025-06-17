@@ -1163,6 +1163,7 @@ export const useWebRTC = (
                 setRetryCount(0);
             } catch (err) {
                 console.error('Ошибка переподключения:', err);
+                setError(`Ошибка переподключения: ${err instanceof Error ? err.message : String(err)}`);
                 if (retryAttempts.current < MAX_RETRIES) {
                     console.log('Планируем следующую попытку переподключения');
                     resetConnection();
@@ -1271,7 +1272,6 @@ export const useWebRTC = (
                             if (data.data === 'Room does not exist. Leader must join first.') {
                                 if (retryAttempts.current < MAX_RETRIES) {
                                     console.log('Комната не существует, повторная попытка через 5 секунд');
-                                    console.log('Планируем повторную попытку через 5 секунд');
                                     webRTCRetryTimeoutRef.current = setTimeout(() => {
                                         retryAttempts.current += 1;
                                         setRetryCount(retryAttempts.current);
@@ -1279,15 +1279,18 @@ export const useWebRTC = (
                                     }, 5000);
                                     return;
                                 } else {
+                                    setError('Лидер не подключился после максимального количества попыток');
                                     reject(new Error('Достигнуто максимальное количество попыток подключения'));
                                 }
                             } else {
+                                setError(data.data || 'Ошибка входа в комнату');
                                 reject(new Error(data.data || 'Ошибка входа в комнату'));
                             }
                         }
                     } catch (err) {
                         console.error('Ошибка обработки сообщения:', err);
                         cleanupEvents();
+                        setError('Ошибка обработки сообщения сервера');
                         reject(err);
                     }
                 };
