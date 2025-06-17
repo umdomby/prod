@@ -508,8 +508,8 @@ export async function deleteRoom(roomId: string) {
 
   revalidatePath('/');
 }
-export async function setDefaultRoom(roomId: string, isProxy: boolean = false) {
-  console.log('setDefaultRoom: Начало установки комнаты по умолчанию:', { roomId, isProxy });
+export async function setDefaultRoom(roomId: string) {
+  console.log('setDefaultRoom: Начало установки комнаты по умолчанию:', roomId);
   const session = await getUserSession();
   if (!session) {
     console.error('setDefaultRoom: Пользователь не аутентифицирован');
@@ -524,52 +524,50 @@ export async function setDefaultRoom(roomId: string, isProxy: boolean = false) {
   }
 
   try {
-    // Сбрасываем isDefault для всех комнат и прокси-комнат пользователя
+    // Сначала сбрасываем isDefault для всех комнат пользователя
     await prisma.$transaction([
       prisma.savedRoom.updateMany({
-        where: { userId },
+        where: { userId, isDefault: true },
         data: { isDefault: false },
       }),
       prisma.savedProxy.updateMany({
-        where: { userId },
+        where: { userId, isDefault: true },
         data: { isDefault: false },
       }),
     ]);
 
-    // Устанавливаем новую дефолтную комнату
-    if (isProxy) {
-      // Находим запись SavedProxy по proxyRoomId и userId
-      const proxyRoom = await prisma.savedProxy.findFirst({
-        where: {
-          proxyRoomId: roomId,
-          userId: userId,
-        },
-      });
+    // Пытаемся найти комнату в SavedRoom
+    const savedRoom = await prisma.savedRoom.findFirst({
+      where: { roomId, userId },
+    });
 
-      if (!proxyRoom) {
-        console.error('setDefaultRoom: Прокси-комната не найдена:', { roomId, userId });
-        throw new Error('Прокси-комната не найдена');
-      }
-
-      // Обновляем запись, используя id
-      await prisma.savedProxy.update({
-        where: {
-          id: proxyRoom.id,
-        },
-        data: { isDefault: true },
-      });
-    } else {
+    if (savedRoom) {
       await prisma.savedRoom.update({
-        where: {
-          roomId: roomId,
-          userId: userId,
-        },
+        where: { id: savedRoom.id },
         data: { isDefault: true },
       });
+      console.log('setDefaultRoom: Установлена дефолтная SavedRoom:', roomId);
+      revalidatePath('/');
+      return;
     }
 
-    console.log('setDefaultRoom: Комната успешно установлена по умолчанию:', { roomId, isProxy });
-    revalidatePath('/');
+    // Если не нашли в SavedRoom, ищем в SavedProxy
+    const savedProxy = await prisma.savedProxy.findFirst({
+      where: { proxyRoomId: roomId, userId },
+    });
+
+    if (savedProxy) {
+      await prisma.savedProxy.update({
+        where: { id: savedProxy.id },
+        data: { isDefault: true },
+      });
+      console.log('setDefaultRoom: Установлена дефолтная SavedProxy:', roomId);
+      revalidatePath('/');
+      return;
+    }
+
+    // Если не нашли ни там, ни там - ошибка
+    throw new Error('Комната не найдена');
   } catch (err) {
     console.error('setDefaultRoom: Ошибка:', err);
     throw err;
@@ -612,34 +610,32 @@ export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
   }
 
   try {
-    // Проверка в SavedRoom
-    const existingRoom = await prisma.savedRoom.findUnique({
-      where: { roomId },
+    // Пытаемся обновить в SavedRoom
+    const updatedRoom = await prisma.savedRoom.updateMany({
+      where: { roomId, userId },
+      data: { autoConnect },
     });
 
-    if (existingRoom) {
-      console.log('updateAutoConnect: Обновление SavedRoom:', { roomId, autoConnect });
-      await prisma.savedRoom.update({
-        where: { roomId },
-        data: { autoConnect },
-      });
+    if (updatedRoom.count > 0) {
+      console.log('updateAutoConnect: Обновлена SavedRoom:', roomId);
+      revalidatePath('/');
       return;
     }
 
-    // Проверка в SavedProxy
-    const existingProxy = await prisma.savedProxy.findFirst({ // Заменяем findUnique на findFirst
+    // Если не нашли в SavedRoom, пробуем в SavedProxy
+    const updatedProxy = await prisma.savedProxy.updateMany({
       where: { proxyRoomId: roomId, userId },
+      data: { autoConnect },
     });
 
-    if (existingProxy) {
-      console.log('updateAutoConnect: Обновление SavedProxy:', { proxyRoomId: roomId, userId, autoConnect });
-      await prisma.savedProxy.update({
-        where: { id: existingProxy.id }, // Используем id для обновления
-        data: { autoConnect },
-      });
-    } else {
-      console.warn('updateAutoConnect: Прокси-комната не найдена:', { proxyRoomId: roomId, userId });
+    if (updatedProxy.count > 0) {
+      console.log('updateAutoConnect: Обновлена SavedProxy:', roomId);
+      revalidatePath('/');
+      return;
     }
+
+    console.warn('updateAutoConnect: Комната не найдена:', roomId);
+    throw new Error('Комната не найдена');
   } catch (err) {
     console.error('updateAutoConnect: Ошибка:', err);
     throw err;
