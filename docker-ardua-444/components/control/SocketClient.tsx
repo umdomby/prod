@@ -990,7 +990,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     onCheckedChange={isProxy ? undefined : toggleAutoConnect}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${isProxy || autoConnect ? 'bg-green-500' : 'bg-white'}`}
                                     disabled={isProxy}
-                                    />
+                                />
                                 <Label htmlFor="auto-connect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое подключение при загрузке страницы
                                 </Label>

@@ -119,6 +119,8 @@ export const VideoCallApp = () => {
     const [proxyName, setProxyName] = useState('');
     const [showRoomNotExistDialog, setShowRoomNotExistDialog] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState('');
+    const hasAttemptedAutoJoin = useRef(false);
+    const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
 
     useEffect(() => {
         setIsClient(true)
@@ -185,7 +187,6 @@ export const VideoCallApp = () => {
                     setSavedProxyRooms([]);
                     return;
                 }
-
                 if (!response.rooms || !Array.isArray(response.rooms)) {
                     console.error('Комнаты не найдены или имеют неверный формат');
                     setError('Комнаты не найдены');
@@ -193,8 +194,6 @@ export const VideoCallApp = () => {
                     setSavedProxyRooms([]);
                     return;
                 }
-
-                console.log('Получены сохраненные комнаты:', response.rooms, 'прокси-комнаты:', response.proxyRooms);
                 const roomsWithDevices = await Promise.all(
                     response.rooms.map(async (room) => {
                         const roomWithDevice = await getSavedRoomWithDevice(room.id);
@@ -210,11 +209,8 @@ export const VideoCallApp = () => {
                 setSavedRooms(roomsWithDevices);
                 setSavedProxyRooms(response.proxyRooms || []);
 
-                // Находим единственную дефолтную комнату
                 const defaultRoom = roomsWithDevices.find((r) => r.isDefault);
                 const defaultProxyRoom = (response.proxyRooms || []).find((r) => r.isDefault);
-
-                console.log('Дефолтная комната:', { defaultRoom, defaultProxyRoom });
 
                 if (defaultRoom && !roomId) {
                     console.log('Установка defaultRoom:', defaultRoom);
@@ -226,6 +222,20 @@ export const VideoCallApp = () => {
                     setRoomId(formatRoomId(defaultProxyRoom.id));
                     setAutoJoin(defaultProxyRoom.autoConnect);
                     setSelectedDeviceId(null);
+                } else if (roomsWithDevices.length > 0 && !roomId) {
+                    // Если нет дефолтной комнаты, выбираем первую сохраненную
+                    console.log('Установка первой сохраненной комнаты:', roomsWithDevices[0]);
+                    setRoomId(formatRoomId(roomsWithDevices[0].id));
+                    setAutoJoin(roomsWithDevices[0].autoConnect);
+                    setSelectedDeviceId(roomsWithDevices[0].deviceId || null);
+                } else if (response.proxyRooms?.length > 0 && !roomId && !roomsWithDevices.length) {
+                    // Если нет обычных комнат, выбираем первую прокси-комнату
+                    console.log('Установка первой прокси-комнаты:', response.proxyRooms[0]);
+                    setRoomId(formatRoomId(response.proxyRooms[0].id));
+                    setAutoJoin(response.proxyRooms[0].autoConnect);
+                    setSelectedDeviceId(null);
+                } else {
+                    setAutoJoin(false);
                 }
             } catch (e) {
                 console.error('Failed to load saved rooms', e);
@@ -413,6 +423,9 @@ export const VideoCallApp = () => {
                         setAutoJoin(false);
                         setSelectedDeviceId(null);
                     }
+                } else {
+                    console.error('handleDeleteProxyRoom: Неверный формат ответа getSavedRooms:', updatedRooms);
+                    setError('Ошибка обновления списка комнат');
                 }
             } catch (err) {
                 console.error('handleDeleteProxyRoom: Ошибка:', err);
@@ -467,10 +480,12 @@ export const VideoCallApp = () => {
                 setRoomId(formatRoomId(roomIdWithoutDashes));
                 setAutoJoin(selectedRoom.autoConnect);
                 setSelectedDeviceId(selectedRoom.deviceId);
+                hasAttemptedAutoJoin.current = false; // Сбрасываем флаг для новой комнаты
             } else if (selectedProxyRoom) {
                 setRoomId(formatRoomId(roomIdWithoutDashes));
-                setAutoJoin(selectedProxyRoom.autoConnect); // Используем autoConnect прокси-комнаты
+                setAutoJoin(selectedProxyRoom.autoConnect);
                 setSelectedDeviceId(null);
+                hasAttemptedAutoJoin.current = false; // Сбрасываем флаг для новой комнаты
             }
         }, 300),
         [savedRooms, savedProxyRooms]
@@ -479,7 +494,9 @@ export const VideoCallApp = () => {
     const handleSetDefaultRoom = useCallback(
         async (roomId: string) => {
             try {
+                console.log('Установка комнаты по умолчанию:', roomId);
                 await setDefaultRoom(roomId.replace(/-/g, ''));
+                console.log('setDefaultRoom выполнено успешно');
                 const response = await getSavedRooms();
                 if (response.error) {
                     console.error('Ошибка загрузки комнат:', response.error);
@@ -487,7 +504,7 @@ export const VideoCallApp = () => {
                     return;
                 }
                 if (!response.rooms || !Array.isArray(response.rooms)) {
-                    console.error('Комнаты не найдены или имеют неверный формат');
+                    console.error('Комнаты не найдены или имеют неверный формат:', response);
                     setError('Комнаты не найдены');
                     return;
                 }
@@ -503,14 +520,28 @@ export const VideoCallApp = () => {
                         };
                     })
                 );
+                console.log('Обновленные комнаты:', roomsWithDevices);
                 setSavedRooms(roomsWithDevices);
                 setSavedProxyRooms(response.proxyRooms || []);
+
+                // Если автоподключение активно, прерываем его
+                if (autoJoin && roomId.replace(/-/g, '') !== roomId) {
+                    setAutoJoin(false);
+                    updateAutoConnect(roomId.replace(/-/g, ''), false);
+                    setSavedRooms((prev) =>
+                        prev.map((r) => (r.id === roomId.replace(/-/g, '') ? { ...r, autoConnect: false } : r))
+                    );
+                    setSavedProxyRooms((prev) =>
+                        prev.map((p) => (p.id === roomId.replace(/-/g, '') ? { ...p, autoConnect: false } : p))
+                    );
+                    leaveRoom(); // Прерываем текущее подключение
+                }
             } catch (e) {
-                console.error('Не удалось установить комнату по умолчанию:', e);
-                setError('Не удалось установить комнату по умолчанию');
+                console.error('Ошибка установки комнаты по умолчанию:', e);
+                setError(`Не удалось установить комнату по умолчанию: ${e instanceof Error ? e.message : String(e)}`);
             }
         },
-        []
+        [setError, autoJoin, roomId, updateAutoConnect, leaveRoom]
     );
 
     const handleBindDeviceToRoom = useCallback(
@@ -619,14 +650,6 @@ export const VideoCallApp = () => {
             });
         }
     }, [remoteStream, muteRemoteAudio])
-
-    useEffect(() => {
-        if (autoJoin && hasPermission && !isInRoom && isRoomIdComplete && !isJoining && !error) {
-            // Убираем автоматическое подключение
-            // handleJoinRoom();
-            console.log('Автоподключение отключено, ожидается явное действие пользователя');
-        }
-    }, [autoJoin, hasPermission, isInRoom, isRoomIdComplete, isJoining, error]);
 
     const applyVideoTransform = useCallback((settings: VideoSettings) => {
         const { rotation, flipH, flipV } = settings
@@ -765,6 +788,44 @@ export const VideoCallApp = () => {
         }, 300),
         [isRoomIdComplete, roomId, username, joinRoom, setError, handleSetDefaultRoom]
     );
+
+    useEffect(() => {
+        if (
+            autoJoin &&
+            hasPermission &&
+            !isInRoom &&
+            isRoomIdComplete &&
+            !isJoining &&
+            !error &&
+            !hasAttemptedAutoJoin.current
+        ) {
+            console.log('Инициируется автоподключение к комнате:', roomId);
+            hasAttemptedAutoJoin.current = true;
+            handleJoinRoom();
+        } else if (error && autoJoin) {
+            console.warn('Ошибка автоподключения, отключение autoJoin:', error);
+            leaveRoom(); // Полная очистка соединения
+            setAutoJoin(false);
+            updateAutoConnect(roomId.replace(/-/g, ''), false);
+            setSavedRooms((prev) =>
+                prev.map((r) => (r.id === roomId.replace(/-/g, '') ? { ...r, autoConnect: false } : r))
+            );
+            setSavedProxyRooms((prev) =>
+                prev.map((p) => (p.id === roomId.replace(/-/g, '') ? { ...p, autoConnect: false } : p))
+            );
+            hasAttemptedAutoJoin.current = false;
+            if (webRTCRetryTimeoutRef.current) {
+                clearTimeout(webRTCRetryTimeoutRef.current);
+                webRTCRetryTimeoutRef.current = null;
+            }
+        }
+    }, [autoJoin, hasPermission, isInRoom, isRoomIdComplete, isJoining, error, handleJoinRoom, roomId, updateAutoConnect, leaveRoom]);
+
+// Добавим новый useEffect для сброса hasAttemptedAutoJoin при изменении roomId
+    useEffect(() => {
+        hasAttemptedAutoJoin.current = false;
+        console.log('Сброс hasAttemptedAutoJoin при изменении roomId:', roomId);
+    }, [roomId]);
 
     const handleCancelJoin = useCallback(
         debounce(() => {
@@ -1086,25 +1147,6 @@ export const VideoCallApp = () => {
                             </div>
                         )}
 
-                        {/*<div className={styles.inputGroup}>*/}
-                        {/*    <div className="flex items-center space-x-2">*/}
-                        {/*        <Checkbox*/}
-                        {/*            id="autoJoin"*/}
-                        {/*            checked={autoJoin}*/}
-                        {/*            disabled={!isRoomIdComplete}*/}
-                        {/*            onCheckedChange={(checked) => {*/}
-                        {/*                setAutoJoin(!!checked)*/}
-                        {/*                if (isRoomIdComplete) {*/}
-                        {/*                    updateAutoConnect(roomId.replace(/-/g, ''), !!checked)*/}
-                        {/*                }*/}
-                        {/*                localStorage.setItem('autoJoin', checked ? 'true' : 'false')*/}
-                        {/*            }}*/}
-                        {/*            suppressHydrationWarning*/}
-                        {/*        />*/}
-                        {/*        <Label htmlFor="autoJoin">Автоматическое подключение</Label>*/}
-                        {/*    </div>*/}
-                        {/*</div>*/}
-
                         <div className={styles.inputGroup}>
                             <Label htmlFor="room">ID комнаты</Label>
                             <Input
@@ -1159,24 +1201,31 @@ export const VideoCallApp = () => {
                             )}
                         </div>
 
-                        {/*<div className={styles.inputGroup}>*/}
-                        {/*    <Label htmlFor="username">Ваше имя</Label>*/}
-                        {/*    <Input*/}
-                        {/*        id="username"*/}
-                        {/*        value={username}*/}
-                        {/*        onChange={(e) => setUsername(e.target.value)}*/}
-                        {/*        disabled={isInRoom || isJoining}*/}
-                        {/*        placeholder="Ваше имя"*/}
-                        {/*    />*/}
-                        {/*</div>*/}
+                        <div className={styles.inputGroup}>
+                            <Label htmlFor="username">Ваше имя</Label>
+                            <Input
+                                id="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                disabled={isInRoom || isJoining}
+                                placeholder="Ваше имя"
+                            />
+                        </div>
 
                         <div className={styles.inputGroup}>
                             {isInRoom ? (
                                 <Button
                                     onClick={() => {
                                         leaveRoom();
-                                        setActiveMainTab('webrtc'); // Переключаем вкладку обратно
-                                        updateAutoConnect(roomId.replace(/-/g, ''), false); // Отключаем автоподключение для этой комнаты
+                                        setActiveMainTab('webrtc');
+                                        setIsJoining(false);
+                                        setAutoJoin(false);
+                                        updateAutoConnect(roomId.replace(/-/g, ''), false);
+                                        hasAttemptedAutoJoin.current = false;
+                                        if (webRTCRetryTimeoutRef.current) {
+                                            clearTimeout(webRTCRetryTimeoutRef.current);
+                                            webRTCRetryTimeoutRef.current = null;
+                                        }
                                     }}
                                     disabled={!isConnected}
                                     className={styles.button}
@@ -1185,11 +1234,12 @@ export const VideoCallApp = () => {
                                 </Button>
                             ) : isJoining ? (
                                 <Button
-                                    onClick={handleCancelJoin}
+                                    // onClick={handleCancelJoin}
+                                    disabled={true}
                                     className={styles.button}
                                     variant="destructive"
                                 >
-                                    Отменить подключение
+                                    Подключение...
                                 </Button>
                             ) : (
                                 <Button
@@ -1201,6 +1251,26 @@ export const VideoCallApp = () => {
                                 </Button>
                             )}
                         </div>
+
+                        <Button
+                            onClick={() => {
+                                leaveRoom();
+                                setAutoJoin(false);
+                                setIsJoining(false);
+                                setError(null);
+                                setActiveMainTab('webrtc');
+                                hasAttemptedAutoJoin.current = false;
+                                if (webRTCRetryTimeoutRef.current) {
+                                    clearTimeout(webRTCRetryTimeoutRef.current);
+                                    webRTCRetryTimeoutRef.current = null;
+                                }
+                                setShowDisconnectDialog(true);
+                                setTimeout(() => setShowDisconnectDialog(false), 3000);
+                            }}
+                            className={styles.button}
+                        >
+                            Отключить подключение
+                        </Button>
 
                         <div className={styles.inputGroup}>
                             <Button
@@ -1294,9 +1364,27 @@ export const VideoCallApp = () => {
                                                     checked={proxy.isDefault}
                                                     onCheckedChange={async (checked) => {
                                                         if (checked) {
-                                                            await setDefaultRoom(proxy.id, true); // true - это прокси
+                                                            await handleSetDefaultRoom(formatRoomId(proxy.id)); // Используем handleSetDefaultRoom
                                                         } else if (proxy.isDefault) {
                                                             await resetDefaultRoom();
+                                                            // Обновляем состояние после сброса
+                                                            const response = await getSavedRooms();
+                                                            if (response.rooms && response.proxyRooms) {
+                                                                const roomsWithDevices = await Promise.all(
+                                                                    response.rooms.map(async (r) => {
+                                                                        const roomWithDevice = await getSavedRoomWithDevice(r.id);
+                                                                        return {
+                                                                            id: r.id,
+                                                                            isDefault: r.isDefault,
+                                                                            autoConnect: r.autoConnect,
+                                                                            deviceId: roomWithDevice.deviceId,
+                                                                            proxyAccess: r.proxyAccess,
+                                                                        };
+                                                                    })
+                                                                );
+                                                                setSavedRooms(roomsWithDevices);
+                                                                setSavedProxyRooms(response.proxyRooms);
+                                                            }
                                                         }
                                                     }}
                                                 />
@@ -1582,6 +1670,29 @@ export const VideoCallApp = () => {
                         <DialogTitle>Комната уже существует</DialogTitle>
                     </DialogHeader>
                     <p>Такая комната уже сохранена в списке сохраненных комнат.</p>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={error === 'Не удалось подключиться после максимального количества попыток'} onOpenChange={() => setError(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Ошибка подключения</DialogTitle>
+                    </DialogHeader>
+                    <p>Не удалось подключиться к комнате после нескольких попыток. Пожалуйста, проверьте, подключен ли лидер.</p>
+                    <DialogFooter>
+                        <Button onClick={() => setError(null)}>Закрыть</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Подключение отключено</DialogTitle>
+                    </DialogHeader>
+                    <p>Вы отключили подключение. </p>
+                    <DialogFooter>
+                        <Button onClick={() => setShowDisconnectDialog(false)}>Закрыть</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
