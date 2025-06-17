@@ -1204,16 +1204,16 @@ export const VideoCallApp = () => {
                             )}
                         </div>
 
-                        {/*<div className={styles.inputGroup}>*/}
-                        {/*    <Label htmlFor="username">Ваше имя</Label>*/}
-                        {/*    <Input*/}
-                        {/*        id="username"*/}
-                        {/*        value={username}*/}
-                        {/*        onChange={(e) => setUsername(e.target.value)}*/}
-                        {/*        disabled={isInRoom || isJoining}*/}
-                        {/*        placeholder="Ваше имя"*/}
-                        {/*    />*/}
-                        {/*</div>*/}
+                        <div className={styles.inputGroup}>
+                            <Label htmlFor="username">Ваше имя</Label>
+                            <Input
+                                id="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                disabled={isInRoom || isJoining}
+                                placeholder="Ваше имя"
+                            />
+                        </div>
 
                         <div className={styles.inputGroup}>
                             {isInRoom ? (
@@ -1231,27 +1231,11 @@ export const VideoCallApp = () => {
                             ) : isJoining ? (
                                 <Button
                                     // onClick={handleCancelJoin}
-                                    onClick={() => {
-                                        handleCancelJoin;
-                                        setAutoJoin(false);
-                                        setRoomId('');
-                                        setIsJoining(false);
-                                        setError(null);
-                                        leaveRoom();
-                                        hasAttemptedAutoJoin.current = false;
-                                        if (webRTCRetryTimeoutRef.current) {
-                                            clearTimeout(webRTCRetryTimeoutRef.current);
-                                            webRTCRetryTimeoutRef.current = null;
-                                        }
-                                        setShowDisconnectDialog(true); // Показываем уведомление
-                                        setTimeout(() => setShowDisconnectDialog(false), 3000); // Автозакрытие через 3 секунды
-
-                                    }}
-
+                                    disabled={true}
                                     className={styles.button}
                                     variant="destructive"
                                 >
-                                    Отменить подключение
+                                    Подключение...
                                 </Button>
                             ) : (
                                 <Button
@@ -1263,6 +1247,26 @@ export const VideoCallApp = () => {
                                 </Button>
                             )}
                         </div>
+
+                        <Button
+                            onClick={() => {
+                                setAutoJoin(false);
+                                // setRoomId('');
+                                setIsJoining(false);
+                                setError(null);
+                                leaveRoom();
+                                hasAttemptedAutoJoin.current = false;
+                                if (webRTCRetryTimeoutRef.current) {
+                                    clearTimeout(webRTCRetryTimeoutRef.current);
+                                    webRTCRetryTimeoutRef.current = null;
+                                }
+                                setShowDisconnectDialog(true); // Показываем уведомление
+                                setTimeout(() => setShowDisconnectDialog(false), 3000); // Автозакрытие через 3 секунды
+                            }}
+                            className={styles.button}
+                        >
+                            Отключить подключение
+                        </Button>
 
                         <div className={styles.inputGroup}>
                             <Button
@@ -1679,9 +1683,9 @@ export const VideoCallApp = () => {
             <Dialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Автоподключение отключено</DialogTitle>
+                        <DialogTitle>Подключение отключено</DialogTitle>
                     </DialogHeader>
-                    <p>Вы отключили автоподключение. Выберите новую комнату для подключения.</p>
+                    <p>Вы отключили подключение. </p>
                     <DialogFooter>
                         <Button onClick={() => setShowDisconnectDialog(false)}>Закрыть</Button>
                     </DialogFooter>
