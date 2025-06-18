@@ -287,17 +287,17 @@ export async function updateServoSettings(
 
 const roomIdSchema = z.string().length(16, 'ID комнаты должен содержать ровно 16 символов (без тире)');
 type GetSavedRoomsResponse = {
-  rooms?: Array<{
+  rooms: Array<{
     id: string;
     isDefault: boolean;
     autoConnect: boolean;
     deviceId: string | null;
     proxyAccess: Array<{ proxyRoomId: string; name: string | null }>;
   }>;
-  proxyRooms?: Array<{
+  proxyRooms: Array<{
     id: string;
     isDefault: boolean;
-    autoConnect: boolean; // Добавляем autoConnect
+    autoConnect: boolean;
   }>;
   error?: string;
 };
@@ -306,7 +306,11 @@ export async function getSavedRooms(): Promise<GetSavedRoomsResponse> {
   console.log('getSavedRooms: session:', session);
   if (!session) {
     console.error('getSavedRooms: Пользователь не аутентифицирован');
-    return { error: 'Пользователь не аутентифицирован' };
+    return {
+      rooms: [],
+      proxyRooms: [],
+      error: 'Пользователь не аутентифицирован'
+    };
   }
 
   const userId = parseInt(session.id);
@@ -325,7 +329,6 @@ export async function getSavedRooms(): Promise<GetSavedRoomsResponse> {
 
     console.log('getSavedRooms: Найдено комнат:', rooms.length, 'прокси-комнат:', proxyRooms.length);
 
-    // Проверяем proxyRooms на валидность
     const validProxyRooms = proxyRooms.filter(
         (proxy) => typeof proxy.proxyRoomId === 'string' && proxy.proxyRoomId.length > 0
     );
@@ -352,7 +355,11 @@ export async function getSavedRooms(): Promise<GetSavedRoomsResponse> {
     };
   } catch (err) {
     console.error('getSavedRooms: Ошибка:', err);
-    return { error: 'Ошибка загрузки комнат' };
+    return {
+      rooms: [],
+      proxyRooms: [],
+      error: 'Ошибка загрузки комнат'
+    };
   }
 }
 export async function saveRoom(roomId: string, autoConnect: boolean = false) {
@@ -875,10 +882,13 @@ export async function disableProxyAccess(roomId: string) {
     return { error: 'Внутренняя ошибка сервера' };
   }
 }
-export async function joinRoomViaProxy(roomIdProxy: string) {
+type JoinRoomViaProxyResult =
+    | { roomId: string; deviceId: string | null }
+    | { error: string };
+export async function joinRoomViaProxy(roomIdProxy: string): Promise<JoinRoomViaProxyResult> {
   const parsedRoomIdProxy = roomIdSchema.safeParse(roomIdProxy);
   if (!parsedRoomIdProxy.success) {
-    throw new Error(parsedRoomIdProxy.error.errors[0].message);
+    return { error: parsedRoomIdProxy.error.errors[0].message };
   }
 
   const proxyAccess = await prisma.proxyAccess.findUnique({
@@ -887,11 +897,11 @@ export async function joinRoomViaProxy(roomIdProxy: string) {
   });
 
   if (!proxyAccess) {
-    throw new Error('Прокси-доступ не найден');
+    return { error: 'Прокси-доступ не найден' };
   }
 
   if (proxyAccess.expiresAt && new Date(proxyAccess.expiresAt) < new Date()) {
-    throw new Error('Прокси-доступ истек');
+    return { error: 'Прокси-доступ истек' };
   }
 
   return {
@@ -899,29 +909,31 @@ export async function joinRoomViaProxy(roomIdProxy: string) {
     deviceId: proxyAccess.room.devices?.idDevice || null,
   };
 }
-export async function deleteProxyAccess(proxyRoomId: string) {
+type DeleteProxyAccessResult =
+    | { message: string }
+    | { error: string };
+
+export async function deleteProxyAccess(proxyRoomId: string): Promise<DeleteProxyAccessResult> {
   console.log('deleteProxyAccess: Начало удаления прокси-доступа:', { proxyRoomId });
   const session = await getUserSession();
   if (!session) {
     console.error('deleteProxyAccess: Пользователь не аутентифицирован');
-    throw new Error('Пользователь не аутентифицирован');
+    return { error: 'Пользователь не аутентифицирован' };
   }
 
   const userId = parseInt(session.id);
   const parsedProxyRoomId = roomIdSchema.safeParse(proxyRoomId);
   if (!parsedProxyRoomId.success) {
     console.error('deleteProxyAccess: Некорректный proxyRoomId:', proxyRoomId, parsedProxyRoomId.error);
-    throw new Error(parsedProxyRoomId.error.errors[0].message);
+    return { error: parsedProxyRoomId.error.errors[0].message };
   }
 
   try {
-    // Проверяем существование прокси-доступа
     const existingProxyAccess = await prisma.proxyAccess.findUnique({
       where: { proxyRoomId },
       include: { room: true },
     });
 
-    // Проверяем существование SavedProxy для текущего пользователя
     const existingSavedProxy = await prisma.savedProxy.findFirst({
       where: { proxyRoomId, userId },
     });
@@ -931,11 +943,9 @@ export async function deleteProxyAccess(proxyRoomId: string) {
       return { message: 'Прокси-доступ или сохранённая прокси-комната не найдены' };
     }
 
-    // Если пользователь является владельцем комнаты (для ProxyAccess)
     const isRoomOwner = existingProxyAccess && existingProxyAccess.room.userId === userId;
 
     await prisma.$transaction([
-      // Удаляем ProxyAccess, если пользователь является владельцем комнаты
       ...(isRoomOwner && existingProxyAccess
           ? [
             prisma.proxyAccess.delete({
@@ -943,7 +953,6 @@ export async function deleteProxyAccess(proxyRoomId: string) {
             }),
           ]
           : []),
-      // Удаляем SavedProxy для текущего пользователя, если она существует
       ...(existingSavedProxy
           ? [
             prisma.savedProxy.deleteMany({
@@ -954,11 +963,11 @@ export async function deleteProxyAccess(proxyRoomId: string) {
     ]);
 
     console.log('deleteProxyAccess: Успешно удалены прокси-доступ и/или сохранённая прокси-комната:', { proxyRoomId });
-    revalidatePath('/');
     return { message: 'Прокси-доступ и/или сохранённая прокси-комната удалены' };
   } catch (err) {
     console.error('deleteProxyAccess: Ошибка:', err);
-    throw err;
+    const errorMessage = err instanceof Error ? err.message : 'Неизвестная ошибка';
+    return { error: errorMessage };
   }
 }
 export async function checkRoom(roomId: string) {

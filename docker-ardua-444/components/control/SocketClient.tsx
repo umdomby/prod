@@ -46,9 +46,10 @@ type LogEntry = {
 interface SocketClientProps {
     onConnectionStatusChange?: (isFullyConnected: boolean) => void;
     selectedDeviceId?: string | null;
+    onDisconnectWebSocket?: { disconnectWebSocket?: () => Promise<void> }; // Изменяем тип на объект
 }
 
-export default function SocketClient({onConnectionStatusChange, selectedDeviceId}: SocketClientProps) {
+export default function SocketClient({onConnectionStatusChange, selectedDeviceId, onDisconnectWebSocket}: SocketClientProps) {
     const {
         servoAngle,
         servo2Angle,
@@ -674,6 +675,17 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
             resolve();
         });
     }, [addLog, cleanupWebSocket]);
+
+    useEffect(() => {
+        if (onDisconnectWebSocket) {
+            onDisconnectWebSocket.disconnectWebSocket = disconnectWebSocket;
+        }
+        return () => {
+            if (onDisconnectWebSocket) {
+                onDisconnectWebSocket.disconnectWebSocket = undefined; // Очищаем при размонтировании
+            }
+        };
+    }, [onDisconnectWebSocket, disconnectWebSocket]);
 
     // useEffect для переподключения при смене selectedDeviceId
     useEffect(() => {
