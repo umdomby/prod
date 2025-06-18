@@ -1087,6 +1087,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             <div className="flex space-x-2">
                                 <Input
                                     value={newDe}
+                                    disabled={isProxy}
                                     onChange={handleNewDeChange}
                                     placeholder="XXXX-XXXX-XXXX-XXXX"
                                     className="flex-1 bg-transparent h-8 sm:h-10 text-xs sm:text-sm uppercase"
@@ -1094,7 +1095,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                 />
                                 <Button
                                     onClick={saveNewDe}
-                                    disabled={isAddDisabled}
+                                    disabled={isAddDisabled || isProxy}
                                     className="bg-blue-600 hover:bg-blue-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
                                 >
                                     Добавить
