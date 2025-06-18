@@ -756,33 +756,37 @@ async function generateUniqueProxyRoomId(): Promise<string> {
   }
   return proxyRoomId;
 }
-export async function getSavedRoomWithDevice(roomId: string) {
+export async function getSavedRoomWithDevice(deviceId: string) {
   const session = await getUserSession();
   if (!session) {
     throw new Error('Пользователь не аутентифицирован');
   }
 
-  const parsedRoomId = roomIdSchema.safeParse(roomId);
-  if (!parsedRoomId.success) {
-    throw new Error(parsedRoomId.error.errors[0].message);
+  const parsedDeviceId = deviceIdSchema.safeParse(deviceId);
+  if (!parsedDeviceId.success) {
+    throw new Error(parsedDeviceId.error.errors[0].message);
   }
 
   const userId = parseInt(session.id);
 
-  const room = await prisma.savedRoom.findUnique({
-    where: { roomId, userId },
+  const device = await prisma.devices.findUnique({
+    where: { idDevice: parsedDeviceId.data, userId },
+  });
+
+  if (!device) {
+    throw new Error('Устройство не найдено');
+  }
+
+  const room = await prisma.savedRoom.findFirst({
+    where: { devicesId: device.id, userId },
     include: { devices: true },
   });
 
-  if (!room) {
-    throw new Error('Комната не найдена');
-  }
-
   return {
-    id: room.roomId,
-    isDefault: room.isDefault,
-    autoConnect: room.autoConnect,
-    deviceId: room.devices ? room.devices.idDevice : null,
+    id: room?.roomId || null,
+    isDefault: room?.isDefault || false,
+    autoConnect: room?.autoConnect || false,
+    deviceId: room?.devices?.idDevice || null,
   };
 }
 function generateUniqueId(length: number): string {

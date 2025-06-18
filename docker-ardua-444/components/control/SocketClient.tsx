@@ -15,7 +15,7 @@ import {
     deleteDevice,
     updateDeviceSettings,
     updateServoSettings,
-    sendDeviceSettingsToESP
+    sendDeviceSettingsToESP, getSavedRoomWithDevice
 } from '@/app/actions';
 
 type MessageType = {
@@ -437,10 +437,19 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
             addLog('Удаление устройства запрещено', 'error');
             return;
         }
-        if (!confirm("Удалить устройство?")) {
-            return;
-        }
+
         try {
+            // Проверяем, привязано ли устройство к какой-либо комнате
+            const roomWithDevice = await getSavedRoomWithDevice(inputDe);
+            if (roomWithDevice.deviceId) {
+                addLog(`Устройство ${formatDeviceId(inputDe)} привязано к комнате ${roomWithDevice.id}, удаление невозможно`, 'ошибка');
+                return;
+            }
+
+            if (!confirm("Удалить устройство?")) {
+                return;
+            }
+
             await deleteDevice(inputDe);
             const updatedList = deviceList.filter(id => id !== inputDe);
             setDeviceList(updatedList);
