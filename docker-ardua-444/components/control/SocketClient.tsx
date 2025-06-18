@@ -444,7 +444,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
             // Проверяем, привязано ли устройство к какой-либо комнате
             const roomWithDevice = await getSavedRoomWithDevice(inputDe);
             if (roomWithDevice.deviceId) {
-                addLog(`Устройство ${formatDeviceId(inputDe)} привязано к комнате ${roomWithDevice.id}, удаление невозможно`, 'ошибка');
+                addLog(`Устройство ${formatDeviceId(inputDe)} привязано к комнате ${roomWithDevice.id}, удаление невозможно`, 'error');
                 return;
             }
 
