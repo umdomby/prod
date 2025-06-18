@@ -1225,6 +1225,36 @@ export const useWebRTC = (
         }
     };
 
+    const disableCamera = () => {
+        if (!isCameraEnabled || !localStream) {
+            console.log('Камера уже отключена или локальный поток отсутствует');
+            return;
+        }
+        try {
+            // Останавливаем видеотрек
+            localStream.getVideoTracks().forEach(track => {
+                track.stop();
+                console.log(`Остановлен видеотрек: ${track.id}`);
+            });
+            // Удаляем видеотрек из localStream
+            const newStream = new MediaStream(localStream.getAudioTracks());
+            setLocalStream(newStream);
+            // Обновляем PeerConnection, убирая видеотрек
+            if (pc.current) {
+                const videoSender = pc.current.getSenders().find(s => s.track?.kind === 'video');
+                if (videoSender) {
+                    videoSender.replaceTrack(null);
+                    console.log('Видеотрек удалён из PeerConnection');
+                }
+            }
+            setIsCameraEnabled(false);
+            console.log('Камера успешно отключена');
+        } catch (err) {
+            console.error('Ошибка отключения камеры:', err);
+            setError(`Ошибка отключения камеры: ${err instanceof Error ? err.message : String(err)}`);
+        }
+    };
+
     const restartMediaDevices = async () => {
         try {
             if (localStream) {
@@ -1433,6 +1463,7 @@ export const useWebRTC = (
         ws: ws.current,
         activeCodec,
         isCameraEnabled, // Добавляем состояние камеры
-        enableCamera // Добавляем функцию включения камеры
+        enableCamera, // Добавляем функцию включения камеры
+        disableCamera
     };
 };
