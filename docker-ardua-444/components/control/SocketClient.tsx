@@ -47,9 +47,10 @@ interface SocketClientProps {
     onConnectionStatusChange?: (isFullyConnected: boolean) => void;
     selectedDeviceId?: string | null;
     onDisconnectWebSocket?: { disconnectWebSocket?: () => Promise<void> }; // Изменяем тип на объект
+    onDeviceAdded?: (deviceId: string) => void; // Новый пропс
 }
 
-export default function SocketClient({onConnectionStatusChange, selectedDeviceId, onDisconnectWebSocket}: SocketClientProps) {
+export default function SocketClient({onConnectionStatusChange, selectedDeviceId, onDisconnectWebSocket, onDeviceAdded}: SocketClientProps) {
     const {
         servoAngle,
         servo2Angle,
@@ -412,16 +413,17 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                 setDeviceList(prev => [...prev, cleanId]);
                 setInputDe(cleanId);
                 setDe(cleanId);
-                setNoDevices(false); // Устройство добавлено, сбрасываем флаг
+                setNoDevices(false);
                 setNewDe('');
                 currentDeRef.current = cleanId;
                 addLog(`Устройство ${cleanId} добавлено`, 'success');
+                onDeviceAdded?.(cleanId); // Вызываем callback
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 addLog(`Ошибка добавления устройства: ${errorMessage}`, 'error');
             }
         }
-    }, [newDe, deviceList, autoConnect, autoReconnect, closedDel, addLog]);
+    }, [newDe, deviceList, autoConnect, autoReconnect, closedDel, addLog, onDeviceAdded]);
 
     // Удаление устройства
     const handleDeleteDevice = useCallback(async () => {

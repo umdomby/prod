@@ -1091,6 +1091,16 @@ export const VideoCallApp = () => {
         []
     );
 
+    const handleDeviceAdded = useCallback((deviceId: string) => {
+        setAvailableDevices(prev => {
+            // Проверяем, чтобы избежать дубликатов
+            if (!prev.some(device => device.idDevice === deviceId)) {
+                return [...prev, { idDevice: deviceId }];
+            }
+            return prev;
+        });
+    }, []);
+
     return (
         <div className={styles.container} suppressHydrationWarning>
             <div ref={videoContainerRef} className={styles.remoteVideoContainer} suppressHydrationWarning>
@@ -1542,7 +1552,8 @@ export const VideoCallApp = () => {
                 <SocketClient
                     onConnectionStatusChange={setIsDeviceConnected}
                     selectedDeviceId={selectedDeviceId}
-                    onDisconnectWebSocket={socketClientRef.current} // Передаем реф
+                    onDisconnectWebSocket={socketClientRef.current}
+                    onDeviceAdded={handleDeviceAdded} // Передаем новый пропс
                 />
             )}
 
