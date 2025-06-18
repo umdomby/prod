@@ -659,22 +659,87 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
     }, [addLog, cleanupWebSocket]);
 
     // Определение disconnectWebSocket
-    const disconnectWebSocket = useCallback(() => {
-        return new Promise<void>((resolve) => {
-            cleanupWebSocket();
-            setIsConnected(false);
-            setIsIdentified(false);
-            setEspConnected(false);
-            addLog("Отключено вручную", 'server');
-            reconnectAttemptRef.current = 5;
+    const disconnectWebSocket = useCallback(async () => {
+        return new Promise<void>(async (resolve, reject) => {
+            try {
+                // Отправляем команды остановки моторов
+                if (isConnected && inputDe) {
+                    try {
+                        // Команда через sendCommand в формате createMotorHandler
+                        sendCommand("SPD", { mo: 'A', sp: 0 });
+                        sendCommand("MSA");
+                        sendCommand("SPD", { mo: 'B', sp: 0 });
+                        sendCommand("MSB");
+                        addLog("Команды остановки моторов отправлены через WebSocket", 'success');
 
-            if (reconnectTimerRef.current) {
-                clearTimeout(reconnectTimerRef.current);
-                reconnectTimerRef.current = null;
+                        // Сбрасываем состояние моторов
+                        setMotorASpeed(0);
+                        setMotorBSpeed(0);
+                        setMotorADirection('stop');
+                        setMotorBDirection('stop');
+                        lastMotorACommandRef.current = null;
+                        lastMotorBCommandRef.current = null;
+                        if (motorAThrottleRef.current) {
+                            clearTimeout(motorAThrottleRef.current);
+                            motorAThrottleRef.current = null;
+                        }
+                        if (motorBThrottleRef.current) {
+                            clearTimeout(motorBThrottleRef.current);
+                            motorBThrottleRef.current = null;
+                        }
+                    } catch (error: unknown) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        addLog(`Ошибка остановки моторов: ${errorMessage}`, 'error');
+                    }
+                }
+
+                cleanupWebSocket();
+                setIsConnected(false);
+                setIsIdentified(false);
+                setEspConnected(false);
+                addLog("Отключено вручную", 'server');
+                reconnectAttemptRef.current = 5;
+
+                if (reconnectTimerRef.current) {
+                    clearTimeout(reconnectTimerRef.current);
+                    reconnectTimerRef.current = null;
+                }
+
+                // Сбрасываем autoReconnect и autoConnect
+                if (autoReconnect || autoConnect) {
+                    setAutoReconnect(false);
+                    setAutoConnect(false);
+                    try {
+                        await updateDeviceSettings(inputDe, {
+                            autoReconnect: false,
+                            autoConnect: false,
+                        });
+                        addLog("Автоматическое переподключение и подключение отключены", 'success');
+                    } catch (error: unknown) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        addLog(`Ошибка сохранения настроек устройства: ${errorMessage}`, 'error');
+                    }
+                }
+
+                resolve();
+            } catch (error) {
+                addLog(`Ошибка при отключении WebSocket: ${String(error)}`, 'error');
+                reject(error);
             }
-            resolve();
         });
-    }, [addLog, cleanupWebSocket]);
+    }, [
+        addLog,
+        cleanupWebSocket,
+        isConnected,
+        inputDe,
+        autoReconnect,
+        autoConnect,
+        updateDeviceSettings,
+        setMotorASpeed,
+        setMotorBSpeed,
+        setMotorADirection,
+        setMotorBDirection,
+    ]);
 
     useEffect(() => {
         if (onDisconnectWebSocket) {
@@ -682,7 +747,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
         }
         return () => {
             if (onDisconnectWebSocket) {
-                onDisconnectWebSocket.disconnectWebSocket = undefined; // Очищаем при размонтировании
+                onDisconnectWebSocket.disconnectWebSocket = undefined;
             }
         };
     }, [onDisconnectWebSocket, disconnectWebSocket]);
@@ -794,6 +859,10 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
         const setDirection = mo === 'A' ? setMotorADirection : setMotorBDirection
 
         return (value: number) => {
+            if (!isConnected) {
+                return // Игнорируем команды, если не подключены
+            }
+
             let direction: 'forward' | 'backward' | 'stop' = 'stop'
             let sp = 0 // speed → sp
 
@@ -836,7 +905,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                     : `MR${mo}`) // motor_a_backward → MRA, motor_b_backward → MRB
             }, 40)
         }
-    }, [sendCommand])
+    }, [sendCommand, isConnected])
 
     const adjustServo = useCallback(
         (servoId: '1' | '2', delta: number) => {
@@ -1125,6 +1194,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                     onChange={handleMotorAControl}
                     direction={motorADirection}
                     sp={motorASpeed}
+                    disabled={!isConnected}
                 />
 
                 <Joystick
@@ -1132,6 +1202,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                     onChange={handleMotorBControl}
                     direction={motorBDirection}
                     sp={motorBSpeed}
+                    disabled={!isConnected}
                 />
 
                 <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex flex-col space-y-2 z-50">

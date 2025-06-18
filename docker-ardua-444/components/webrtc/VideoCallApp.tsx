@@ -1247,9 +1247,13 @@ export const VideoCallApp = () => {
                                             clearTimeout(webRTCRetryTimeoutRef.current);
                                             webRTCRetryTimeoutRef.current = null;
                                         }
-                                        // Вызываем disconnectWebSocket
+                                        setSelectedDeviceId(null); // Сбрасываем устройство
                                         if (socketClientRef.current.disconnectWebSocket) {
+                                            console.log(`Отключение WebSocket для устройства: ${selectedDeviceId || 'не выбрано'}`);
                                             await socketClientRef.current.disconnectWebSocket();
+                                            console.log("WebSocket отключен");
+                                        } else {
+                                            console.warn("disconnectWebSocket не определен");
                                         }
                                     }}
                                     disabled={!isConnected}
@@ -1289,9 +1293,13 @@ export const VideoCallApp = () => {
                                     clearTimeout(webRTCRetryTimeoutRef.current);
                                     webRTCRetryTimeoutRef.current = null;
                                 }
-                                // Вызываем disconnectWebSocket
+                                setSelectedDeviceId(null); // Сбрасываем устройство
                                 if (socketClientRef.current.disconnectWebSocket) {
+                                    console.log(`Отключение WebSocket для устройства: ${selectedDeviceId || 'не выбрано'}`);
                                     await socketClientRef.current.disconnectWebSocket();
+                                    console.log("WebSocket отключен");
+                                } else {
+                                    console.warn("disconnectWebSocket не определен");
                                 }
                                 setShowDisconnectDialog(true);
                                 setTimeout(() => setShowDisconnectDialog(false), 3000);

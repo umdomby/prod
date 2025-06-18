@@ -7,9 +7,10 @@ type JoystickProps = {
     direction: 'forward' | 'backward' | 'stop'
     sp: number // speed → sp
     className?: string
+    disabled?: boolean // Новый пропс
 }
 
-const Joystick = ({ mo, onChange, direction, sp, className }: JoystickProps) => { // motor → mo, speed → sp
+const Joystick = ({ mo, onChange, direction, sp, disabled, className }: JoystickProps) => { // motor → mo, speed → sp
     const containerRef = useRef<HTMLDivElement>(null)
     const knobRef = useRef<HTMLDivElement>(null)
     const isDragging = useRef(false)
@@ -80,14 +81,18 @@ const Joystick = ({ mo, onChange, direction, sp, className }: JoystickProps) => 
         onChange(0)
     }, [onChange])
 
-    const onTouchStart = useCallback((e: TouchEvent) => {
-        if (touchId.current === null && containerRef.current?.contains(e.target as Node)) {
+    const onTouchStart = useCallback(
+        (e: TouchEvent) => {
+            if (disabled || touchId.current !== null || !containerRef.current?.contains(e.target as Node)) {
+                return
+            }
             const touch = e.changedTouches[0]
             touchId.current = touch.identifier
             handleStart(touch.clientY)
             e.preventDefault()
-        }
-    }, [handleStart])
+        },
+        [handleStart, disabled]
+    )
 
     const onTouchMove = useCallback((e: TouchEvent) => {
         if (touchId.current !== null && containerRef.current?.contains(e.target as Node)) {
@@ -117,10 +122,11 @@ const Joystick = ({ mo, onChange, direction, sp, className }: JoystickProps) => 
         if (!container) return
 
         const onMouseDown = (e: MouseEvent) => {
-            if (container.contains(e.target as Node)) {
-                handleStart(e.clientY)
-                e.preventDefault()
+            if (disabled || !container.contains(e.target as Node)) {
+                return
             }
+            handleStart(e.clientY)
+            e.preventDefault()
         }
 
         const onMouseMove = (e: MouseEvent) => {
@@ -176,7 +182,8 @@ const Joystick = ({ mo, onChange, direction, sp, className }: JoystickProps) => 
                 alignItems: 'center',
                 touchAction: 'none',
                 userSelect: 'none',
-                backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                backgroundColor: disabled ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)',
+                cursor: disabled ? 'not-allowed' : 'default',
                 ...motorStyles[mo], // motor → mo
                 zIndex: 1001
             }}
