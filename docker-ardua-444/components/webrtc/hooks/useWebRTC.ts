@@ -831,7 +831,7 @@ export const useWebRTC = (
         ws.current.onmessage = handleMessage;
     };
 
-    const initializeWebRTC = async (): Promise<MediaStream | null> => {
+    const initializeWebRTC = async (): Promise<void> => {
         try {
             cleanup();
 
@@ -919,25 +919,30 @@ export const useWebRTC = (
             };
 
             // Получаем медиапоток с устройства
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: isCameraEnabled
-                    ? deviceIds.video
+            let stream: MediaStream | null = null;
+            console.log('initializeWebRTC: isCameraEnabled =', isCameraEnabled); // Добавляем лог
+            if (isCameraEnabled) {
+                console.log('initializeWebRTC: Запрашиваем медиапоток');
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: deviceIds.video
                         ? {
                             deviceId: { exact: deviceIds.video },
                             ...getVideoConstraints(),
                             ...(isIOS && !deviceIds.video ? { facingMode: 'user' } : {})
                         }
-                        : getVideoConstraints()
-                    : false, // Отключаем видео по умолчанию
-                audio: deviceIds.audio
-                    ? {
-                        deviceId: { exact: deviceIds.audio },
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                    : true
-            });
+                        : getVideoConstraints(),
+                    audio: deviceIds.audio
+                        ? {
+                            deviceId: { exact: deviceIds.audio },
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                        : true
+                });
+            } else {
+                console.log('initializeWebRTC: Медиапоток не запрашивается, так как isCameraEnabled = false');
+            }
 
             // Проверяем наличие видеотрека
             // const videoTracks = stream.getVideoTracks();
@@ -948,11 +953,16 @@ export const useWebRTC = (
             // Применяем настройки для Huawei
             pc.current.getSenders().forEach(configureVideoSender);
 
-            setLocalStream(stream);
-            stream.getTracks().forEach(track => {
-                pc.current?.addTrack(track, stream);
-                console.log(`Добавлен ${track.kind} трек в PeerConnection:`, track.id);
-            });
+            if (stream) {
+                pc.current.getSenders().forEach(configureVideoSender);
+                setLocalStream(stream);
+                stream.getTracks().forEach(track => {
+                    pc.current?.addTrack(track, stream);
+                    console.log(`Добавлен ${track.kind} трек в PeerConnection:`, track.id);
+                });
+            } else {
+                console.log('Медиапоток не запрошен, PeerConnection инициализирован без треков');
+            }
 
             // Обработка ICE кандидатов
             pc.current.onicecandidate = (event) => {
@@ -1079,12 +1089,12 @@ export const useWebRTC = (
             // Запускаем мониторинг соединения
             startConnectionMonitoring();
 
-            return stream; // Возвращаем MediaStream
+            //return stream; // Возвращаем MediaStream
         } catch (err) {
             console.error('Ошибка инициализации WebRTC:', err);
             setError(`Не удалось инициализировать WebRTC: ${err instanceof Error ? err.message : String(err)}`);
             cleanup();
-            return null; // Возвращаем null при ошибке
+            //return null; // Возвращаем null при ошибке
         }
     };
 
@@ -1180,78 +1190,86 @@ export const useWebRTC = (
 
     const enableCamera = async () => {
         if (isCameraEnabled) {
-            console.log('Камера уже включена');
+            console.log('Камера и микрофон уже включены');
             return;
         }
         try {
-            const videoStream = await navigator.mediaDevices.getUserMedia({
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: deviceIds.video
                     ? {
                         deviceId: { exact: deviceIds.video },
-                        ...getVideoConstraints()
+                        ...getVideoConstraints(),
+                        ...(detectPlatform().isIOS && !deviceIds.video ? { facingMode: 'user' } : {})
                     }
-                    : getVideoConstraints()
+                    : getVideoConstraints(),
+                audio: deviceIds.audio
+                    ? {
+                        deviceId: { exact: deviceIds.audio },
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                    : true
             });
             if (localStream) {
-                // Добавляем видеотрек к существующему потоку
-                videoStream.getVideoTracks().forEach(track => {
+                mediaStream.getTracks().forEach(track => {
                     localStream.addTrack(track);
                     if (pc.current) {
-                        const sender = pc.current.getSenders().find(s => s.track?.kind === 'video');
+                        const sender = pc.current.getSenders().find(s => s.track?.kind === track.kind);
                         if (sender) {
                             sender.replaceTrack(track);
                         } else {
                             pc.current.addTrack(track, localStream);
                         }
-                        configureVideoSender(pc.current.getSenders().find(s => s.track === track)!);
+                        if (track.kind === 'video') {
+                            configureVideoSender(pc.current.getSenders().find(s => s.track === track)!);
+                        }
                     }
                 });
                 setLocalStream(new MediaStream(localStream.getTracks()));
             } else {
-                // Создаём новый поток, если локального нет
-                setLocalStream(videoStream);
-                videoStream.getTracks().forEach(track => {
+                setLocalStream(mediaStream);
+                mediaStream.getTracks().forEach(track => {
                     if (pc.current) {
-                        pc.current.addTrack(track, videoStream);
-                        configureVideoSender(pc.current.getSenders().find(s => s.track === track)!);
+                        pc.current.addTrack(track, mediaStream);
+                        if (track.kind === 'video') {
+                            configureVideoSender(pc.current.getSenders().find(s => s.track === track)!);
+                        }
                     }
                 });
             }
             setIsCameraEnabled(true);
-            console.log('Камера успешно включена');
+            console.log('Камера и микрофон успешно включены');
         } catch (err) {
-            console.error('Ошибка включения камеры:', err);
-            setError(`Ошибка включения камеры: ${err instanceof Error ? err.message : String(err)}`);
+            console.error('Ошибка включения камеры и микрофона:', err);
+            setError(`Ошибка включения медиа: ${err instanceof Error ? err.message : String(err)}`);
         }
     };
 
     const disableCamera = () => {
         if (!isCameraEnabled || !localStream) {
-            console.log('Камера уже отключена или локальный поток отсутствует');
+            console.log('Камера и микрофон уже отключены или локальный поток отсутствует');
             return;
         }
         try {
-            // Останавливаем видеотрек
-            localStream.getVideoTracks().forEach(track => {
+            localStream.getTracks().forEach(track => {
                 track.stop();
-                console.log(`Остановлен видеотрек: ${track.id}`);
+                console.log(`Остановлен ${track.kind} трек: ${track.id}`);
             });
-            // Удаляем видеотрек из localStream
-            const newStream = new MediaStream(localStream.getAudioTracks());
-            setLocalStream(newStream);
-            // Обновляем PeerConnection, убирая видеотрек
+            setLocalStream(null);
             if (pc.current) {
-                const videoSender = pc.current.getSenders().find(s => s.track?.kind === 'video');
-                if (videoSender) {
-                    videoSender.replaceTrack(null);
-                    console.log('Видеотрек удалён из PeerConnection');
-                }
+                pc.current.getSenders().forEach(sender => {
+                    if (sender.track) {
+                        sender.replaceTrack(null);
+                        console.log(`${sender.track.kind} трек удалён из PeerConnection`);
+                    }
+                });
             }
             setIsCameraEnabled(false);
-            console.log('Камера успешно отключена');
+            console.log('Камера и микрофон успешно отключены');
         } catch (err) {
-            console.error('Ошибка отключения камеры:', err);
-            setError(`Ошибка отключения камеры: ${err instanceof Error ? err.message : String(err)}`);
+            console.error('Ошибка отключения камеры и микрофона:', err);
+            setError(`Ошибка отключения медиа: ${err instanceof Error ? err.message : String(err)}`);
         }
     };
 
@@ -1327,9 +1345,10 @@ export const useWebRTC = (
 
             setupWebSocketListeners();
 
-            if (!(await initializeWebRTC())) {
-                throw new Error('Не удалось инициализировать WebRTC');
-            }
+            // if (!(await initializeWebRTC())) {
+            //     throw new Error('Не удалось инициализировать WebRTC');
+            // }
+            await initializeWebRTC();
 
             await new Promise<void>((resolve, reject) => {
                 if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {

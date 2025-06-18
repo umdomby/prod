@@ -646,3 +646,9 @@
 .deleteButton {
     margin-left: 1rem;
 }
+
+.copyButton {
+    /* Ваши стили, например */
+    background-color: #4b5563;
+    color: white;
+}

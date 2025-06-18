@@ -18,9 +18,33 @@ export const VideoPlayer = ({ stream, muted = false, className, transform, video
     const internalVideoRef = useRef<HTMLVideoElement>(null);
     const [computedTransform, setComputedTransform] = useState<string>('');
     const [isRotated, setIsRotated] = useState(false);
-
     const actualVideoRef = videoRef || internalVideoRef;
+    const hasInteracted = useRef(false); // Отслеживание взаимодействия пользователя
 
+    // Отслеживание взаимодействия пользователя
+    useEffect(() => {
+        const handleInteraction = () => {
+            hasInteracted.current = true;
+            const video = actualVideoRef.current;
+            if (video && video.srcObject) {
+                video.play().catch((e) => {
+                    console.error('Playback failed after interaction:', e);
+                    video.muted = true;
+                    video.play().catch((e) => console.error('Muted playback also failed:', e));
+                });
+            }
+        };
+
+        document.addEventListener('click', handleInteraction);
+        document.addEventListener('touchstart', handleInteraction);
+
+        return () => {
+            document.removeEventListener('click', handleInteraction);
+            document.removeEventListener('touchstart', handleInteraction);
+        };
+    }, [actualVideoRef]);
+
+    // Обработка transform
     useEffect(() => {
         if (typeof transform === 'string') {
             setComputedTransform(transform);
@@ -47,6 +71,7 @@ export const VideoPlayer = ({ stream, muted = false, className, transform, video
         }
     }, [transform]);
 
+    // Привязка потока и обработка событий
     useEffect(() => {
         const video = actualVideoRef.current;
         if (!video) return;
@@ -62,11 +87,13 @@ export const VideoPlayer = ({ stream, muted = false, className, transform, video
 
         const handleCanPlay = () => {
             console.log('Видео готово к воспроизведению');
-            video.play().catch((e) => {
-                console.error('Playback failed:', e);
-                video.muted = true;
-                video.play().catch((e) => console.error('Muted playback also failed:', e));
-            });
+            if (hasInteracted.current) {
+                video.play().catch((e) => {
+                    console.error('Playback failed:', e);
+                    video.muted = true;
+                    video.play().catch((e) => console.error('Muted playback also failed:', e));
+                });
+            }
         };
 
         const handleError = () => {
@@ -89,7 +116,9 @@ export const VideoPlayer = ({ stream, muted = false, className, transform, video
 
         if (stream) {
             video.srcObject = stream;
-            video.play().catch((e) => console.error('Initial play failed:', e));
+            if (hasInteracted.current) {
+                video.play().catch((e) => console.error('Initial play failed:', e));
+            }
         } else {
             video.srcObject = null;
         }
@@ -105,15 +134,12 @@ export const VideoPlayer = ({ stream, muted = false, className, transform, video
     return (
         <video
             ref={actualVideoRef}
-            autoPlay
             playsInline
             muted={muted}
             className={`${className || ''} ${isRotated ? 'rotated' : ''}`}
             style={{
                 transform: computedTransform,
                 transformOrigin: 'center center',
-                // width: '100%',
-                // height: 'auto',
                 background: 'black',
                 objectFit: 'contain',
             }}

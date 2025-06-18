@@ -150,6 +150,10 @@ export const VideoCallApp = () => {
     } = useWebRTC(selectedDevices, username, roomId.replace(/-/g, ''), selectedCodec);
 
     useEffect(() => {
+        console.log('useWebRTC: isCameraEnabled изменилось на', isCameraEnabled);
+    }, [isCameraEnabled]);
+
+    useEffect(() => {
         console.log('Состояния:', { isConnected, isInRoom, isCallActive, error });
         if (isInRoom && isCallActive && activeMainTab !== 'esp') {
             setActiveMainTab('esp');
@@ -333,18 +337,18 @@ export const VideoCallApp = () => {
         return `${baseUrl}?roomId=${formatRoomId(normalizedRoomId)}`;
     }, [roomId, isRoomIdComplete]);
 
-    const handleCopyLink = useCallback(() => {
-        const link = generateRoomLink();
-        if (link) {
-            navigator.clipboard.writeText(link);
-            setRoomLink(link);
-            const notification = document.createElement('div');
-            notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
-            notification.textContent = 'Ссылка скопирована в буфер обмена!';
-            document.body.appendChild(notification);
-            setTimeout(() => notification.remove(), 3000);
-        }
-    }, [generateRoomLink]);
+    // const handleCopyLink = useCallback(() => {
+    //     const link = generateRoomLink();
+    //     if (link) {
+    //         navigator.clipboard.writeText(link);
+    //         setRoomLink(link);
+    //         const notification = document.createElement('div');
+    //         notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
+    //         notification.textContent = 'Ссылка скопирована в буфер обмена!';
+    //         document.body.appendChild(notification);
+    //         setTimeout(() => notification.remove(), 3000);
+    //     }
+    // }, [generateRoomLink]);
 
     const handleSaveRoom = useCallback(
         debounce(async () => {
@@ -696,17 +700,10 @@ export const VideoCallApp = () => {
 
     const loadDevicesForMedia = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            })
-
-            stream.getTracks().forEach(track => track.stop())
-
-            const devices = await navigator.mediaDevices.enumerateDevices()
-            setDevices(devices)
-            setHasPermission(true)
-            setDevicesLoaded(true)
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            setDevices(devices);
+            setHasPermission(false); // Разрешение не запрашивается заранее
+            setDevicesLoaded(true);
 
             const savedVideoDevice = localStorage.getItem('videoDevice')
             const savedAudioDevice = localStorage.getItem('audioDevice')
@@ -716,9 +713,9 @@ export const VideoCallApp = () => {
                 audio: savedAudioDevice || ''
             })
         } catch (error) {
-            console.error('Device access error:', error)
-            setHasPermission(false)
-            setDevicesLoaded(true)
+            console.error('Device access error:', error);
+            setHasPermission(false);
+            setDevicesLoaded(true);
         }
     }
 
@@ -835,7 +832,6 @@ export const VideoCallApp = () => {
     useEffect(() => {
         if (
             autoJoin &&
-            hasPermission &&
             !isInRoom &&
             isRoomIdComplete &&
             !isJoining &&
@@ -862,7 +858,7 @@ export const VideoCallApp = () => {
                 webRTCRetryTimeoutRef.current = null;
             }
         }
-    }, [autoJoin, hasPermission, isInRoom, isRoomIdComplete, isJoining, error, handleJoinRoom, roomId, updateAutoConnect, leaveRoom]);
+    }, [autoJoin, isInRoom, isRoomIdComplete, isJoining, error, handleJoinRoom, roomId, updateAutoConnect, leaveRoom]);
 
 // Добавим новый useEffect для сброса hasAttemptedAutoJoin при изменении roomId
     useEffect(() => {
@@ -1255,28 +1251,27 @@ export const VideoCallApp = () => {
                                 maxLength={19}
                             />
                         </div>
-                        <div className={styles.inputGroup}>
-                            <Label htmlFor="roomLink">Ссылка на комнату</Label>
-                            <div className={styles.inputGroup}>
-                                <Label htmlFor="roomLink">Ссылка на комнату</Label>
-                                <div className="flex space-x-2">
-                                    <Input
-                                        id="roomLink"
-                                        value={roomLink || generateRoomLink()}
-                                        readOnly
-                                        placeholder="Сгенерируйте ссылку"
-                                        className={styles.input}
-                                    />
-                                    <Button
-                                        onClick={handleCopyLink}
-                                        disabled={!isRoomIdComplete}
-                                        className={styles.button}
-                                    >
-                                        Копировать
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
+                        {/*<div className={styles.inputGroup}>*/}
+                        {/*    <div className={styles.inputGroup}>*/}
+                        {/*        <Label htmlFor="roomLink">Ссылка на комнату</Label>*/}
+                        {/*        <div className="flex space-x-2">*/}
+                        {/*            <Input*/}
+                        {/*                id="roomLink"*/}
+                        {/*                value={roomLink || generateRoomLink()}*/}
+                        {/*                readOnly*/}
+                        {/*                placeholder="Сгенерируйте ссылку"*/}
+                        {/*                className={styles.input}*/}
+                        {/*            />*/}
+                        {/*            <Button*/}
+                        {/*                onClick={handleCopyLink}*/}
+                        {/*                disabled={!isRoomIdComplete}*/}
+                        {/*                className={styles.button}*/}
+                        {/*            >*/}
+                        {/*                Копировать*/}
+                        {/*            </Button>*/}
+                        {/*        </div>*/}
+                        {/*    </div>*/}
+                        {/*</div>*/}
 
                         <div className={styles.inputGroup}>
                             <Label htmlFor="proxyName">Название прокси-комнаты (опционально)</Label>
@@ -1302,21 +1297,44 @@ export const VideoCallApp = () => {
                                         <div className={styles.proxyList}>
                                             <h4>Прокси-доступы:</h4>
                                             <ul>
-                                                {room.proxyAccess.map((proxy) => (
-                                                    <li key={proxy.proxyRoomId} className={styles.proxyItem}>
+                                                {room.proxyAccess.map((proxy) => {
+                                                    // Генерируем ссылку для прокси-комнаты
+                                                    const proxyLink = `${window.location.origin}?roomId=${formatRoomId(proxy.proxyRoomId)}`;
+
+                                                    const handleCopyProxyLink = () => {
+                                                        navigator.clipboard.writeText(proxyLink).then(() => {
+                                                            const notification = document.createElement('div');
+                                                            notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
+                                                            notification.textContent = 'Ссылка на прокси скопирована!';
+                                                            document.body.appendChild(notification);
+                                                            setTimeout(() => notification.remove(), 3000);
+                                                        });
+                                                    };
+
+                                                    return (
+                                                        <li key={proxy.proxyRoomId} className={styles.proxyItem}>
                                 <span>
                                     Прокси-ID: {formatRoomId(proxy.proxyRoomId)}
                                     {proxy.name && ` (${proxy.name})`}
                                 </span>
-                                                        <Button
-                                                            onClick={() => handleDeleteProxy(proxy.proxyRoomId)}
-                                                            className={`${styles.button} ${styles.deleteButton}`}
-                                                            variant="destructive"
-                                                        >
-                                                            Удалить
-                                                        </Button>
-                                                    </li>
-                                                ))}
+                                                            <div className="flex space-x-2">
+                                                                <Button
+                                                                    onClick={handleCopyProxyLink}
+                                                                    className={styles.button}
+                                                                >
+                                                                    Копировать
+                                                                </Button>
+                                                                <Button
+                                                                    onClick={() => handleDeleteProxy(proxy.proxyRoomId)}
+                                                                    className={`${styles.button} ${styles.deleteButton}`}
+                                                                    variant="destructive"
+                                                                >
+                                                                    Удалить
+                                                                </Button>
+                                                            </div>
+                                                        </li>
+                                                    );
+                                                })}
                                             </ul>
                                         </div>
                                     );
@@ -1381,7 +1399,7 @@ export const VideoCallApp = () => {
                                         hasAttemptedAutoJoin.current = false;
                                         handleJoinRoom();
                                     }}
-                                    disabled={!hasPermission || !isRoomIdComplete}
+                                    disabled={!isRoomIdComplete}
                                     className={styles.button}
                                 >
                                     Войти в комнату
@@ -1432,17 +1450,17 @@ export const VideoCallApp = () => {
                         <div className={styles.inputGroup}>
                             <Button
                                 onClick={() => enableCamera()}
-                                disabled={isCameraEnabled || !isInRoom || !hasPermission}
+                                disabled={isCameraEnabled || !isInRoom}
                                 className={styles.button}
                             >
-                                Включить камеру
+                                Включить камеру и микрофон
                             </Button>
                             <Button
                                 onClick={() => disableCamera()}
                                 disabled={!isCameraEnabled || !isInRoom}
                                 className={styles.button}
                             >
-                                Отключить камеру
+                                Отключить камеру и микрофон
                             </Button>
                         </div>
 
