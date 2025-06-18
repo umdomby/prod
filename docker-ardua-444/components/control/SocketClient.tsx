@@ -126,7 +126,9 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                 // Устанавливаем noDevices в false, если есть хотя бы одно устройство
                 setNoDevices(devices.length === 0);
                 if (devices.length > 0) {
-                    const device = devices[0];
+                    // Находим устройство с autoConnect: true или берём первое
+                    const autoConnectDevice = devices.find(device => device.autoConnect) || devices[0];
+                    const device = autoConnectDevice;
                     setInputDe(device.idDevice);
                     setDe(device.idDevice);
                     currentDeRef.current = device.idDevice;
@@ -145,6 +147,10 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                         setServo1MaxInput((device.settings.servo1MaxAngle || 180).toString());
                         setServo2MinInput((device.settings.servo2MinAngle || 0).toString());
                         setServo2MaxInput((device.settings.servo2MaxAngle || 180).toString());
+                    }
+                    if (device.autoConnect) {
+                        connectWebSocket(device.idDevice);
+                        addLog(`Автоматическое подключение к устройству ${formatDeviceId(device.idDevice)}`, 'success');
                     }
                     if (socketRef.current?.readyState === WebSocket.OPEN) {
                         const settings = await sendDeviceSettingsToESP(device.idDevice);
@@ -169,9 +175,6 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             ts: Date.now(),
                             expectAck: true
                         }));
-                    }
-                    if (device.autoConnect) {
-                        connectWebSocket(device.idDevice);
                     }
                 } else {
                     setDeviceList([]);
@@ -422,24 +425,37 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
 
     // Удаление устройства
     const handleDeleteDevice = useCallback(async () => {
-        if (!closedDel && confirm("Удалить устройство?")) {
-            try {
-                await deleteDevice(inputDe);
-                const updatedList = deviceList.filter(id => id !== inputDe);
-                setDeviceList(updatedList);
-                setNoDevices(updatedList.length === 0); // Обновляем флаг
-                const defaultDevice = updatedList.length > 0 ? updatedList[0] : '';
-                setInputDe(defaultDevice);
-                setDe(defaultDevice);
-                currentDeRef.current = defaultDevice;
-                addLog(`Устройство ${inputDe} удалено`, 'success');
-            } catch (error: unknown) {
-                console.error('Ошибка при удалении устройства:', error);
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                addLog(`Ошибка: ${errorMessage}`, 'error');
-            }
+        if (isConnected) {
+            addLog('Невозможно удалить устройство: активное соединение с WebSocket', 'error');
+            return;
         }
-    }, [inputDe, deviceList, closedDel, addLog]);
+        if (noDevices) {
+            addLog('Нет устройств для удаления', 'error');
+            return;
+        }
+        if (closedDel) {
+            addLog('Удаление устройства запрещено', 'error');
+            return;
+        }
+        if (!confirm("Удалить устройство?")) {
+            return;
+        }
+        try {
+            await deleteDevice(inputDe);
+            const updatedList = deviceList.filter(id => id !== inputDe);
+            setDeviceList(updatedList);
+            setNoDevices(updatedList.length === 0);
+            const defaultDevice = updatedList.length > 0 ? updatedList[0] : '';
+            setInputDe(defaultDevice);
+            setDe(defaultDevice);
+            currentDeRef.current = defaultDevice;
+            addLog(`Устройство ${formatDeviceId(inputDe)} удалено`, 'success');
+        } catch (error: unknown) {
+            console.error('Ошибка при удалении устройства:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            addLog(`Ошибка удаления устройства: ${errorMessage}`, 'error');
+        }
+    }, [isConnected, noDevices, closedDel, inputDe, deviceList, addLog, formatDeviceId]);
 
     const cleanupWebSocket = useCallback(() => {
         if (socketRef.current) {
@@ -795,7 +811,9 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
             const devices = await getDevices();
             const selectedDevice = devices.find(device => device.idDevice === value);
             if (selectedDevice) {
-                setAutoReconnect(selectedDevice.autoReconnect ?? false);
+                // Устанавливаем autoReconnect: true для нового устройства
+                setAutoReconnect(true);
+                await updateDeviceSettings(value, { autoReconnect: true });
                 setAutoConnect(selectedDevice.autoConnect ?? false);
                 setClosedDel(selectedDevice.closedDel ?? false);
                 if (selectedDevice.settings) {
@@ -811,16 +829,16 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                     setServo2MinInput((selectedDevice.settings.servo2MinAngle || 0).toString());
                     setServo2MaxInput((selectedDevice.settings.servo2MaxAngle || 180).toString());
                 }
-                if (autoReconnect) {
-                    await disconnectWebSocket();
-                    connectWebSocket(value);
-                }
+                // Всегда переподключаемся
+                await disconnectWebSocket();
+                connectWebSocket(value);
+                addLog(`Переподключено к устройству ${formatDeviceId(value)}`, 'success');
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             addLog(`Ошибка при смене устройства: ${errorMessage}`, 'error');
         }
-    }, [noDevices, selectedDeviceId, inputDe, autoReconnect, disconnectWebSocket, connectWebSocket, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle]);
+    }, [noDevices, selectedDeviceId, inputDe, disconnectWebSocket, connectWebSocket, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle, updateDeviceSettings, formatDeviceId]);
 
     const sendCommand = useCallback((co: string, pa?: any) => {
         if (!isIdentified) {
@@ -956,9 +974,23 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
         return () => clearInterval(interval);
     }, [isConnected, isIdentified, sendCommand]);
 
-    const handleOpenControls = () => {
+    const handleOpenControls = useCallback(() => {
         setActiveTab(null);
-    };
+        if (noDevices) {
+            addLog('Нет добавленных устройств', 'error');
+            return;
+        }
+        if (!inputDe) {
+            addLog('Выберите устройство для подключения', 'error');
+            return;
+        }
+        if (!isConnected) {
+            connectWebSocket(inputDe);
+            addLog(`Попытка подключения к устройству ${formatDeviceId(inputDe)}`, 'info');
+        } else {
+            addLog('WebSocket уже подключён', 'info');
+        }
+    }, [noDevices, inputDe, isConnected, connectWebSocket, addLog, formatDeviceId]);
 
     const handleCloseControls = () => {
         setActiveTab(activeTab === 'controls' ? null : 'controls');
@@ -998,12 +1030,22 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             </div>
                         </div>
 
-                        <Button
-                            onClick={handleOpenControls}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 h-8 sm:h-10 text-xs sm:text-sm"
-                        >
-                            Управление
-                        </Button>
+                        <div className="flex space-x-2">
+                            <Button
+                                onClick={handleOpenControls}
+                                className="flex-1-1 bg-indigo-600 hover:bg-indigo-700 h-8 sm:h-10 text-xs sm:text-sm"
+                                disabled={noDevices}
+                            >
+                                Управление
+                            </Button>
+                            <Button
+                                onClick={disconnectWebSocket}
+                                disabled={!isConnected}
+                                className="flex-1 bg-red-600 hover:bg-red-700 h-8 sm:h-10 text-xs sm:text-sm"
+                            >
+                                Разъединить
+                            </Button>
+                        </div>
 
                         <div className="flex space-x-2">
                             <Select
@@ -1024,7 +1066,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             </Select>
                             <Button
                                 onClick={handleDeleteDevice}
-                                disabled={closedDel || !!selectedDeviceId} // Удаляем noDevices из условия
+                                disabled={isConnected || closedDel || !!selectedDeviceId || noDevices}
                                 className="bg-red-600 hover:bg-red-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
                             >
                                 Удалить
@@ -1058,7 +1100,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     checked={isProxy ? true : autoReconnect}
                                     onCheckedChange={isProxy ? undefined : toggleAutoReconnect}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${isProxy || autoReconnect ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={isProxy}
+                                    disabled={noDevices || isProxy}
                                 />
                                 <Label htmlFor="auto-reconnect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое переподключение при смене устройства
@@ -1070,7 +1112,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     checked={isProxy ? true : autoConnect}
                                     onCheckedChange={isProxy ? undefined : toggleAutoConnect}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${isProxy || autoConnect ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={isProxy}
+                                    disabled={noDevices || isProxy}
                                 />
                                 <Label htmlFor="auto-connect" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Автоматическое подключение при загрузке страницы
@@ -1082,7 +1124,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     checked={isProxy ? true : closedDel}
                                     onCheckedChange={isProxy ? undefined : toggleClosedDel}
                                     className={`border-gray-300 w-4 h-4 sm:w-5 sm:h-5 ${isProxy || closedDel ? 'bg-green-500' : 'bg-white'}`}
-                                    disabled={isProxy}
+                                    disabled={noDevices || isProxy}
                                 />
                                 <Label htmlFor="closed-del" className="text-xs sm:text-sm font-medium text-gray-700">
                                     Запретить удаление устройств
@@ -1103,7 +1145,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                         onBlur={(e) => handleServoInputBlur('servo1Min', e.target.value)}
                                         placeholder="0"
                                         className="bg-gray-700 text-white border-gray-600"
-                                        disabled={isProxy}
+                                        disabled={noDevices || isProxy}
                                     />
                                 </div>
                                 <div>
@@ -1115,7 +1157,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                         onBlur={(e) => handleServoInputBlur('servo1Max', e.target.value)}
                                         placeholder="0"
                                         className={`bg-gray-700 text-white border-gray-600 ${parseInt(servo1MaxInput || '0') < servo1MinAngle ? 'border-red-500' : ''}`}
-                                        disabled={isProxy}
+                                        disabled={noDevices || isProxy}
                                     />
                                 </div>
                                 <div>
@@ -1127,7 +1169,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                         onBlur={(e) => handleServoInputBlur('servo2Min', e.target.value)}
                                         placeholder="0"
                                         className="bg-gray-700 text-white border-gray-600"
-                                        disabled={isProxy}
+                                        disabled={noDevices || isProxy}
                                     />
                                 </div>
                                 <div>
@@ -1139,7 +1181,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                         onBlur={(e) => handleServoInputBlur('servo2Max', e.target.value)}
                                         placeholder="0"
                                         className={`bg-gray-700 text-white border-gray-600 ${parseInt(servo2MaxInput || '0') < servo2MinAngle ? 'border-red-500' : ''}`}
-                                        disabled={isProxy}
+                                        disabled={noDevices || isProxy}
                                     />
                                 </div>
                             </div>

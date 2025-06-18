@@ -145,35 +145,33 @@ export async function addDevice(idDevice: string, autoConnect: boolean = false, 
 
 // Удаление устройства
 export async function deleteDevice(idDevice: string) {
-  const session = await getUserSession();
-  if (!session) {
-    throw new Error('Пользователь не аутентифицирован');
+  try {
+    const session = await getUserSession();
+    if (!session) {
+      throw new Error('Пользователь не аутентифицирован');
+    }
+    const parsedIdDevice = deviceIdSchema.safeParse(idDevice);
+    if (!parsedIdDevice.success) {
+      throw new Error(parsedIdDevice.error.errors[0].message);
+    }
+    const userId = parseInt(session.id);
+    const device = await prisma.devices.findUnique({
+      where: { idDevice: parsedIdDevice.data },
+    });
+    if (!device || device.userId !== userId) {
+      throw new Error('Устройство не найдено или доступ запрещён');
+    }
+    await prisma.settings.deleteMany({
+      where: { devicesId: device.id },
+    });
+    await prisma.devices.delete({
+      where: { idDevice: parsedIdDevice.data },
+    });
+    revalidatePath('/');
+  } catch (error: unknown) {
+    console.error(`Ошибка в deleteDevice для idDevice=${idDevice}:`, error);
+    throw error; // Пробрасываем ошибку для обработки на клиенте
   }
-
-  const parsedIdDevice = deviceIdSchema.safeParse(idDevice);
-  if (!parsedIdDevice.success) {
-    throw new Error(parsedIdDevice.error.errors[0].message);
-  }
-
-  const userId = parseInt(session.id);
-
-  const device = await prisma.devices.findUnique({
-    where: { idDevice: parsedIdDevice.data },
-  });
-
-  if (!device || device.userId !== userId) {
-    throw new Error('Устройство не найдено или доступ запрещен');
-  }
-
-  await prisma.settings.deleteMany({
-    where: { devicesId: device.id },
-  });
-
-  await prisma.devices.delete({
-    where: { idDevice: parsedIdDevice.data },
-  });
-
-  revalidatePath('/');
 }
 
 // Обновление настроек устройства
