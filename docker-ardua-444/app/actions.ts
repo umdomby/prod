@@ -525,7 +525,7 @@ export async function deleteRoom(roomId: string) {
   revalidatePath('/');
 }
 export async function setDefaultRoom(roomId: string) {
-  console.log('setDefaultRoom: Начало установки комнаты по умолчанию:', roomId);
+  console.log('setDefaultRoom: Начало установки комнаты по умолчанию:', { roomId });
   const session = await getUserSession();
   if (!session) {
     console.error('setDefaultRoom: Пользователь не аутентифицирован');
@@ -533,9 +533,10 @@ export async function setDefaultRoom(roomId: string) {
   }
 
   const userId = parseInt(session.id);
+  console.log('setDefaultRoom: Пользователь:', { userId });
   const parsedRoomId = roomIdSchema.safeParse(roomId);
   if (!parsedRoomId.success) {
-    console.error('setDefaultRoom: Некорректный roomId:', roomId, parsedRoomId.error);
+    console.error('setDefaultRoom: Некорректный roomId:', { roomId, error: parsedRoomId.error });
     throw new Error(parsedRoomId.error.errors[0].message);
   }
 
@@ -551,18 +552,20 @@ export async function setDefaultRoom(roomId: string) {
         data: { isDefault: false },
       }),
     ]);
+    console.log('setDefaultRoom: Сброшены предыдущие дефолтные комнаты');
 
     // Пытаемся найти комнату в SavedRoom
     const savedRoom = await prisma.savedRoom.findFirst({
       where: { roomId, userId },
     });
+    console.log('setDefaultRoom: Поиск в SavedRoom:', { roomId, found: !!savedRoom });
 
     if (savedRoom) {
       await prisma.savedRoom.update({
         where: { id: savedRoom.id },
         data: { isDefault: true },
       });
-      console.log('setDefaultRoom: Установлена дефолтная SavedRoom:', roomId);
+      console.log('setDefaultRoom: Установлена дефолтная SavedRoom:', { roomId });
       revalidatePath('/');
       return;
     }
@@ -570,19 +573,22 @@ export async function setDefaultRoom(roomId: string) {
     // Если не нашли в SavedRoom, ищем в SavedProxy
     const savedProxy = await prisma.savedProxy.findFirst({
       where: { proxyRoomId: roomId, userId },
+      select: { id: true },
     });
+    console.log('setDefaultRoom: Поиск в SavedProxy:', { roomId, found: !!savedProxy });
 
     if (savedProxy) {
       await prisma.savedProxy.update({
         where: { id: savedProxy.id },
         data: { isDefault: true },
       });
-      console.log('setDefaultRoom: Установлена дефолтная SavedProxy:', roomId);
+      console.log('setDefaultRoom: Установлена дефолтная SavedProxy:', { roomId });
       revalidatePath('/');
       return;
     }
 
     // Если не нашли ни там, ни там - ошибка
+    console.error('setDefaultRoom: Комната не найдена для пользователя:', { roomId, userId });
     throw new Error('Комната не найдена');
   } catch (err) {
     console.error('setDefaultRoom: Ошибка:', err);
