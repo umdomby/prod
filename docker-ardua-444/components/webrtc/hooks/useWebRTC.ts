@@ -62,6 +62,7 @@ export const useWebRTC = (
     const [roomInfo, setRoomInfo] = useState<any>({});
     const [stream, setStream] = useState<MediaStream | null>(null);
     const webRTCRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [isCameraEnabled, setIsCameraEnabled] = useState(false); // Состояние для камеры
 
 
 
@@ -919,13 +920,15 @@ export const useWebRTC = (
 
             // Получаем медиапоток с устройства
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: deviceIds.video
-                    ? {
-                        deviceId: { exact: deviceIds.video },
-                        ...getVideoConstraints(),
-                        ...(isIOS && !deviceIds.video ? { facingMode: 'user' } : {})
-                    }
-                    : getVideoConstraints(),
+                video: isCameraEnabled
+                    ? deviceIds.video
+                        ? {
+                            deviceId: { exact: deviceIds.video },
+                            ...getVideoConstraints(),
+                            ...(isIOS && !deviceIds.video ? { facingMode: 'user' } : {})
+                        }
+                        : getVideoConstraints()
+                    : false, // Отключаем видео по умолчанию
                 audio: deviceIds.audio
                     ? {
                         deviceId: { exact: deviceIds.audio },
@@ -937,10 +940,10 @@ export const useWebRTC = (
             });
 
             // Проверяем наличие видеотрека
-            const videoTracks = stream.getVideoTracks();
-            if (videoTracks.length === 0) {
-                throw new Error('Не удалось получить видеопоток с устройства');
-            }
+            // const videoTracks = stream.getVideoTracks();
+            // if (videoTracks.length === 0) {
+            //     throw new Error('Не удалось получить видеопоток с устройства');
+            // }
 
             // Применяем настройки для Huawei
             pc.current.getSenders().forEach(configureVideoSender);
@@ -1174,47 +1177,53 @@ export const useWebRTC = (
         console.log('Запуск resetConnection');
         leaveRoom(); // Полная очистка соединения
     };
-// Модифицируем функцию resetConnection
-//     const resetConnection = async () => {
-//         console.log(`Запуск resetConnection, попытка #${retryAttempts.current + 1}`);
-//
-//         if (retryAttempts.current >= MAX_RETRIES) {
-//             console.error('Достигнуто максимальное количество попыток переподключения:', MAX_RETRIES);
-//             setError('Не удалось восстановить соединение после нескольких попыток');
-//             leaveRoom();
-//             return;
-//         }
-//
-//         const { isIOS, isSafari } = detectPlatform();
-//         const baseDelay = isIOS || isSafari ? 5000 : 2000;
-//         const retryDelay = Math.min(baseDelay * (retryAttempts.current + 1), 15000);
-//
-//         console.log(`Ожидание перед переподключением: ${retryDelay}ms`);
-//         cleanup();
-//         retryAttempts.current += 1;
-//         setRetryCount(retryAttempts.current);
-//
-//         setTimeout(async () => {
-//             try {
-//                 console.log('Попытка повторного входа в комнату');
-//                 await joinRoom(username);
-//                 console.log('Переподключение успешно, сброс счетчика попыток');
-//                 retryAttempts.current = 0;
-//                 setRetryCount(0);
-//             } catch (err) {
-//                 console.error('Ошибка переподключения:', err);
-//                 setError(`Ошибка переподключения: ${err instanceof Error ? err.message : String(err)}`);
-//                 if (retryAttempts.current < MAX_RETRIES) {
-//                     console.log('Планируем следующую попытку переподключения');
-//                     resetConnection();
-//                 } else {
-//                     console.error('Исчерпаны все попытки переподключения');
-//                     setError('Не удалось восстановить соединение после максимального количества попыток');
-//                     leaveRoom();
-//                 }
-//             }
-//         }, retryDelay);
-//     };
+
+    const enableCamera = async () => {
+        if (isCameraEnabled) {
+            console.log('Камера уже включена');
+            return;
+        }
+        try {
+            const videoStream = await navigator.mediaDevices.getUserMedia({
+                video: deviceIds.video
+                    ? {
+                        deviceId: { exact: deviceIds.video },
+                        ...getVideoConstraints()
+                    }
+                    : getVideoConstraints()
+            });
+            if (localStream) {
+                // Добавляем видеотрек к существующему потоку
+                videoStream.getVideoTracks().forEach(track => {
+                    localStream.addTrack(track);
+                    if (pc.current) {
+                        const sender = pc.current.getSenders().find(s => s.track?.kind === 'video');
+                        if (sender) {
+                            sender.replaceTrack(track);
+                        } else {
+                            pc.current.addTrack(track, localStream);
+                        }
+                        configureVideoSender(pc.current.getSenders().find(s => s.track === track)!);
+                    }
+                });
+                setLocalStream(new MediaStream(localStream.getTracks()));
+            } else {
+                // Создаём новый поток, если локального нет
+                setLocalStream(videoStream);
+                videoStream.getTracks().forEach(track => {
+                    if (pc.current) {
+                        pc.current.addTrack(track, videoStream);
+                        configureVideoSender(pc.current.getSenders().find(s => s.track === track)!);
+                    }
+                });
+            }
+            setIsCameraEnabled(true);
+            console.log('Камера успешно включена');
+        } catch (err) {
+            console.error('Ошибка включения камеры:', err);
+            setError(`Ошибка включения камеры: ${err instanceof Error ? err.message : String(err)}`);
+        }
+    };
 
     const restartMediaDevices = async () => {
         try {
@@ -1422,6 +1431,8 @@ export const useWebRTC = (
         restartMediaDevices,
         setError,
         ws: ws.current,
-        activeCodec
+        activeCodec,
+        isCameraEnabled, // Добавляем состояние камеры
+        enableCamera // Добавляем функцию включения камеры
     };
 };

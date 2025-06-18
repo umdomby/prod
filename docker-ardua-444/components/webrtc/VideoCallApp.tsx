@@ -143,7 +143,9 @@ export const VideoCallApp = () => {
         error,
         setError,
         ws,
-        activeCodec
+        activeCodec,
+        isCameraEnabled,
+        enableCamera
     } = useWebRTC(selectedDevices, username, roomId.replace(/-/g, ''), selectedCodec);
 
     useEffect(() => {
@@ -1423,6 +1425,16 @@ export const VideoCallApp = () => {
                                 className={styles.button}
                             >
                                 Сохранить ID комнаты
+                            </Button>
+                        </div>
+
+                        <div className={styles.inputGroup}>
+                            <Button
+                                onClick={() => enableCamera()}
+                                disabled={isCameraEnabled || !isInRoom || !hasPermission}
+                                className={styles.button}
+                            >
+                                Включить камеру
                             </Button>
                         </div>
 
