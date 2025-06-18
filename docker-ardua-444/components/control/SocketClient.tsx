@@ -820,9 +820,6 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
             const devices = await getDevices();
             const selectedDevice = devices.find(device => device.idDevice === value);
             if (selectedDevice) {
-                // Устанавливаем autoReconnect: true для нового устройства
-                setAutoReconnect(true);
-                await updateDeviceSettings(value, { autoReconnect: true });
                 setAutoConnect(selectedDevice.autoConnect ?? false);
                 setClosedDel(selectedDevice.closedDel ?? false);
                 if (selectedDevice.settings) {
@@ -838,10 +835,19 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                     setServo2MinInput((selectedDevice.settings.servo2MinAngle || 0).toString());
                     setServo2MaxInput((selectedDevice.settings.servo2MaxAngle || 180).toString());
                 }
-                // Всегда переподключаемся
-                await disconnectWebSocket();
-                connectWebSocket(value);
-                addLog(`Переподключено к устройству ${formatDeviceId(value)}`, 'success');
+                // Подключаемся только если autoReconnect включён
+                if (selectedDevice.autoReconnect) {
+                    setAutoReconnect(true);
+                    await updateDeviceSettings(value, { autoReconnect: true });
+                    await disconnectWebSocket();
+                    connectWebSocket(value);
+                    addLog(`Переподключено к устройству ${formatDeviceId(value)}`, 'success');
+                } else {
+                    setAutoReconnect(false);
+                    await updateDeviceSettings(value, { autoReconnect: false });
+                    await disconnectWebSocket();
+                    addLog(`Устройство ${formatDeviceId(value)} выбрано, но автоматическое переподключение отключено`, 'info');
+                }
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
