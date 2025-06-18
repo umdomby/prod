@@ -1241,7 +1241,6 @@ export const VideoCallApp = () => {
                                         setActiveMainTab('webrtc');
                                         setIsJoining(false);
                                         setAutoJoin(false);
-                                        updateAutoConnect(roomId.replace(/-/g, ''), false);
                                         hasAttemptedAutoJoin.current = false;
                                         if (webRTCRetryTimeoutRef.current) {
                                             clearTimeout(webRTCRetryTimeoutRef.current);
