@@ -1351,7 +1351,7 @@ export const VideoCallApp = () => {
                                         setError(null);
                                         hasAttemptedAutoJoin.current = true; // Блокируем повторное автоподключение
                                         setSelectedDeviceId(null);
-                                        if (socketClientRef.current.disconnectWebSocket) {
+                                        if (socketClientRef.current?.disconnectWebSocket) {
                                             console.log(`Отключение WebSocket устройства для: ${selectedDeviceId || 'не выбрано'}`);
                                             await socketClientRef.current.disconnectWebSocket();
                                             console.log("WebSocket устройства отключен");
@@ -1362,15 +1362,14 @@ export const VideoCallApp = () => {
                                         if (roomIdFromUrl) {
                                             setRoomId(formatRoomId(roomIdFromUrl.replace(/-/g, '')));
                                         }
-                                        // Обновляем сохраненные комнаты, отключая autoConnect
-                                        const normalizedRoomId = roomId.replace(/-/g, '');
-                                        updateAutoConnect(normalizedRoomId, false);
-                                        setSavedRooms((prev) =>
-                                            prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
-                                        );
-                                        setSavedProxyRooms((prev) =>
-                                            prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
-                                        );
+                                        // Обновляем локальное состояние savedRooms и savedProxyRooms
+                                        // const normalizedRoomId = roomId.replace(/-/g, '');
+                                        // setSavedRooms((prev) =>
+                                        //     prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
+                                        // );
+                                        // setSavedProxyRooms((prev) =>
+                                        //     prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
+                                        // );
                                     }}
                                     disabled={!isConnected}
                                     className={styles.button}
@@ -1409,7 +1408,7 @@ export const VideoCallApp = () => {
                                 setActiveMainTab('webrtc');
                                 hasAttemptedAutoJoin.current = true; // Блокируем повторное автоподключение
                                 setSelectedDeviceId(null);
-                                if (socketClientRef.current.disconnectWebSocket) {
+                                if (socketClientRef.current?.disconnectWebSocket) {
                                     console.log(`Отключение WebSocket устройства для: ${selectedDeviceId || 'не выбрано'}`);
                                     await socketClientRef.current.disconnectWebSocket();
                                     console.log("WebSocket устройства отключен");
@@ -1420,15 +1419,14 @@ export const VideoCallApp = () => {
                                 if (roomIdFromUrl) {
                                     setRoomId(formatRoomId(roomIdFromUrl.replace(/-/g, '')));
                                 }
-                                // Обновляем сохраненные комнаты, отключая autoConnect
-                                const normalizedRoomId = roomId.replace(/-/g, '');
-                                updateAutoConnect(normalizedRoomId, false);
-                                setSavedRooms((prev) =>
-                                    prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
-                                );
-                                setSavedProxyRooms((prev) =>
-                                    prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
-                                );
+                                // Обновляем локальное состояние savedRooms и savedProxyRooms
+                                // const normalizedRoomId = roomId.replace(/-/g, '');
+                                // setSavedRooms((prev) =>
+                                //     prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
+                                // );
+                                // setSavedProxyRooms((prev) =>
+                                //     prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
+                                // );
                                 setShowDisconnectDialog(true);
                                 setTimeout(() => setShowDisconnectDialog(false), 3000);
                             }}
