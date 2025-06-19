@@ -815,7 +815,7 @@ export const VideoCallApp = () => {
                     try {
                         await handleSetDefaultRoom(roomId.replace(/-/g, ''));
                     } catch (err) {
-                        console.warn('Не удалось установить комнату по умолчанию:', err.message);
+                        console.warn('Не удалось установить комнату по умолчанию:', err instanceof Error ? err.message : String(err));
                         // Продолжаем подключение, игнорируя ошибку
                     }
                 } else {

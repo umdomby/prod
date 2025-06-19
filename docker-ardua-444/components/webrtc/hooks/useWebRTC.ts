@@ -672,11 +672,11 @@ export const useWebRTC = (
                     console.log('Получена команда rejoin_and_offer для лидера');
                     if (pc.current && ws.current?.readyState === WebSocket.OPEN) {
                         try {
-                            const localStream = await initializeWebRTC();
-                            if (!localStream || localStream.getVideoTracks().length === 0) {
-                                console.error('Нет видеотрека для лидера после initializeWebRTC');
-                                throw new Error('Видеотрек отсутствует');
-                            }
+                            // const localStream = await initializeWebRTC();
+                            // if (!localStream || localStream.getVideoTracks().length === 0) {
+                            //     console.error('Нет видеотрека для лидера после initializeWebRTC');
+                            //     throw new Error('Видеотрек отсутствует');
+                            // }
                             const offer = await pc.current.createOffer({
                                 offerToReceiveAudio: true,
                                 offerToReceiveVideo: false
