@@ -126,6 +126,7 @@ export const VideoCallApp = () => {
     const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
     const socketClientRef = useRef<{ disconnectWebSocket?: () => Promise<void> }>({});
     const [roomLink, setRoomLink] = useState('');
+    const [isProxyConnection, setIsProxyConnection] = useState(false);
 
     useEffect(() => {
         setIsClient(true)
@@ -766,7 +767,6 @@ export const VideoCallApp = () => {
             console.log('Попытка подключения к комнате:', roomId);
 
             try {
-                // Проверяем комнату через checkRoom
                 const checkResult = await checkRoom(roomId.replace(/-/g, ''));
                 console.log('handleJoinRoom: Проверка комнаты:', {
                     roomId,
@@ -789,16 +789,8 @@ export const VideoCallApp = () => {
                     return;
                 }
 
-                // Устанавливаем targetRoomId и deviceId
-                if (checkResult.found && checkResult.targetRoomId) {
-                    setTargetRoomId(checkResult.targetRoomId);
-                    setSelectedDeviceId(checkResult.deviceId || null);
-                } else {
-                    console.warn('Комната не найдена или targetRoomId отсутствует:', checkResult);
-                }
-
-                // Если это прокси-подключение, показываем уведомление
                 if (checkResult.isProxy) {
+                    setIsProxyConnection(true); // Устанавливаем при прокси-подключении
                     const proxyNotification = document.createElement('div');
                     proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white mt-10 px-4 py-2 rounded shadow-lg';
                     proxyNotification.textContent = 'Подключение через прокси-комнату';
@@ -806,23 +798,18 @@ export const VideoCallApp = () => {
                     setTimeout(() => proxyNotification.remove(), 3000);
                 }
 
-                // Проверяем, сохранена ли комната
+                if (checkResult.found && checkResult.targetRoomId) {
+                    setTargetRoomId(checkResult.targetRoomId);
+                    setSelectedDeviceId(checkResult.deviceId || null);
+                }
+
                 const normalizedRoomId = roomId.replace(/-/g, '');
                 const isRoomSaved = savedRooms.find(r => r.id === normalizedRoomId) || savedProxyRooms.find(r => r.id === normalizedRoomId);
 
-                // Устанавливаем комнату по умолчанию только если она сохранена
                 if (isRoomSaved) {
-                    try {
-                        await handleSetDefaultRoom(roomId.replace(/-/g, ''));
-                    } catch (err) {
-                        console.warn('Не удалось установить комнату по умолчанию:', err instanceof Error ? err.message : String(err));
-                        // Продолжаем подключение, игнорируя ошибку
-                    }
-                } else {
-                    console.log('Комната не сохранена, пропускаем setDefaultRoom');
+                    await handleSetDefaultRoom(roomId.replace(/-/g, ''));
                 }
 
-                // Подключаемся к комнате через WebRTC
                 await joinRoom(username, checkResult.targetRoomId);
                 console.log('Успешно подключено к комнате:', roomId);
                 setActiveMainTab('esp');
@@ -836,7 +823,6 @@ export const VideoCallApp = () => {
         }, 300),
         [isRoomIdComplete, roomId, username, joinRoom, setError, handleSetDefaultRoom, savedRooms, savedProxyRooms, checkRoom]
     );
-
     useEffect(() => {
         if (
             autoJoin &&
@@ -1009,6 +995,7 @@ export const VideoCallApp = () => {
         const urlParams = new URLSearchParams(window.location.search);
         const proxyRoomId = urlParams.get('proxyRoomId');
         if (proxyRoomId) {
+            setIsProxyConnection(true);
             handleJoinProxyRoom(proxyRoomId);
         }
     }, []);
@@ -1478,7 +1465,7 @@ export const VideoCallApp = () => {
                             </Button>
                         </div>
 
-                        {(savedRooms.length > 0 || savedProxyRooms.length > 0) && (
+                        {activeMainTab === 'webrtc' && !isProxyConnection && (savedRooms.length > 0 || savedProxyRooms.length > 0) && (
                             <>
                                 <h3>Сохраненные комнаты:</h3>
                                 <ul>
