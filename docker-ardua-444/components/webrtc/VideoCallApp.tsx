@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import SocketClient from '../control/SocketClient'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription} from "@/components/ui/dialog"
 import {
     getSavedRooms,
     saveRoom,
@@ -1866,17 +1866,22 @@ export const VideoCallApp = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            <Dialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Подключение отключено</DialogTitle>
-                    </DialogHeader>
-                    <p>Вы отключили подключение. </p>
-                    <DialogFooter>
-                        <Button onClick={() => setShowDisconnectDialog(false)}>Закрыть</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {showDisconnectDialog && (
+                <Dialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Подключение отключено</DialogTitle>
+                            <DialogDescription>
+                                Вы отключили подключение к комнате. Нажмите "Закрыть", чтобы продолжить.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <p>Вы отключили подключение.</p>
+                        <DialogFooter>
+                            <Button onClick={() => setShowDisconnectDialog(false)}>Закрыть</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     )
 }
