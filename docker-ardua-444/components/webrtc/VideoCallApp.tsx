@@ -843,16 +843,17 @@ export const VideoCallApp = () => {
             handleJoinRoom();
         } else if (error && autoJoin) {
             console.warn('Ошибка автоподключения, отключение autoJoin:', error);
-            leaveRoom(); // Полная очистка соединения
+            leaveRoom();
             setAutoJoin(false);
-            updateAutoConnect(roomId.replace(/-/g, ''), false);
+            const normalizedRoomId = roomId.replace(/-/g, '');
+            updateAutoConnect(normalizedRoomId, false);
             setSavedRooms((prev) =>
-                prev.map((r) => (r.id === roomId.replace(/-/g, '') ? { ...r, autoConnect: false } : r))
+                prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
             );
             setSavedProxyRooms((prev) =>
-                prev.map((p) => (p.id === roomId.replace(/-/g, '') ? { ...p, autoConnect: false } : p))
+                prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
             );
-            hasAttemptedAutoJoin.current = false;
+            hasAttemptedAutoJoin.current = true; // Блокируем повторное автоподключение
             if (webRTCRetryTimeoutRef.current) {
                 clearTimeout(webRTCRetryTimeoutRef.current);
                 webRTCRetryTimeoutRef.current = null;
@@ -860,27 +861,12 @@ export const VideoCallApp = () => {
         }
     }, [autoJoin, isInRoom, isRoomIdComplete, isJoining, error, handleJoinRoom, roomId, updateAutoConnect, leaveRoom]);
 
-// Добавим новый useEffect для сброса hasAttemptedAutoJoin при изменении roomId
+    // Добавим новый useEffect для сброса hasAttemptedAutoJoin при изменении roomId
     useEffect(() => {
         hasAttemptedAutoJoin.current = false;
         console.log('Сброс hasAttemptedAutoJoin при изменении roomId:', roomId);
     }, [roomId]);
 
-    const handleCancelJoin = useCallback(
-        debounce(() => {
-            console.log('Пользователь прервал попытку подключения');
-            setIsJoining(false);
-            setAutoJoin(false); // Сбрасываем автоподключение
-            setError(null);
-            if (webRTCRetryTimeoutRef.current) {
-                clearTimeout(webRTCRetryTimeoutRef.current);
-                webRTCRetryTimeoutRef.current = null;
-            }
-            leaveRoom();
-            setActiveMainTab('webrtc');
-        }, 300),
-        [leaveRoom]
-    );
 
     const toggleFullscreen = useCallback(
         debounce(async () => {
@@ -1013,30 +999,30 @@ export const VideoCallApp = () => {
 
     const handleJoinProxyRoom = async (roomIdProxy: string) => {
         try {
-            const response = await joinRoomViaProxy(roomIdProxy.replace(/-/g, ''))
-            console.log('Результат joinRoomViaProxy:', response)
+            const response = await joinRoomViaProxy(roomIdProxy.replace(/-/g, ''));
             if ('error' in response) {
                 console.error('Ошибка joinRoomViaProxy:', response.error);
                 setError(`Ошибка подключения через прокси: ${response.error}`);
                 return;
             }
-            const { roomId, deviceId } = response
-            setRoomId(formatRoomId(roomIdProxy)) // Показываем proxyRoomId в UI
-            setTargetRoomId(roomId)
-            setSelectedDeviceId(deviceId || null)
-            const proxyNotification = document.createElement('div')
-            proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg'
-            proxyNotification.textContent = 'Подключение через прокси-комнату'
-            document.body.appendChild(proxyNotification)
-            setTimeout(() => proxyNotification.remove(), 3000)
-            await joinRoom(username, roomId)
-            console.log('Успешно подключено через прокси к комнате:', formatRoomId(roomIdProxy))
-            setActiveMainTab('esp')
+            const { roomId, deviceId } = response;
+            setRoomId(formatRoomId(roomIdProxy)); // Показываем proxyRoomId в UI
+            setTargetRoomId(roomId);
+            setSelectedDeviceId(deviceId || null);
+            const proxyNotification = document.createElement('div');
+            proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg';
+            proxyNotification.textContent = 'Подключение через прокси-комнату';
+            document.body.appendChild(proxyNotification);
+            setTimeout(() => proxyNotification.remove(), 3000);
+            hasAttemptedAutoJoin.current = false; // Сбрасываем для нового подключения
+            await joinRoom(username, roomId);
+            console.log('Успешно подключено через прокси к комнате:', formatRoomId(roomIdProxy));
+            setActiveMainTab('esp');
         } catch (err) {
-            console.error('Ошибка подключения через прокси:', err)
-            setError(`Ошибка подключения через прокси: ${(err as Error).message}`)
+            console.error('Ошибка подключения через прокси:', err);
+            setError(`Ошибка подключения через прокси: ${(err as Error).message}`);
         }
-    }
+    };
 
 
     useEffect(() => {
@@ -1358,26 +1344,33 @@ export const VideoCallApp = () => {
                             {isInRoom ? (
                                 <Button
                                     onClick={async () => {
-                                        leaveRoom();
+                                        leaveRoom(); // Полная очистка WebRTC
                                         setActiveMainTab('webrtc');
                                         setIsJoining(false);
-                                        setAutoJoin(false);
+                                        setAutoJoin(false); // Отключаем автоподключение
                                         setError(null);
-                                        hasAttemptedAutoJoin.current = false;
+                                        hasAttemptedAutoJoin.current = true; // Блокируем повторное автоподключение
                                         setSelectedDeviceId(null);
                                         if (socketClientRef.current.disconnectWebSocket) {
-                                            console.log(`Отключение WebSocket для устройства: ${selectedDeviceId || 'не выбрано'}`);
+                                            console.log(`Отключение WebSocket устройства для: ${selectedDeviceId || 'не выбрано'}`);
                                             await socketClientRef.current.disconnectWebSocket();
-                                            console.log("WebSocket отключен");
-                                        } else {
-                                            console.warn("disconnectWebSocket не определен");
+                                            console.log("WebSocket устройства отключен");
                                         }
-                                        // Сохраняем roomId для повторного входа
+                                        // Восстанавливаем roomId из URL для UI
                                         const urlParams = new URLSearchParams(window.location.search);
                                         const roomIdFromUrl = urlParams.get('roomId');
                                         if (roomIdFromUrl) {
                                             setRoomId(formatRoomId(roomIdFromUrl.replace(/-/g, '')));
                                         }
+                                        // Обновляем сохраненные комнаты, отключая autoConnect
+                                        const normalizedRoomId = roomId.replace(/-/g, '');
+                                        updateAutoConnect(normalizedRoomId, false);
+                                        setSavedRooms((prev) =>
+                                            prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
+                                        );
+                                        setSavedProxyRooms((prev) =>
+                                            prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
+                                        );
                                     }}
                                     disabled={!isConnected}
                                     className={styles.button}
@@ -1409,26 +1402,33 @@ export const VideoCallApp = () => {
 
                         <Button
                             onClick={async () => {
-                                leaveRoom();
-                                setAutoJoin(false);
+                                leaveRoom(); // Полная очистка WebRTC
+                                setAutoJoin(false); // Отключаем автоподключение
                                 setIsJoining(false);
                                 setError(null);
                                 setActiveMainTab('webrtc');
-                                hasAttemptedAutoJoin.current = false;
+                                hasAttemptedAutoJoin.current = true; // Блокируем повторное автоподключение
                                 setSelectedDeviceId(null);
                                 if (socketClientRef.current.disconnectWebSocket) {
-                                    console.log(`Отключение WebSocket для устройства: ${selectedDeviceId || 'не выбрано'}`);
+                                    console.log(`Отключение WebSocket устройства для: ${selectedDeviceId || 'не выбрано'}`);
                                     await socketClientRef.current.disconnectWebSocket();
-                                    console.log("WebSocket отключен");
-                                } else {
-                                    console.warn("disconnectWebSocket не определен");
+                                    console.log("WebSocket устройства отключен");
                                 }
-                                // Сохраняем roomId для повторного входа
+                                // Восстанавливаем roomId из URL для UI
                                 const urlParams = new URLSearchParams(window.location.search);
                                 const roomIdFromUrl = urlParams.get('roomId');
                                 if (roomIdFromUrl) {
                                     setRoomId(formatRoomId(roomIdFromUrl.replace(/-/g, '')));
                                 }
+                                // Обновляем сохраненные комнаты, отключая autoConnect
+                                const normalizedRoomId = roomId.replace(/-/g, '');
+                                updateAutoConnect(normalizedRoomId, false);
+                                setSavedRooms((prev) =>
+                                    prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
+                                );
+                                setSavedProxyRooms((prev) =>
+                                    prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
+                                );
                                 setShowDisconnectDialog(true);
                                 setTimeout(() => setShowDisconnectDialog(false), 3000);
                             }}
