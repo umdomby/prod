@@ -553,21 +553,29 @@ export const VideoCallApp = () => {
                 // Если автоподключение активно, прерываем его
                 if (autoJoin && roomId.replace(/-/g, '') !== roomId) {
                     setAutoJoin(false);
-                    updateAutoConnect(roomId.replace(/-/g, ''), false);
-                    setSavedRooms((prev) =>
-                        prev.map((r) => (r.id === roomId.replace(/-/g, '') ? { ...r, autoConnect: false } : r))
-                    );
-                    setSavedProxyRooms((prev) =>
-                        prev.map((p) => (p.id === roomId.replace(/-/g, '') ? { ...p, autoConnect: false } : p))
-                    );
-                    leaveRoom(); // Прерываем текущее подключение
+                    const normalizedRoomId = roomId.replace(/-/g, '');
+                    const isRoomSaved =
+                        savedRooms.find((r) => r.id === normalizedRoomId) ||
+                        savedProxyRooms.find((p) => p.id === normalizedRoomId);
+                    if (isRoomSaved) {
+                        updateAutoConnect(normalizedRoomId, false);
+                        setSavedRooms((prev) =>
+                            prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
+                        );
+                        setSavedProxyRooms((prev) =>
+                            prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
+                        );
+                    } else {
+                        console.log('Комната не сохранена, пропускаем updateAutoConnect');
+                    }
+                    leaveRoom();
                 }
             } catch (e) {
                 console.error('Ошибка установки комнаты по умолчанию:', e);
                 setError(`Не удалось установить комнату по умолчанию: ${e instanceof Error ? e.message : String(e)}`);
             }
         },
-        [setError, autoJoin, roomId, updateAutoConnect, leaveRoom]
+        [setError, autoJoin, roomId, leaveRoom, savedRooms, savedProxyRooms]
     );
 
     const handleBindDeviceToRoom = useCallback(
@@ -846,20 +854,28 @@ export const VideoCallApp = () => {
             leaveRoom();
             setAutoJoin(false);
             const normalizedRoomId = roomId.replace(/-/g, '');
-            updateAutoConnect(normalizedRoomId, false);
-            setSavedRooms((prev) =>
-                prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
-            );
-            setSavedProxyRooms((prev) =>
-                prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
-            );
+            // Проверяем, существует ли комната в savedRooms или savedProxyRooms
+            const isRoomSaved =
+                savedRooms.find((r) => r.id === normalizedRoomId) ||
+                savedProxyRooms.find((p) => p.id === normalizedRoomId);
+            if (isRoomSaved) {
+                updateAutoConnect(normalizedRoomId, false);
+                setSavedRooms((prev) =>
+                    prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
+                );
+                setSavedProxyRooms((prev) =>
+                    prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
+                );
+            } else {
+                console.log('Комната не сохранена, пропускаем updateAutoConnect');
+            }
             hasAttemptedAutoJoin.current = true; // Блокируем повторное автоподключение
             if (webRTCRetryTimeoutRef.current) {
                 clearTimeout(webRTCRetryTimeoutRef.current);
                 webRTCRetryTimeoutRef.current = null;
             }
         }
-    }, [autoJoin, isInRoom, isRoomIdComplete, isJoining, error, handleJoinRoom, roomId, updateAutoConnect, leaveRoom]);
+    }, [autoJoin, isInRoom, isRoomIdComplete, isJoining, error, handleJoinRoom, roomId, savedRooms, savedProxyRooms]);
 
     // Добавим новый useEffect для сброса hasAttemptedAutoJoin при изменении roomId
     useEffect(() => {

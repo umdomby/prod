@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import {Button} from "@/components/ui";
 
 interface VideoPlayerProps {
     stream: MediaStream | null;
@@ -14,35 +15,12 @@ type VideoSettings = {
     flipV: boolean;
 };
 
-export const VideoPlayer = ({ stream, muted = false, className, transform, videoRef }: VideoPlayerProps) => {
+export const VideoPlayer = ({ stream, muted = true, className, transform, videoRef }: VideoPlayerProps) => { // Изменено: muted = true
     const internalVideoRef = useRef<HTMLVideoElement>(null);
     const [computedTransform, setComputedTransform] = useState<string>('');
     const [isRotated, setIsRotated] = useState(false);
     const actualVideoRef = videoRef || internalVideoRef;
-    const hasInteracted = useRef(false); // Отслеживание взаимодействия пользователя
-
-    // Отслеживание взаимодействия пользователя
-    useEffect(() => {
-        const handleInteraction = () => {
-            hasInteracted.current = true;
-            const video = actualVideoRef.current;
-            if (video && video.srcObject) {
-                video.play().catch((e) => {
-                    console.error('Playback failed after interaction:', e);
-                    video.muted = true;
-                    video.play().catch((e) => console.error('Muted playback also failed:', e));
-                });
-            }
-        };
-
-        document.addEventListener('click', handleInteraction);
-        document.addEventListener('touchstart', handleInteraction);
-
-        return () => {
-            document.removeEventListener('click', handleInteraction);
-            document.removeEventListener('touchstart', handleInteraction);
-        };
-    }, [actualVideoRef]);
+    const [isMuted, setIsMuted] = useState(muted); // Состояние для динамического управления muted
 
     // Обработка transform
     useEffect(() => {
@@ -71,7 +49,7 @@ export const VideoPlayer = ({ stream, muted = false, className, transform, video
         }
     }, [transform]);
 
-    // Привязка потока и обработка событий
+    // Привязка потока и попытка автопроигрывания
     useEffect(() => {
         const video = actualVideoRef.current;
         if (!video) return;
@@ -87,11 +65,16 @@ export const VideoPlayer = ({ stream, muted = false, className, transform, video
 
         const handleCanPlay = () => {
             console.log('Видео готово к воспроизведению');
-            if (hasInteracted.current) {
+            if (stream) {
+                // Пытаемся воспроизвести видео
                 video.play().catch((e) => {
-                    console.error('Playback failed:', e);
-                    video.muted = true;
-                    video.play().catch((e) => console.error('Muted playback also failed:', e));
+                    console.warn('Initial play failed:', e);
+                    // Если воспроизведение не удалось, включаем muted и повторяем
+                    if (!isMuted) {
+                        setIsMuted(true);
+                        video.muted = true;
+                        video.play().catch((e2) => console.error('Muted playback failed:', e2));
+                    }
                 });
             }
         };
@@ -114,13 +97,14 @@ export const VideoPlayer = ({ stream, muted = false, className, transform, video
         video.addEventListener('error', handleError);
         video.addEventListener('loadedmetadata', handleLoadedMetadata);
 
-        if (stream) {
+        if (stream && stream.getVideoTracks().length > 0) { // Проверка наличия видеотреков
             video.srcObject = stream;
-            if (hasInteracted.current) {
-                video.play().catch((e) => console.error('Initial play failed:', e));
-            }
+            if (isMuted) {
+                video.muted = isMuted;
+            } // Устанавливаем muted из состояния
         } else {
             video.srcObject = null;
+            console.warn('Поток отсутствует или не содержит видеотреков');
         }
 
         return () => {
@@ -129,13 +113,18 @@ export const VideoPlayer = ({ stream, muted = false, className, transform, video
             video.removeEventListener('loadedmetadata', handleLoadedMetadata);
             video.srcObject = null;
         };
-    }, [stream, actualVideoRef]);
+
+    }, [stream, actualVideoRef, isMuted]);
+
+
 
     return (
+
         <video
             ref={actualVideoRef}
             playsInline
-            muted={muted}
+            autoPlay // Добавлено
+            muted={isMuted}
             className={`${className || ''} ${isRotated ? 'rotated' : ''}`}
             style={{
                 transform: computedTransform,
