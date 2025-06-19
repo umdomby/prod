@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import {Button} from "@/components/ui";
+import { Button } from "@/components/ui";
 
 interface VideoPlayerProps {
     stream: MediaStream | null;
@@ -15,12 +15,12 @@ type VideoSettings = {
     flipV: boolean;
 };
 
-export const VideoPlayer = ({ stream, muted = true, className, transform, videoRef }: VideoPlayerProps) => { // Изменено: muted = true
+export const VideoPlayer = ({ stream, muted = true, className, transform, videoRef }: VideoPlayerProps) => {
     const internalVideoRef = useRef<HTMLVideoElement>(null);
     const [computedTransform, setComputedTransform] = useState<string>('');
     const [isRotated, setIsRotated] = useState(false);
     const actualVideoRef = videoRef || internalVideoRef;
-    const [isMuted, setIsMuted] = useState(muted); // Состояние для динамического управления muted
+    const [isMuted, setIsMuted] = useState(muted);
 
     // Обработка transform
     useEffect(() => {
@@ -66,10 +66,8 @@ export const VideoPlayer = ({ stream, muted = true, className, transform, videoR
         const handleCanPlay = () => {
             console.log('Видео готово к воспроизведению');
             if (stream) {
-                // Пытаемся воспроизвести видео
                 video.play().catch((e) => {
                     console.warn('Initial play failed:', e);
-                    // Если воспроизведение не удалось, включаем muted и повторяем
                     if (!isMuted) {
                         setIsMuted(true);
                         video.muted = true;
@@ -97,11 +95,9 @@ export const VideoPlayer = ({ stream, muted = true, className, transform, videoR
         video.addEventListener('error', handleError);
         video.addEventListener('loadedmetadata', handleLoadedMetadata);
 
-        if (stream && stream.getVideoTracks().length > 0) { // Проверка наличия видеотреков
+        if (stream && stream.getVideoTracks().length > 0) {
             video.srcObject = stream;
-            if (isMuted) {
-                video.muted = isMuted;
-            } // Устанавливаем muted из состояния
+            video.muted = isMuted;
         } else {
             video.srcObject = null;
             console.warn('Поток отсутствует или не содержит видеотреков');
@@ -113,25 +109,52 @@ export const VideoPlayer = ({ stream, muted = true, className, transform, videoR
             video.removeEventListener('loadedmetadata', handleLoadedMetadata);
             video.srcObject = null;
         };
-
     }, [stream, actualVideoRef, isMuted]);
 
+    // Функция для переключения звука
+    const toggleMute = () => {
+        const video = actualVideoRef.current;
+        if (video) {
+            const newMutedState = !isMuted;
+            video.muted = newMutedState;
+            setIsMuted(newMutedState);
+            console.log('Звук переключён:', newMutedState ? 'отключён' : 'включён');
 
+            // Дополнительно включаем аудиотреки в потоке
+            if (stream) {
+                stream.getAudioTracks().forEach((track) => {
+                    track.enabled = !newMutedState;
+                });
+            }
+        }
+    };
 
     return (
-
-        <video
-            ref={actualVideoRef}
-            playsInline
-            autoPlay // Добавлено
-            muted={isMuted}
-            className={`${className || ''} ${isRotated ? 'rotated' : ''}`}
-            style={{
-                transform: computedTransform,
-                transformOrigin: 'center center',
-                background: 'black',
-                objectFit: 'contain',
-            }}
-        />
+        <div className="relative w-full h-full">
+            <video
+                ref={actualVideoRef}
+                playsInline
+                autoPlay
+                muted={isMuted}
+                className={`${className || ''} ${isRotated ? 'rotated' : ''}`}
+                style={{
+                    transform: computedTransform,
+                    transformOrigin: 'center center',
+                    background: 'black',
+                    objectFit: 'contain',
+                    width: '100%',
+                    height: '100%',
+                }}
+            />
+            {stream && (
+                <Button
+                    onClick={toggleMute}
+                    className="absolute bottom-2 left-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1 z-10"
+                    title={isMuted ? 'Включить звук' : 'Отключить звук'}
+                >
+                    {isMuted ? '🔇':'🔈'}
+                </Button>
+            )}
+        </div>
     );
 };
