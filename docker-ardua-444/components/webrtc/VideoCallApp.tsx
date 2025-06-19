@@ -1685,7 +1685,7 @@ export const VideoCallApp = () => {
                 </div>
             )}
 
-            {activeMainTab === 'esp' && (
+            {(activeMainTab === 'esp' || isProxyConnection) && (
                 <SocketClient
                     onConnectionStatusChange={setIsDeviceConnected}
                     selectedDeviceId={selectedDeviceId}
