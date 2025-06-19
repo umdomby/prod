@@ -1,3 +1,4 @@
+// file: docker-ardua-444/components/webrtc/components/VideoPlayer.tsx
 import { useEffect, useRef, useState } from 'react';
 import { Button } from "@/components/ui";
 
@@ -97,7 +98,9 @@ export const VideoPlayer = ({ stream, muted = true, className, transform, videoR
 
         if (stream && stream.getVideoTracks().length > 0) {
             video.srcObject = stream;
-            video.muted = isMuted;
+            if (isMuted) {
+                video.muted = isMuted;
+            }
         } else {
             video.srcObject = null;
             console.warn('Поток отсутствует или не содержит видеотреков');
@@ -130,7 +133,7 @@ export const VideoPlayer = ({ stream, muted = true, className, transform, videoR
     };
 
     return (
-        <div className="relative w-full h-full">
+        <div className={`relative w-full h-full ${!stream ? 'opacity-0' : 'opacity-100'}`}>
             <video
                 ref={actualVideoRef}
                 playsInline
@@ -140,7 +143,7 @@ export const VideoPlayer = ({ stream, muted = true, className, transform, videoR
                 style={{
                     transform: computedTransform,
                     transformOrigin: 'center center',
-                    background: 'black',
+                    background: 'transparent', /* Прозрачный фон для видео */
                     objectFit: 'contain',
                     width: '100%',
                     height: '100%',
@@ -152,7 +155,7 @@ export const VideoPlayer = ({ stream, muted = true, className, transform, videoR
                     className="absolute top-2 left-[110px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1 z-10"
                     title={isMuted ? 'Включить звук' : 'Отключить звук'}
                 >
-                    {isMuted ? '🔇':'🔈'}
+                    {isMuted ? '🔇' : '🔈'}
                 </Button>
             )}
         </div>
