@@ -665,10 +665,10 @@ export async function updateAutoConnect(roomId: string, autoConnect: boolean) {
 }
 
 export async function sendDeviceSettingsToESP(idDevice: string) {
-  const session = await getUserSession();
-  if (!session) {
-    throw new Error('Пользователь не аутентифицирован');
-  }
+  // const session = await getUserSession();
+  // if (!session) {
+  //   throw new Error('Пользователь не аутентифицирован');
+  // }
 
   const parsedIdDevice = deviceIdSchema.safeParse(idDevice);
   if (!parsedIdDevice.success) {
