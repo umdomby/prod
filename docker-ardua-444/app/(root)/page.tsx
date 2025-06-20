@@ -1,34 +1,33 @@
 "use server"
 import { Container } from '@/components/container';
 import { getUserSession } from '@/components/lib/get-user-session';
-import { prisma } from "@/prisma/prisma-client";
 import React, { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import Loading from "@/app/(root)/loading";
 import WebRTC from "@/components/webrtc";
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+    console.log('[Home] Запрос на главную страницу, searchParams:', searchParams);
+
     const session = await getUserSession();
+    console.log('[Home] Сессия:', session);
+
+    const roomId = Array.isArray(searchParams.roomId) ? searchParams.roomId[0] : searchParams.roomId;
 
     if (!session?.id) {
-        redirect('/register');
-    }
-
-    const user = await prisma.user.findFirst({
-        where: {
-            id: Number(session.id)
+        console.log('[Home] Нет сессии, редирект на /register');
+        if (roomId) {
+            console.log('[Home] Обнаружен roomId, редирект на /no-reg');
+            redirect(`/no-reg?roomId=${roomId}`);
         }
-    });
-
-    if (!user) {
         redirect('/register');
     }
+
+    console.log('[Home] Пользователь авторизован, доступ к WebRTC и WebSocket разрешен');
 
     return (
-        // <Container className="flex flex-col my-10">
-            <Suspense fallback={<Loading />}>
-                <WebRTC />
-            </Suspense>
-        // </Container>
+        <Suspense fallback={<Loading />}>
+            <WebRTC />
+        </Suspense>
     );
 }

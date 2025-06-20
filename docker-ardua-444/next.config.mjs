@@ -1,6 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    reactStrictMode: true, // Включите для отладки
+    async rewrites() {
+        return [
+            {
+                source: '/:path*',
+                has: [{ type: 'query', key: 'roomId' }],
+                destination: '/no-reg?:query*',
+            },
+        ];
+    },
+    reactStrictMode: true,
     images: {
         remotePatterns: [
             {

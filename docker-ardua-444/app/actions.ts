@@ -1036,3 +1036,105 @@ export async function checkRoom(roomId: string) {
     return { error: `Ошибка проверки комнаты: ${(err as Error).message}` };
   }
 }
+
+
+export async function getDeviceByRoomId(roomId: string): Promise<{ idDevice: string } | null> {
+  console.log('[getDeviceByRoomId] Проверка Prisma-клиента:', !!prisma, typeof prisma);
+  if (!prisma) {
+    console.error('[getDeviceByRoomId] Prisma-клиент не инициализирован');
+    return null;
+  }
+
+  try {
+    const cleanRoomId = roomId.replace(/[^A-Z0-9]/gi, '');
+    console.log(`[getDeviceByRoomId] Проверяемый roomId: ${cleanRoomId}`);
+
+    if (cleanRoomId.length !== 16) {
+      console.error(`[getDeviceByRoomId] Недопустимый формат roomId: ${cleanRoomId}`);
+      return null;
+    }
+
+    // Проверка в SavedRoom
+    const savedRoom = await prisma.savedRoom.findUnique({
+      where: { roomId: cleanRoomId },
+      include: { devices: true },
+    });
+
+    if (savedRoom && savedRoom.devices?.idDevice) {
+      console.log(`[getDeviceByRoomId] Найдено устройство в SavedRoom: ${savedRoom.devices.idDevice}`);
+      return { idDevice: savedRoom.devices.idDevice };
+    }
+
+    // Проверка в ProxyAccess
+    const proxyAccess = await prisma.proxyAccess.findUnique({
+      where: { proxyRoomId: cleanRoomId },
+      include: { room: { include: { devices: true } } },
+    });
+
+    if (proxyAccess && proxyAccess.room.devices?.idDevice) {
+      if (proxyAccess.expiresAt && new Date(proxyAccess.expiresAt) < new Date()) {
+        console.error(`[getDeviceByRoomId] Прокси-доступ истёк для proxyRoomId: ${cleanRoomId}`);
+        return null;
+      }
+      console.log(`[getDeviceByRoomId] Найдено устройство через ProxyAccess: ${proxyAccess.room.devices.idDevice}`);
+      return { idDevice: proxyAccess.room.devices.idDevice };
+    }
+
+    console.error(`[getDeviceByRoomId] Комната или устройство не найдены для roomId: ${cleanRoomId}`);
+    return null;
+  } catch (error) {
+    console.error(`[getDeviceByRoomId] Ошибка: ${(error as Error).message}`);
+    return null;
+  }
+}
+
+export async function getDeviceSettings(idDevice: string): Promise<{
+  servo1MinAngle: number;
+  servo1MaxAngle: number;
+  servo2MinAngle: number;
+  servo2MaxAngle: number;
+  servoView: boolean;
+  b1: boolean;
+  b2: boolean;
+}> {
+  console.log('[getDeviceSettings] Проверка idDevice:', idDevice);
+  if (!prisma) {
+    console.error('[getDeviceSettings] Prisma-клиент не инициализирован');
+    throw new Error('Prisma-клиент не инициализирован');
+  }
+
+  try {
+    const device = await prisma.devices.findUnique({
+      where: { idDevice },
+      include: { settings: true },
+    });
+
+    if (!device || !device.settings[0]) {
+      console.warn(`[getDeviceSettings] Устройство или настройки не найдены для idDevice: ${idDevice}`);
+      return {
+        servo1MinAngle: 0,
+        servo1MaxAngle: 180,
+        servo2MinAngle: 0,
+        servo2MaxAngle: 180,
+        servoView: true,
+        b1: false,
+        b2: false,
+      };
+    }
+
+    const settings = device.settings[0];
+    console.log(`[getDeviceSettings] Настройки найдены для idDevice: ${idDevice}`);
+    return {
+      servo1MinAngle: settings.servo1MinAngle ?? 0,
+      servo1MaxAngle: settings.servo1MaxAngle ?? 180,
+      servo2MinAngle: settings.servo2MinAngle ?? 0,
+      servo2MaxAngle: settings.servo2MaxAngle ?? 180,
+      servoView: settings.servoView ?? true,
+      b1: settings.b1 ?? false,
+      b2: settings.b2 ?? false,
+    };
+  } catch (error) {
+    console.error(`[getDeviceSettings] Ошибка: ${(error as Error).message}`);
+    throw new Error('Не удалось загрузить настройки устройства');
+  }
+}
