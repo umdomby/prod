@@ -7,7 +7,7 @@ import Loading from "@/app/(root)/loading";
 import WebRTC from "@/components/webrtc";
 
 export default async function Home({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-    console.log('[Home] Запрос на главную страницу, searchParams:', searchParams);
+    // console.log('[Home] Запрос на главную страницу, searchParams:', searchParams);
 
     const session = await getUserSession();
     // console.log('[Home] Сессия:', session);
