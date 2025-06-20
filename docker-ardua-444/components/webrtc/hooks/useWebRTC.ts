@@ -36,7 +36,7 @@ export const useWebRTC = (
     deviceIds: { video: string; audio: string },
     username: string,
     roomId: string,
-    preferredCodec: 'VP8' | 'H264' // Новый параметр
+    preferredCodec: 'VP8'
 ) => {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
