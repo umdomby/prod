@@ -10,9 +10,11 @@ export default async function Home({ searchParams }: { searchParams: Record<stri
     console.log('[Home] Запрос на главную страницу, searchParams:', searchParams);
 
     const session = await getUserSession();
-    console.log('[Home] Сессия:', session);
+    // console.log('[Home] Сессия:', session);
 
-    const roomId = Array.isArray(searchParams.roomId) ? searchParams.roomId[0] : searchParams.roomId;
+    // Дожидаемся searchParams перед использованием
+    const params = await searchParams;
+    const roomId = Array.isArray(params.roomId) ? params.roomId[0] : params.roomId;
 
     if (!session?.id) {
         console.log('[Home] Нет сессии, редирект на /register');

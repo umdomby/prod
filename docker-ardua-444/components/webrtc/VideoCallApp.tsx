@@ -1,7 +1,7 @@
 'use client'
 
 import { useWebRTC } from './hooks/useWebRTC'
-import styles from './styles.module.css'
+import styles from '@/components/webrtc/styles.module.css'
 import { VideoPlayer } from './components/VideoPlayer'
 import { DeviceSelector } from './components/DeviceSelector'
 import { useEffect, useState, useRef, useCallback } from 'react'

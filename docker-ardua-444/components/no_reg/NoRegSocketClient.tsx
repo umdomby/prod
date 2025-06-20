@@ -31,11 +31,8 @@ type LogEntry = {
     ty: 'client' | 'esp' | 'server' | 'error' | 'success' | 'info';
 };
 
-interface NoRegSocketClientProps {
-    idDevice: string;
-}
 
-export default function NoRegSocketClient({ idDevice }: NoRegSocketClientProps) {
+export default function NoRegSocketClient() {
     const {
         servoAngle,
         servo2Angle,
@@ -98,7 +95,7 @@ export default function NoRegSocketClient({ idDevice }: NoRegSocketClientProps) 
             }
         };
         loadSettings();
-    }, [idDevice, addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle, setShowServos]);
+    }, [addLog, setServo1MinAngle, setServo1MaxAngle, setServo2MinAngle, setServo2MaxAngle, setShowServos]);
 
     const cleanupWebSocket = useCallback(() => {
         if (socketRef.current) {

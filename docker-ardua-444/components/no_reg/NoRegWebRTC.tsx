@@ -1,103 +1,178 @@
-"use client";
-import { useEffect, useRef } from 'react';
+'use client'
 
-interface NoRegWebRTCProps {
-    idDevice: string;
-}
+import { useWebRTC } from '../webrtc/hooks/useWebRTC'
+import { NoRegVideoPlayer } from './NoRegVideoPlayer'
+import { useEffect, useState, useRef } from 'react'
+import styles from '@/components/webrtc/styles.module.css'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { joinRoomViaProxy } from '@/app/actions'
 
-export default function NoRegWebRTC({ idDevice }: NoRegWebRTCProps) {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+export const NoRegWebRTC = () => {
+    const [roomId, setRoomId] = useState<string>('')
+    const [username, setUsername] = useState<string>('')
+    const [isJoining, setIsJoining] = useState<boolean>(false)
+    const [showErrorDialog, setShowErrorDialog] = useState<boolean>(false)
+    const [targetRoomId, setTargetRoomId] = useState<string>('')
+    const [isProxyConnection, setIsProxyConnection] = useState<boolean>(false)
+    const hasAttemptedAutoJoin = useRef<boolean>(false)
 
+    // Инициализация useWebRTC с пустыми deviceIds (без локального потока)
+    const {
+        remoteStream,
+        isCallActive,
+        isConnected,
+        isInRoom,
+        error,
+        joinRoom,
+        leaveRoom,
+        activeCodec
+    } = useWebRTC(
+        { video: '', audio: '' }, // Без локальных медиаустройств
+        username,
+        targetRoomId || roomId.replace(/-/g, ''),
+        'VP8' // Фиксируем VP8
+    )
+
+    // Получение roomId или proxyRoomId из URL и генерация случайного имени пользователя
     useEffect(() => {
-        const startWebRTC = async () => {
-            try {
-                peerConnectionRef.current = new RTCPeerConnection({
-                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-                });
+        const urlParams = new URLSearchParams(window.location.search)
+        const roomIdFromUrl = urlParams.get('roomId') || ''
+        const proxyRoomId = urlParams.get('proxyRoomId') || ''
+        const formattedRoomId = (proxyRoomId || roomIdFromUrl)
+            .replace(/[^A-Z0-9-]/gi, '')
+            .replace(/(.{4})(?=.)/g, '$1-')
+        setRoomId(formattedRoomId)
 
-                const ws = new WebSocket(process.env.WEBSOCKET_URL_WSAR || 'wss://ardua.site:444/wsar');
+        // Генерация случайного имени пользователя
+        const randomUsername = 'guest_' + Math.floor(Math.random() * 10000)
+        setUsername(randomUsername)
 
-                ws.onopen = () => {
-                    ws.send(JSON.stringify({ ty: 'clt', ct: 'browser' }));
-                    ws.send(JSON.stringify({ ty: 'idn', de: idDevice }));
-                    ws.send(JSON.stringify({ co: 'WEBRTC_OFFER', de: idDevice }));
-                };
+        // Обработка прокси-доступа
+        if (proxyRoomId) {
+            setIsProxyConnection(true)
+            handleJoinProxyRoom(proxyRoomId)
+        }
+    }, [])
 
-                ws.onmessage = async (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        if (data.ty === 'webrtc' && data.sdp) {
-                            if (data.sdp.type === 'offer') {
-                                await peerConnectionRef.current?.setRemoteDescription(
-                                    new RTCSessionDescription(data.sdp)
-                                );
+    // Автоматическое подключение к комнате
+    useEffect(() => {
+        if (
+            (roomId || targetRoomId) &&
+            (roomId.replace(/-/g, '').length === 16 || targetRoomId.length === 16) &&
+            username &&
+            !isInRoom &&
+            !isJoining &&
+            !hasAttemptedAutoJoin.current
+        ) {
+            console.log('Инициируется автоподключение к комнате:', roomId, 'или targetRoomId:', targetRoomId)
+            hasAttemptedAutoJoin.current = true
+            handleJoinRoom()
+        }
+    }, [roomId, targetRoomId, username, isInRoom, isJoining])
 
-                                const answer = await peerConnectionRef.current?.createAnswer();
-                                await peerConnectionRef.current?.setLocalDescription(answer);
+    // Обработка ошибок
+    useEffect(() => {
+        if (error) {
+            console.error('Ошибка WebRTC:', error)
+            setShowErrorDialog(true)
+        }
+    }, [error])
 
-                                ws.send(JSON.stringify({
-                                    co: 'WEBRTC_ANSWER',
-                                    sdp: peerConnectionRef.current?.localDescription,
-                                    de: idDevice,
-                                }));
-                            } else if (data.sdp.type === 'answer') {
-                                await peerConnectionRef.current?.setRemoteDescription(
-                                    new RTCSessionDescription(data.sdp)
-                                );
-                            }
-                        } else if (data.ty === 'ice' && data.candidate) {
-                            await peerConnectionRef.current?.addIceCandidate(
-                                new RTCIceCandidate(data.candidate)
-                            );
-                        }
-                    } catch (error) {
-                        console.error('Ошибка обработки WebRTC сообщения:', error);
-                    }
-                };
+    const handleJoinRoom = async () => {
+        if (!roomId || roomId.replace(/-/g, '').length !== 16) {
+            console.warn('Некорректный ID комнаты')
+            return
+        }
 
-                peerConnectionRef.current.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        ws.send(JSON.stringify({
-                            co: 'WEBRTC_ICE',
-                            candidate: event.candidate,
-                            de: idDevice,
-                        }));
-                    }
-                };
+        setIsJoining(true)
+        try {
+            await joinRoom(username, targetRoomId || undefined)
+            console.log('Успешно подключено к комнате:', targetRoomId || roomId)
+        } catch (err) {
+            console.error('Ошибка подключения к комнате:', err)
+            setShowErrorDialog(true)
+        } finally {
+            setIsJoining(false)
+        }
+    }
 
-                peerConnectionRef.current.ontrack = (event) => {
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = event.streams[0];
-                        videoRef.current.play().catch((e) => console.error('Ошибка воспроизведения:', e));
-                    }
-                };
-
-                return () => {
-                    ws.close();
-                    peerConnectionRef.current?.close();
-                };
-            } catch (error) {
-                console.error('Ошибка инициализации WebRTC:', error);
+    const handleJoinProxyRoom = async (proxyRoomId: string) => {
+        try {
+            const response = await joinRoomViaProxy(proxyRoomId.replace(/-/g, ''))
+            if ('error' in response) {
+                console.error('Ошибка joinRoomViaProxy:', response.error)
+                setShowErrorDialog(true)
+                return
             }
-        };
+            const { roomId: actualRoomId } = response
+            setTargetRoomId(actualRoomId)
+            console.log('Успешно получен targetRoomId через прокси:', actualRoomId)
+            const proxyNotification = document.createElement('div')
+            proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg'
+            proxyNotification.textContent = 'Подключение через прокси-комнату'
+            document.body.appendChild(proxyNotification)
+            setTimeout(() => proxyNotification.remove(), 3000)
+        } catch (err) {
+            console.error('Ошибка подключения через прокси:', err)
+            setShowErrorDialog(true)
+        }
+    }
 
-        startWebRTC();
-
-        return () => {
-            peerConnectionRef.current?.close();
-        };
-    }, [idDevice]);
+    const handleLeaveRoom = () => {
+        leaveRoom()
+        hasAttemptedAutoJoin.current = false
+        console.log('Покинута комната:', roomId)
+    }
 
     return (
-        <div className="w-full max-w-4xl mx-auto">
-            <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full rounded-lg shadow-lg"
-            />
+        <div className={styles.container}>
+            <div className={styles.remoteVideoContainer}>
+                <NoRegVideoPlayer
+                    stream={remoteStream}
+                    className={styles.remoteVideo}
+                />
+            </div>
+
+            <div className={styles.connectionStatus}>
+                Статус: {isConnected ? (isInRoom ? `В комнате ${roomId}${isProxyConnection ? ' (прокси)' : ''}` : 'Подключено') : 'Отключено'}
+                {isCallActive && ' (Звонок активен)'}
+                {activeCodec && ` [Кодек: ${activeCodec}]`}
+            </div>
+
+            {isInRoom ? (
+                <Button
+                    onClick={handleLeaveRoom}
+                    disabled={!isConnected}
+                    className={styles.button}
+                >
+                    Покинуть комнату
+                </Button>
+            ) : (
+                <Button
+                    onClick={handleJoinRoom}
+                    disabled={isJoining || !roomId || roomId.replace(/-/g, '').length !== 16}
+                    className={styles.button}
+                >
+                    {isJoining ? 'Подключение...' : 'Войти в комнату'}
+                </Button>
+            )}
+
+            <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Ошибка подключения</DialogTitle>
+                    </DialogHeader>
+                    <p>
+                        {error === 'Room does not exist. Leader must join first.'
+                            ? 'Лидер еще не подключился к комнате. Пожалуйста, подождите.'
+                            : error || 'Произошла неизвестная ошибка.'}
+                    </p>
+                    <DialogFooter>
+                        <Button onClick={() => setShowErrorDialog(false)}>Закрыть</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
-    );
+    )
 }

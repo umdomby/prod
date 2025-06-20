@@ -1038,56 +1038,10 @@ export async function checkRoom(roomId: string) {
 }
 
 
-export async function getDeviceByRoomId(roomId: string): Promise<{ idDevice: string } | null> {
-  console.log('[getDeviceByRoomId] Проверка Prisma-клиента:', !!prisma, typeof prisma);
-  if (!prisma) {
-    console.error('[getDeviceByRoomId] Prisma-клиент не инициализирован');
-    return null;
-  }
+export async function getDeviceByRoomId(){
 
-  try {
-    const cleanRoomId = roomId.replace(/[^A-Z0-9]/gi, '');
-    console.log(`[getDeviceByRoomId] Проверяемый roomId: ${cleanRoomId}`);
-
-    if (cleanRoomId.length !== 16) {
-      console.error(`[getDeviceByRoomId] Недопустимый формат roomId: ${cleanRoomId}`);
-      return null;
-    }
-
-    // Проверка в SavedRoom
-    const savedRoom = await prisma.savedRoom.findUnique({
-      where: { roomId: cleanRoomId },
-      include: { devices: true },
-    });
-
-    if (savedRoom && savedRoom.devices?.idDevice) {
-      console.log(`[getDeviceByRoomId] Найдено устройство в SavedRoom: ${savedRoom.devices.idDevice}`);
-      return { idDevice: savedRoom.devices.idDevice };
-    }
-
-    // Проверка в ProxyAccess
-    const proxyAccess = await prisma.proxyAccess.findUnique({
-      where: { proxyRoomId: cleanRoomId },
-      include: { room: { include: { devices: true } } },
-    });
-
-    if (proxyAccess && proxyAccess.room.devices?.idDevice) {
-      if (proxyAccess.expiresAt && new Date(proxyAccess.expiresAt) < new Date()) {
-        console.error(`[getDeviceByRoomId] Прокси-доступ истёк для proxyRoomId: ${cleanRoomId}`);
-        return null;
-      }
-      console.log(`[getDeviceByRoomId] Найдено устройство через ProxyAccess: ${proxyAccess.room.devices.idDevice}`);
-      return { idDevice: proxyAccess.room.devices.idDevice };
-    }
-
-    console.error(`[getDeviceByRoomId] Комната или устройство не найдены для roomId: ${cleanRoomId}`);
-    return null;
-  } catch (error) {
-    console.error(`[getDeviceByRoomId] Ошибка: ${(error as Error).message}`);
-    return null;
-  }
 }
-
+// доступ к устройству WebSocket незарегистрированным пользователям по ссылке прокси-доступ
 export async function getDeviceSettings(idDevice: string): Promise<{
   servo1MinAngle: number;
   servo1MaxAngle: number;
