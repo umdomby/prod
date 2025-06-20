@@ -1037,10 +1037,6 @@ export async function checkRoom(roomId: string) {
   }
 }
 
-
-export async function getDeviceByRoomId(){
-
-}
 // доступ к устройству WebSocket незарегистрированным пользователям по ссылке прокси-доступ
 export async function getDeviceSettings(idDevice: string): Promise<{
   servo1MinAngle: number;
