@@ -3509,6 +3509,11 @@ nextjs-toploader@^1.6.12:
     nprogress "^0.2.0"
     prop-types "^15.8.1"
 
+nipplejs@^0.10.2:
+  version "0.10.2"
+  resolved "https://registry.yarnpkg.com/nipplejs/-/nipplejs-0.10.2.tgz#0e8f5346bd60f7a0fe0d44c856bc1654cde2b70c"
+  integrity sha512-XGxFY8C2DOtobf1fK+MXINTzkkXJLjZDDpfQhOUZf4TSytbc9s4bmA0lB9eKKM8iDivdr9NQkO7DpIQfsST+9g==
+
 node-addon-api@^5.0.0:
   version "5.1.0"
   resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-5.1.0.tgz#49da1ca055e109a23d537e9de43c09cca21eb762"

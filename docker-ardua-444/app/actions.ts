@@ -224,17 +224,17 @@ export async function updateServoSettings(
     },
     isProxy: boolean = false
 ) {
-  const session = await getUserSession();
-  if (!session) {
-    throw new Error('Пользователь не аутентифицирован');
-  }
+  // const session = await getUserSession();
+  // if (!session) {
+  //   throw new Error('Пользователь не аутентифицирован');
+  // }
 
   const parsedIdDevice = deviceIdSchema.safeParse(idDevice);
   if (!parsedIdDevice.success) {
     throw new Error(parsedIdDevice.error.errors[0].message);
   }
 
-  const userId = parseInt(session.id);
+  //const userId = parseInt(session.id);
 
   const device = await prisma.devices.findUnique({
     where: { idDevice: parsedIdDevice.data },

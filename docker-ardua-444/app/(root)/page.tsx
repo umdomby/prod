@@ -25,7 +25,7 @@ export default async function Home({ searchParams }: { searchParams: Record<stri
         redirect('/register');
     }
 
-    console.log('[Home] Пользователь авторизован, доступ к WebRTC и WebSocket разрешен');
+    // console.log('[Home] Пользователь авторизован, доступ к WebRTC и WebSocket разрешен');
 
     return (
         <Suspense fallback={<Loading />}>

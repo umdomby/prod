@@ -101,10 +101,11 @@ export const VideoPlayer = ({ stream, muted = true, className, transform, videoR
             if (isMuted) {
                 video.muted = isMuted;
             }
-        } else {
-            video.srcObject = null;
-            console.warn('Поток отсутствует или не содержит видеотреков');
         }
+        // else {
+        //     video.srcObject = null;
+        //     console.warn('Поток отсутствует или не содержит видеотреков');
+        // }
 
         return () => {
             video.removeEventListener('canplay', handleCanPlay);

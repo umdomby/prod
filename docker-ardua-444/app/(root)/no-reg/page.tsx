@@ -1,9 +1,9 @@
-import NoRegWebRTC from "@/components/no_reg/NoRegWebRTC";
+import { use } from "react";
+import UseNoRegWebRTC from "@/components/no_reg/useNoRegWebRTC";
 import NoRegSocketClient from "@/components/no_reg/NoRegSocketClient";
 
-
-export default function NoRegPage({ searchParams }: { searchParams: { roomId?: string } }) {
-    const roomId = searchParams.roomId || "";
+export default function NoRegPage({ searchParams }: { searchParams: Promise<{ roomId?: string }> }) {
+    const { roomId = "" } = use(searchParams);
 
     if (!roomId) {
         return (
@@ -16,7 +16,7 @@ export default function NoRegPage({ searchParams }: { searchParams: { roomId?: s
     return (
         <div className="flex flex-col h-screen">
             <div className="flex-1 relative">
-                <NoRegWebRTC roomId={roomId} />
+                <UseNoRegWebRTC roomId={roomId} />
             </div>
             <div className="flex-1 relative">
                 <NoRegSocketClient roomId={roomId} />

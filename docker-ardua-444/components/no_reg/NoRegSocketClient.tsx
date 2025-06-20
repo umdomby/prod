@@ -83,7 +83,6 @@ export default function NoRegSocketClient({ roomId }: NoRegSocketClientProps) {
         <div className="relative w-full h-full">
             <SocketClient
                 selectedDeviceId={deviceId}
-                roomId={roomId} // Передаем roomId для прокси-команд
                 onDisconnectWebSocket={disconnectWebSocketRef.current}
             />
         </div>
