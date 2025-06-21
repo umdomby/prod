@@ -44,8 +44,9 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
     const localAudioTracks = useRef<MediaStreamTrack[]>([])
     const socketClientRef = useRef<{ disconnectWebSocket?: () => Promise<void> }>({})
     const [videoTransform, setVideoTransform] = useState('')
-    const leaveRoomRef = useRef<(() => void) | null>(null);
-    const [showLocalVideo, setShowLocalVideo] = useState(false);
+    const leaveRoomRef = useRef<(() => void) | null>(null)
+    const [showLocalVideo, setShowLocalVideo] = useState(false)
+    const wsRef = useRef<WebSocket | null>(null) // Ссылка на WebSocket из UseNoRegWebRTC
 
     // Установка initialRoomId при монтировании
     useEffect(() => {
@@ -112,12 +113,12 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
 
     // Применение трансформации видео
     const applyVideoTransform = useCallback((settings: VideoSettings) => {
-        const { rotation, flipH, flipV } = settings;
-        let transform = '';
-        if (rotation !== 0) transform += `rotate(${rotation}deg) `;
-        transform += `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`;
-        setVideoTransform(transform);
-    }, []);
+        const { rotation, flipH, flipV } = settings
+        let transform = ''
+        if (rotation !== 0) transform += `rotate(${rotation}deg) `
+        transform += `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`
+        setVideoTransform(transform)
+    }, [])
 
     // Сохранение настроек
     const saveSettings = useCallback((settings: VideoSettings) => {
@@ -142,7 +143,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                 setActiveMainTab(activeMainTab === tab ? null : tab)
                 setShowCam(false)
             }
-        }, 300),
+        }, 100),
         [showCam, activeMainTab]
     )
 
@@ -161,9 +162,9 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                 }
             } catch (err) {
                 console.error('Fullscreen error:', err)
-                setError('Failed to toggle fullscreen')
+                setError('Не удалось переключить полноэкранный режим')
             }
-        }, 300),
+        }, 100),
         []
     )
 
@@ -173,20 +174,20 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             const newState = !muteRemoteAudio
             setMuteRemoteAudio(newState)
             localStorage.setItem('muteRemoteAudio', String(newState))
-        }, 300),
+        }, 100),
         [muteRemoteAudio]
     )
 
     // Поворот видео
     const rotateVideo = useCallback((degrees: number) => {
-        updateVideoSettings({ rotation: degrees });
-    }, [updateVideoSettings]);
+        updateVideoSettings({ rotation: degrees })
+    }, [updateVideoSettings])
 
     // Отражение видео по горизонтали
     const flipVideoHorizontal = useCallback(
         debounce(() => {
             updateVideoSettings({ flipH: !videoSettings.flipH })
-        }, 300),
+        }, 100),
         [videoSettings, updateVideoSettings]
     )
 
@@ -194,7 +195,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
     const flipVideoVertical = useCallback(
         debounce(() => {
             updateVideoSettings({ flipV: !videoSettings.flipV })
-        }, 300),
+        }, 100),
         [videoSettings, updateVideoSettings]
     )
 
@@ -202,9 +203,18 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
     const resetVideo = useCallback(
         debounce(() => {
             updateVideoSettings({ rotation: 0, flipH: false, flipV: false })
-        }, 300),
+        }, 100),
         [updateVideoSettings]
     )
+
+    // Временное уведомление в UI
+    const showNotification = useCallback((message: string) => {
+        const notification = document.createElement('div')
+        notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg z-50'
+        notification.textContent = message
+        document.body.appendChild(notification)
+        setTimeout(() => notification.remove(), 2000)
+    }, [])
 
     // Переключение камеры
     const toggleCamera = useCallback(
@@ -212,49 +222,84 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             const newCameraState = !useBackCamera
             setUseBackCamera(newCameraState)
             localStorage.setItem('useBackCamera', String(newCameraState))
-        }, 300),
-        [useBackCamera]
+
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+                try {
+                    console.log('Отправка команды switch_camera:', { room: roomId, useBackCamera: newCameraState })
+                    wsRef.current.send(JSON.stringify({
+                        type: 'switch_camera',
+                        useBackCamera: newCameraState,
+                        room: roomId.replace(/-/g, ''),
+                        username
+                    }))
+                    showNotification(`Переключение на ${newCameraState ? 'заднюю' : 'фронтальную'} камеру`)
+                } catch (err) {
+                    console.error('Ошибка отправки команды switch_camera:', err)
+                    setError('Не удалось переключить камеру')
+                }
+            } else {
+                console.error('WebSocket не подключен для switch_camera')
+                setError('Нет соединения с сервером')
+            }
+        }, 100),
+        [useBackCamera, wsRef, roomId, username, setError, showNotification]
     )
 
     // Управление фонариком
     const toggleFlashlight = useCallback(
         debounce(() => {
-            setError('Фонарик не поддерживается для незарегистрированных пользователей')
-        }, 300),
-        []
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+                try {
+                    console.log('Отправка команды toggle_flashlight:', { room: roomId, username })
+                    wsRef.current.send(JSON.stringify({
+                        type: 'toggle_flashlight',
+                        room: roomId.replace(/-/g, ''),
+                        username
+                    }))
+                    showNotification('Команда на переключение фонарика отправлена')
+                } catch (err) {
+                    console.error('Ошибка отправки команды toggle_flashlight:', err)
+                    setError('Не удалось переключить фонарик')
+                }
+            } else {
+                console.error('WebSocket не подключен для toggle_flashlight')
+                setError('Нет соединения с сервером')
+            }
+        }, 100),
+        [wsRef, roomId, username, setError, showNotification]
     )
 
     // Обработка отключения
     const handleDisconnect = useCallback(
         debounce(async () => {
-            setIsJoining(false);
-            setError(null);
-            setActiveMainTab('webrtc');
-            setShowDisconnectDialog(true);
-            setTimeout(() => setShowDisconnectDialog(false), 3000);
+            setIsJoining(false)
+            setError(null)
+            setActiveMainTab('webrtc')
+            setShowDisconnectDialog(true)
+            setTimeout(() => setShowDisconnectDialog(false), 3000)
 
             // Отключаем WebRTC
             if (leaveRoomRef.current) {
                 try {
-                    leaveRoomRef.current();
-                    console.log('WebRTC соединение отключено');
+                    leaveRoomRef.current()
+                    console.log('WebRTC соединение отключено')
                 } catch (err) {
-                    console.error('Ошибка отключения WebRTC:', err);
+                    console.error('Ошибка отключения WebRTC:', err)
                 }
             }
 
             // Отключаем WebSocket
             if (socketClientRef.current?.disconnectWebSocket) {
                 try {
-                    await socketClientRef.current.disconnectWebSocket();
-                    console.log('WebSocket отключен');
+                    await socketClientRef.current.disconnectWebSocket()
+                    console.log('WebSocket отключен')
                 } catch (err) {
-                    console.error('Ошибка отключения WebSocket:', err);
+                    console.error('Ошибка отключения WebSocket:', err)
                 }
             }
-        }, 300),
+        }, 100),
         []
-    );
+    )
 
     return (
         <div className={`${styles.container} relative w-full h-screen overflow-hidden`} suppressHydrationWarning>
@@ -262,16 +307,16 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             <div className="absolute inset-0 z-10" ref={videoContainerRef}>
                 <UseNoRegWebRTC
                     roomId={roomId}
-                    setLeaveRoom={(leaveRoom) => { leaveRoomRef.current = leaveRoom; }}
+                    setLeaveRoom={(leaveRoom) => { leaveRoomRef.current = leaveRoom }}
                     videoTransform={videoTransform}
+                    setWebSocket={(ws) => { wsRef.current = ws }} // Передаем WebSocket
+                    useBackCamera={useBackCamera} // Передаем состояние камеры
                 />
             </div>
 
             {/* SocketClient поверх видео */}
             <div className="relative h-full">
-                    <NoRegSocketClient
-                        roomId={roomId}
-                    />
+                <NoRegSocketClient roomId={roomId} />
             </div>
 
             {/* Управление интерфейсом */}

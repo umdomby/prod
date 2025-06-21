@@ -8,6 +8,8 @@ interface NoRegWebRTCProps {
     roomId: string;
     setLeaveRoom?: (leaveRoom: () => void) => void;
     videoTransform?: string;
+    setWebSocket?: (ws: WebSocket | null) => void; // Callback для передачи WebSocket
+    useBackCamera?: boolean; // Состояние камеры
 }
 
 interface WebSocketMessage {
@@ -22,7 +24,7 @@ interface WebSocketMessage {
     preferredCodec?: string;
 }
 
-export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }: NoRegWebRTCProps) {
+export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, setWebSocket, useBackCamera }: NoRegWebRTCProps) {
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [isInRoom, setIsInRoom] = useState(false);
@@ -43,7 +45,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
     const videoRef = useRef<HTMLVideoElement>(null);
     const isJoining = useRef(false);
     const isReconnecting = useRef(false);
-    const isConnectionStable = useRef(false); // Новый флаг для стабильного соединения
+    const isConnectionStable = useRef(false);
     const username = `guest_${Math.floor(Math.random() * 1000)}`;
     const preferredCodec = 'VP8';
     const MAX_RETRIES = 10;
@@ -51,6 +53,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
     const WS_TIMEOUT = 10000;
     const MAX_JOIN_MESSAGE_RETRIES = 3;
     const [isMuted, setIsMuted] = useState<boolean>(true);
+    const [flashlightState, setFlashlightState] = useState<boolean>(false); // Состояние фонарика
 
     const detectPlatform = () => {
         const ua = navigator.userAgent;
@@ -127,6 +130,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
         isJoining.current = false;
         isReconnecting.current = false;
         isConnectionStable.current = false;
+        if (setWebSocket) setWebSocket(null); // Очищаем WebSocket
     };
 
     useEffect(() => {
@@ -161,7 +165,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                     remoteStream.getVideoTracks()[0]?.readyState === 'live' &&
                     hasVideoContent) ||
                 pc.current?.iceConnectionState === 'connected' ||
-                pc.current?.iceConnectionState === 'checking' || // Заменили 'connecting' на 'checking'
+                pc.current?.iceConnectionState === 'checking' ||
                 ws.current?.readyState === WebSocket.OPEN
             ) {
                 console.log('Соединение стабильно или видео активно, переподключение не требуется');
@@ -179,6 +183,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
         return new Promise((resolve) => {
             if (ws.current?.readyState === WebSocket.OPEN) {
                 console.log('WebSocket уже открыт');
+                if (setWebSocket) setWebSocket(ws.current);
                 resolve(true);
                 return;
             }
@@ -197,12 +202,13 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                         cleanupEvents();
                         setIsConnected(true);
                         setError(null);
+                        if (setWebSocket) setWebSocket(ws.current);
                         pingIntervalRef.current = setInterval(() => {
                             if (ws.current?.readyState === WebSocket.OPEN) {
                                 sendWebSocketMessage({ type: 'ping' });
                                 console.log('Отправлен ping для поддержания WebSocket');
                             }
-                        }, 30000); // Пинг каждые 30 секунд
+                        }, 30000);
                         resolve(true);
                     };
 
@@ -223,6 +229,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                         console.log('WebSocket закрыт:', event.code, event.reason);
                         cleanupEvents();
                         setIsConnected(false);
+                        if (setWebSocket) setWebSocket(null);
                         if (retryCount < maxRetries) {
                             retryCount++;
                             console.log(`Повторная попытка подключения WebSocket (${retryCount}/${maxRetries})`);
@@ -251,6 +258,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                         if (ws.current && ws.current.readyState !== WebSocket.OPEN) {
                             ws.current.close();
                             ws.current = null;
+                            if (setWebSocket) setWebSocket(null);
                         }
                         if (retryCount < maxRetries) {
                             retryCount++;
@@ -362,7 +370,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                     newRemoteStream.addTrack(track);
                     console.log(`Добавлен ${track.kind} трек в remoteStream:`, track.id);
                     if (track.kind === 'audio') {
-                        track.enabled = !isMuted; // Синхронизируем с isMuted
+                        track.enabled = !isMuted;
                     }
                 });
                 setRemoteStream(newRemoteStream);
@@ -415,7 +423,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                 const data: WebSocketMessage = JSON.parse(event.data);
                 console.log('Получено сообщение:', JSON.stringify(data, null, 2));
 
-                switch (data.type) {
+                switch (data.type.toLowerCase()) {
                     case 'room_info':
                         console.log('Получено room_info, пользователь в комнате');
                         setIsInRoom(true);
@@ -465,7 +473,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                             }
                         } else if (joinMessageRetries.current < MAX_JOIN_MESSAGE_RETRIES) {
                             joinMessageRetries.current += 1;
-                            console.log(`Повторная отправка join сообщения (${joinMessageRetries.current}/${MAX_JOIN_MESSAGE_RETRIES})`);
+                            console.log(`Повторная отправка join сообщения (${joinMessageRetries.current}/${MAX_RETRIES})`);
                             sendWebSocketMessage({
                                 type: 'join',
                                 room: roomId.replace(/-/g, ''),
@@ -487,6 +495,20 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
 
                     case 'pong':
                         console.log('Получен pong, WebSocket жив');
+                        break;
+
+                    case 'camera_switched':
+                        console.log('Камера переключена на:', data.data.useBackCamera ? 'заднюю' : 'фронтальную');
+                        if (data.data.useBackCamera !== undefined) {
+                            // Синхронизируем состояние камеры
+                            // Не обновляем useBackCamera, чтобы избежать конфликта с UI
+                            console.log('Подтверждение переключения камеры:', data.data.useBackCamera);
+                        }
+                        break;
+
+                    case 'flashlight_toggled':
+                        console.log('Фонарик:', data.data.isOn ? 'включен' : 'выключен');
+                        setFlashlightState(data.data.isOn);
                         break;
 
                     default:
@@ -521,7 +543,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
             const { roomId: targetRoomId } = response;
             console.log('Получен targetRoomId:', targetRoomId);
 
-            if (!(await connectWebSocket())) {
+            if (!await connectWebSocket()) {
                 throw new Error('Не удалось подключиться к WebSocket');
             }
 
@@ -540,7 +562,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                 const onMessage = (event: MessageEvent) => {
                     try {
                         const data = JSON.parse(event.data);
-                        console.log('Получено сообщение в joinRoom:', JSON.stringify(data, null, 2));
+                        console.log('Получено сообщение в joinRoom:', data);
                         if (data.type === 'room_info') {
                             console.log('Успешно подключено к комнате');
                             cleanupEvents();
@@ -549,10 +571,10 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                         } else if (data.type === 'error') {
                             console.error('Ошибка при подключении:', data.data);
                             cleanupEvents();
-                            setError(`Не удалось подключиться к комнате: ${data.data}`);
+                            setError(error(`Error ${data.error}: ${data.message}`));
                             if (joinMessageRetries.current < MAX_JOIN_MESSAGE_RETRIES) {
-                                joinMessageRetries.current += 1;
-                                console.log(`Повторная отправка join сообщения (${joinMessageRetries.current}/${MAX_JOIN_MESSAGE_RETRIES})`);
+                                joinMessageRetries.current++;
+                                console.log(`Повторная отправка join сообщения (${joinMessageRetries.current}/${MAX_RETRIES})`);
                                 sendWebSocketMessage({
                                     type: 'join',
                                     room: targetRoomId,
@@ -598,6 +620,17 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                     isLeader: false,
                     preferredCodec,
                 });
+
+                // Отправка начальной команды переключения камеры, если задано
+                if (useBackCamera !== undefined) {
+                    sendWebSocketMessage({
+                        type: 'switch_camera',
+                        useBackCamera,
+                        room: targetRoomId,
+                        username
+                    });
+                    console.log('Отправлена начальная команда switch_camera:', { useBackCamera });
+                }
             });
 
             startVideoCheckTimer();
@@ -622,7 +655,6 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
         }
     };
 
-
     const lastRetryTimestamp = useRef(0);
     const resetConnection = () => {
         const now = Date.now();
@@ -630,36 +662,36 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
             console.log('Переподключение уже выполняется или слишком рано, пропускаем...');
             return;
         }
-        lastRetryTimestamp.current = now;
-        if (isReconnecting.current) {
-            console.log('Переподключение уже выполняется, пропускаем...');
-            return;
-        }
         if (isConnectionStable.current) {
             console.log('Соединение стабильно, переподключение запрещено:', {
                 iceConnectionState: pc.current?.iceConnectionState,
                 signalingState: pc.current?.signalingState,
-                wsState: ws.current?.readyState,
+                wsState: ws.current?.readyState.current,
             });
             return;
         }
         if (
             pc.current &&
-            (pc.current.iceConnectionState === 'connected' ||
-                pc.current.iceConnectionState === 'checking' ||
-                pc.current.signalingState === 'have-remote-offer' ||
+            (pc.current?.iceConnection === 'connected' ||
+                pc.current?.iceConnection === 'checking' ||
+                pc.current?.signalingState === 'have-remote-off' ||
                 ws.current?.readyState === WebSocket.OPEN)
         ) {
-            console.log('Соединение активно или в процессе установления, переподключение запрещено:', {
+            console.log('Соединение активно или в процессе установления:', {
                 iceConnectionState: pc.current?.iceConnectionState,
                 signalingState: pc.current?.signalingState,
-                wsState: ws.current?.readyState,
+                wsState: ws.current?.readyState.current,
             });
             return;
         }
         isReconnecting.current = true;
         console.log('Переподключение WebRTC...');
-        joinRoom();
+        try {
+            joinRoom();
+        } finally {
+            lastRetryTimeStamp.current = now;
+            isReconnecting.current = false;
+        }
     };
 
     const toggleMute = () => {
@@ -716,7 +748,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }:
                 videoRef={videoRef}
                 muted={isMuted}
                 className="w-full h-full"
-                transform={videoTransform} // Передаем transform
+                transform={videoTransform}
             />
         </div>
     );
