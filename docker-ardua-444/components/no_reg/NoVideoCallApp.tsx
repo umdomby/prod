@@ -112,17 +112,12 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
 
     // Применение трансформации видео
     const applyVideoTransform = useCallback((settings: VideoSettings) => {
-        const { rotation, flipH, flipV } = settings
-        let transform = ''
-        if (rotation !== 0) transform += `rotate(${rotation}deg) `
-        transform += `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`
-        setVideoTransform(transform)
-
-        if (remoteVideoRef.current) {
-            remoteVideoRef.current.style.transform = transform
-            remoteVideoRef.current.style.transformOrigin = 'center center'
-        }
-    }, [])
+        const { rotation, flipH, flipV } = settings;
+        let transform = '';
+        if (rotation !== 0) transform += `rotate(${rotation}deg) `;
+        transform += `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`;
+        setVideoTransform(transform);
+    }, []);
 
     // Сохранение настроек
     const saveSettings = useCallback((settings: VideoSettings) => {
@@ -183,20 +178,9 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
     )
 
     // Поворот видео
-    const rotateVideo = useCallback(
-        debounce((degrees: number) => {
-            updateVideoSettings({ rotation: degrees })
-
-            if (remoteVideoRef.current) {
-                if (degrees === 90 || degrees === 270) {
-                    remoteVideoRef.current.classList.add(styles.rotated)
-                } else {
-                    remoteVideoRef.current.classList.remove(styles.rotated)
-                }
-            }
-        }, 300),
-        [updateVideoSettings]
-    )
+    const rotateVideo = useCallback((degrees: number) => {
+        updateVideoSettings({ rotation: degrees });
+    }, [updateVideoSettings]);
 
     // Отражение видео по горизонтали
     const flipVideoHorizontal = useCallback(
