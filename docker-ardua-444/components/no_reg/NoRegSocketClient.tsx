@@ -84,6 +84,7 @@ export default function NoRegSocketClient({ roomId }: NoRegSocketClientProps) {
             <SocketClient
                 selectedDeviceId={deviceId}
                 onDisconnectWebSocket={disconnectWebSocketRef.current}
+                isProxySocket={true}
             />
         </div>
     );

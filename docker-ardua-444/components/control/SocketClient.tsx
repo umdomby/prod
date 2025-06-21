@@ -46,11 +46,12 @@ type LogEntry = {
 interface SocketClientProps {
     onConnectionStatusChange?: (isFullyConnected: boolean) => void;
     selectedDeviceId?: string | null;
-    onDisconnectWebSocket?: { disconnectWebSocket?: () => Promise<void> }; // Изменяем тип на объект
-    onDeviceAdded?: (deviceId: string) => void; // Новый пропс
+    onDisconnectWebSocket?: { disconnectWebSocket?: () => Promise<void> };
+    onDeviceAdded?: (deviceId: string) => void;
+    isProxySocket?: boolean; // Новый пропс
 }
 
-export default function SocketClient({onConnectionStatusChange, selectedDeviceId, onDisconnectWebSocket, onDeviceAdded}: SocketClientProps) {
+export default function SocketClient({onConnectionStatusChange, selectedDeviceId, onDisconnectWebSocket, onDeviceAdded, isProxySocket}: SocketClientProps) {
     const {
         servoAngle,
         servo2Angle,
@@ -121,6 +122,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
     // Загрузка устройств и настроек из базы данных
     useEffect(() => {
         const loadDevices = async () => {
+            if (isProxySocket) return;
             try {
                 const devices = await getDevices();
                 setDeviceList(devices.map(d => d.idDevice));
