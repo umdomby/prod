@@ -1,10 +1,10 @@
-import NoRegSocketClient from "@/components/no_reg/NoRegSocketClient";
-import UseNoRegWebRTC from "@/components/no_reg/useNoRegWebRTC";
+import {NoVideoCallApp} from "@/components/no_reg/NoVideoCallApp";
+
 
 export default async function NoRegPage({
                                             searchParams
                                         }: {
-    searchParams: Promise<{ roomId?: string }>
+    searchParams: Promise<{ roomId?: string }>;
 }) {
     const { roomId = "" } = await searchParams;
 
@@ -16,14 +16,5 @@ export default async function NoRegPage({
         );
     }
 
-    return (
-        <div className="flex flex-col h-screen">
-            <div className="flex-1 relative">
-                <UseNoRegWebRTC roomId={roomId} />
-            </div>
-            <div className="flex-1 relative">
-                <NoRegSocketClient roomId={roomId} />
-            </div>
-        </div>
-    );
+    return <NoVideoCallApp initialRoomId={roomId} />;
 }
