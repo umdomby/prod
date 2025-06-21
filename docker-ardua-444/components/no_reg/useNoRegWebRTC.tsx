@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 interface NoRegWebRTCProps {
     roomId: string;
-    setLeaveRoom?: (leaveRoom: () => void) => void; // Новый пропс для передачи leaveRoom
+    setLeaveRoom?: (leaveRoom: () => void) => void;
+    videoTransform?: string;
 }
 
 interface WebSocketMessage {
@@ -21,7 +22,7 @@ interface WebSocketMessage {
     preferredCodec?: string;
 }
 
-export default function UseNoRegWebRTC({ roomId, setLeaveRoom }: NoRegWebRTCProps) {
+export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform }: NoRegWebRTCProps) {
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [isInRoom, setIsInRoom] = useState(false);
@@ -715,6 +716,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom }: NoRegWebRTCProp
                 videoRef={videoRef}
                 muted={isMuted}
                 className="w-full h-full"
+                transform={videoTransform} // Передаем transform
             />
         </div>
     );

@@ -279,6 +279,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                 <UseNoRegWebRTC
                     roomId={roomId}
                     setLeaveRoom={(leaveRoom) => { leaveRoomRef.current = leaveRoom; }}
+                    videoTransform={videoTransform}
                 />
             </div>
 
