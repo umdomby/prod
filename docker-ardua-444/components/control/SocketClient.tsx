@@ -1374,7 +1374,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             </Button>
                         )}
 
-                        {showServos !== null && (
+                        {/*{showServos !== null && (*/}
                             <Button
                                 onClick={toggleServosVisibility}
                                 className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
@@ -1386,7 +1386,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     <img width={'25px'} height={'25px'} src="/turn1.svg" alt="Image"/>
                                 )}
                             </Button>
-                        )}
+                        {/*)}*/}
 
                         <Button
                             onClick={handleCloseControls}
