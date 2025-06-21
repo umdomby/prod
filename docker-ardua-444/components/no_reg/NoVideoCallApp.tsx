@@ -279,17 +279,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             <div className="absolute inset-0 z-10" ref={videoContainerRef}>
                 <UseNoRegWebRTC
                     roomId={roomId}
-                    username={username}
-                    setError={setError}
-                    setIsJoining={setIsJoining}
-                    setShowRoomNotExistDialog={setShowRoomNotExistDialog}
-                    setActiveMainTab={setActiveMainTab}
-                    muteRemoteAudio={muteRemoteAudio}
-                    localAudioTracks={localAudioTracks}
-                    videoSettings={videoSettings}
-                    videoTransform={videoTransform}
-                    remoteVideoRef={remoteVideoRef}
-                    useBackCamera={useBackCamera}
                 />
             </div>
 
@@ -297,8 +286,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             <div className="relative h-full">
                     <NoRegSocketClient
                         roomId={roomId}
-                        onConnectionStatusChange={setIsDeviceConnected}
-                        onDisconnectWebSocket={socketClientRef.current}
                     />
             </div>
 
