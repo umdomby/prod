@@ -11,6 +11,7 @@ export default async function Home({
                                    }: {
     searchParams: Promise<{ roomId?: string | string[] }>
 }) {
+    // console.log('Home ' + searchParams);
     const params = await searchParams;
     const session = await getUserSession();
 

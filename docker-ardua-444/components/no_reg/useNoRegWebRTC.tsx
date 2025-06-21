@@ -614,7 +614,15 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
         }
     };
 
+
+    const lastRetryTimestamp = useRef(0);
     const resetConnection = () => {
+        const now = Date.now();
+        if (isReconnecting.current || now - lastRetryTimestamp.current < 5000) {
+            console.log('Переподключение уже выполняется или слишком рано, пропускаем...');
+            return;
+        }
+        lastRetryTimestamp.current = now;
         if (isReconnecting.current) {
             console.log('Переподключение уже выполняется, пропускаем...');
             return;
