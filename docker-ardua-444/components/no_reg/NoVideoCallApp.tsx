@@ -44,6 +44,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
     const localAudioTracks = useRef<MediaStreamTrack[]>([])
     const socketClientRef = useRef<{ disconnectWebSocket?: () => Promise<void> }>({})
     const [videoTransform, setVideoTransform] = useState('')
+    const leaveRoomRef = useRef<(() => void) | null>(null);
 
     // Установка initialRoomId при монтировании
     useEffect(() => {
@@ -255,23 +256,34 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
     // Обработка отключения
     const handleDisconnect = useCallback(
         debounce(async () => {
-            setIsJoining(false)
-            setError(null)
-            setActiveMainTab('webrtc')
-            setShowDisconnectDialog(true)
-            setTimeout(() => setShowDisconnectDialog(false), 3000)
+            setIsJoining(false);
+            setError(null);
+            setActiveMainTab('webrtc');
+            setShowDisconnectDialog(true);
+            setTimeout(() => setShowDisconnectDialog(false), 3000);
 
+            // Отключаем WebRTC
+            if (leaveRoomRef.current) {
+                try {
+                    leaveRoomRef.current();
+                    console.log('WebRTC соединение отключено');
+                } catch (err) {
+                    console.error('Ошибка отключения WebRTC:', err);
+                }
+            }
+
+            // Отключаем WebSocket
             if (socketClientRef.current?.disconnectWebSocket) {
                 try {
-                    await socketClientRef.current.disconnectWebSocket()
-                    console.log('WebSocket отключен')
+                    await socketClientRef.current.disconnectWebSocket();
+                    console.log('WebSocket отключен');
                 } catch (err) {
-                    console.error('Ошибка отключения WebSocket:', err)
+                    console.error('Ошибка отключения WebSocket:', err);
                 }
             }
         }, 300),
         []
-    )
+    );
 
     return (
         <div className={`${styles.container} relative w-full h-screen overflow-hidden`} suppressHydrationWarning>
@@ -279,6 +291,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             <div className="absolute inset-0 z-10" ref={videoContainerRef}>
                 <UseNoRegWebRTC
                     roomId={roomId}
+                    setLeaveRoom={(leaveRoom) => { leaveRoomRef.current = leaveRoom; }}
                 />
             </div>
 

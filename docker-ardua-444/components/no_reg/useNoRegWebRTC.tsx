@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 interface NoRegWebRTCProps {
     roomId: string;
+    setLeaveRoom?: (leaveRoom: () => void) => void; // Новый пропс для передачи leaveRoom
 }
 
 interface WebSocketMessage {
@@ -20,7 +21,7 @@ interface WebSocketMessage {
     preferredCodec?: string;
 }
 
-export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
+export default function UseNoRegWebRTC({ roomId, setLeaveRoom }: NoRegWebRTCProps) {
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [isInRoom, setIsInRoom] = useState(false);
@@ -126,6 +127,12 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
         isReconnecting.current = false;
         isConnectionStable.current = false;
     };
+
+    useEffect(() => {
+        if (setLeaveRoom) {
+            setLeaveRoom(leaveRoom);
+        }
+    }, [setLeaveRoom]);
 
     const startVideoCheckTimer = () => {
         if (videoCheckTimeout.current) {
@@ -709,9 +716,6 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
                 muted={isMuted}
                 className="w-full h-full"
             />
-            {/*<div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">*/}
-            {/*    Статус: {isConnected ? (isInRoom ? 'В комнате' : 'Подключено') : 'Отключено'} | ICE: {connectionState.ice || 'N/A'} | Signaling: {connectionState.signaling || 'N/A'}*/}
-            {/*</div>*/}
         </div>
     );
 }
