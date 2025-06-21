@@ -45,6 +45,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
     const socketClientRef = useRef<{ disconnectWebSocket?: () => Promise<void> }>({})
     const [videoTransform, setVideoTransform] = useState('')
     const leaveRoomRef = useRef<(() => void) | null>(null);
+    const [showLocalVideo, setShowLocalVideo] = useState(false);
 
     // Установка initialRoomId при монтировании
     useEffect(() => {
@@ -169,20 +170,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             }
         }, 300),
         []
-    )
-
-    // Управление микрофоном
-    const toggleMuteLocalAudio = useCallback(
-        debounce(() => {
-            const newState = !muteLocalAudio
-            setMuteLocalAudio(newState)
-            localStorage.setItem('muteLocalAudio', String(newState))
-
-            localAudioTracks.current.forEach(track => {
-                track.enabled = !newState
-            })
-        }, 300),
-        [muteLocalAudio]
     )
 
     // Управление звуком удалённого потока
@@ -449,26 +436,10 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                                 {isFullscreen ? '✕' : '⛶'}
                             </button>
                             <button
-                                onClick={toggleMuteLocalAudio}
-                                onTouchEnd={toggleMuteLocalAudio}
-                                className={[styles.controlButton, muteLocalAudio ? styles.active : ''].join(' ')}
-                                title={muteLocalAudio ? 'Включить микрофон' : 'Отключить микрофон'}
-                            >
-                                {muteLocalAudio ? '🚫🎤' : '🎤'}
-                            </button>
-                            <button
-                                onClick={toggleMuteRemoteAudio}
-                                onTouchEnd={toggleMuteRemoteAudio}
-                                className={[styles.controlButton, muteRemoteAudio ? styles.active : ''].join(' ')}
-                                title={muteRemoteAudio ? 'Включить звук' : 'Отключить звук'}
-                            >
-                                {muteRemoteAudio ? '🔇' : '🔈'}
-                            </button>
-                            <button
                                 onClick={toggleFlashlight}
                                 onTouchEnd={toggleFlashlight}
                                 className={styles.controlButton}
-                                title="Фонарик не поддерживается"
+                                title="Включить/выключить фонарик"
                             >
                                 💡
                             </button>
