@@ -46,7 +46,7 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
     const preferredCodec = 'VP8';
     const MAX_RETRIES = 10;
     const VIDEO_CHECK_TIMEOUT = 12000;
-    const WS_TIMEOUT = 20000; // Увеличено до 20 секунд
+    const WS_TIMEOUT = 10000;
     const MAX_JOIN_MESSAGE_RETRIES = 3;
 
     const detectPlatform = () => {
@@ -152,12 +152,12 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
                     remoteStream.getVideoTracks()[0]?.readyState === 'live' &&
                     hasVideoContent) ||
                 pc.current?.iceConnectionState === 'connected' ||
-                pc.current?.iceConnectionState === 'connecting' ||
+                pc.current?.iceConnectionState === 'checking' || // Заменили 'connecting' на 'checking'
                 ws.current?.readyState === WebSocket.OPEN
             ) {
                 console.log('Соединение стабильно или видео активно, переподключение не требуется');
                 if (pc.current?.iceConnectionState === 'connected' && hasVideoContent) {
-                    isConnectionStable.current = true; // Устанавливаем флаг стабильного соединения
+                    isConnectionStable.current = true;
                 }
             } else {
                 console.warn('Видео не получено и соединение не активно, переподключение...');
@@ -293,8 +293,7 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
             ],
             bundlePolicy: 'max-bundle',
             rtcpMuxPolicy: 'require',
-            iceTransportPolicy: 'all',
-            sdpSemantics: 'unified-plan',
+            iceTransportPolicy: 'all'
         });
 
         pc.current.onsignalingstatechange = () => {
@@ -571,25 +570,6 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
                     }
                 };
 
-                connectionTimeout.current = setTimeout(() => {
-                    cleanupEvents();
-                    console.error('Таймаут ожидания ответа от сервера');
-                    setError('Таймаут ожидания ответа от сервера');
-                    if (joinMessageRetries.current < MAX_JOIN_MESSAGE_RETRIES) {
-                        joinMessageRetries.current += 1;
-                        console.log(`Повторная отправка join сообщения (${joinMessageRetries.current}/${MAX_JOIN_MESSAGE_RETRIES})`);
-                        sendWebSocketMessage({
-                            type: 'join',
-                            room: targetRoomId,
-                            username,
-                            isLeader: false,
-                            preferredCodec,
-                        });
-                    } else {
-                        reject(new Error('Таймаут ожидания ответа от сервера'));
-                    }
-                }, WS_TIMEOUT);
-
                 ws.current.addEventListener('message', onMessage);
 
                 sendWebSocketMessage({
@@ -646,7 +626,7 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
         if (
             pc.current &&
             (pc.current.iceConnectionState === 'connected' ||
-                pc.current.iceConnectionState === 'connecting' ||
+                pc.current.iceConnectionState === 'checking' ||
                 pc.current.signalingState === 'have-remote-offer' ||
                 ws.current?.readyState === WebSocket.OPEN)
         ) {

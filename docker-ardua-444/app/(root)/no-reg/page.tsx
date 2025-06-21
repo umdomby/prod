@@ -1,11 +1,12 @@
-import { use } from "react";
-
 import NoRegSocketClient from "@/components/no_reg/NoRegSocketClient";
 import UseNoRegWebRTC from "@/components/no_reg/useNoRegWebRTC";
 
-
-export default function NoRegPage({ searchParams }: { searchParams: Promise<{ roomId?: string }> }) {
-    const { roomId = "" } = use(searchParams);
+export default async function NoRegPage({
+                                            searchParams
+                                        }: {
+    searchParams: Promise<{ roomId?: string }>
+}) {
+    const { roomId = "" } = await searchParams;
 
     if (!roomId) {
         return (

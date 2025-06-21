@@ -8,9 +8,11 @@
   },
   "scripts": {
     "dev": "concurrently --names \"Next,TS,Go\" \"cd docker-ardua-444 && yarn dev\" \"cd docker-go-95 && go run main.go\" \"cd docker-socket-96 && yarn dev\"",
-    "st": "concurrently --names \"Next,TS,Go\" \"cd docker-ardua-444 && yarn start\" \"cd docker-go-95 && go run main.go\" \"cd docker-socket-96 && yarn dev\"",
+    "start": "concurrently --names \"Next,TS,Go\" \"cd docker-ardua-444 && yarn start\" \"cd docker-go-95 && go run main.go\" \"cd docker-socket-96 && yarn dev\"",
     "dev1": "concurrently --names \"Next,TS,Go\" \"cd docker-ardua-444 && yarn dev\" \"cd docker-socket-96 && yarn dev\"",
-    "srv1" : "cd docker-go-95 && go run main.go",
+    "go" : "cd docker-go-95 && go run main.go",
+    "dev2": "concurrently --names \"Next,TS,Go\" \"cd docker-go-95 && go run main.go\" \"cd docker-socket-96 && yarn dev\"",
+    "client": "concurrently --names \"client\" \"cd docker-ardua-444 && yarn dev\"",
     "prod": "concurrently --names \"Next,TS,Go\" \"cd docker-ardua && yarn dev\" \"cd docker-go && go run main.go\" \"cd docker-socket && yarn dev\"",
     "prod2": "concurrently --names \"Next,TS,Go\" \"cd docker-ardua-443 && yarn dev\" \"cd docker-go-85 && go run main.go\" \"cd docker-socket-86 && yarn dev\"",
     "dd": "cd docker-go-95 && go run main.go"

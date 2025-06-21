@@ -6,26 +6,24 @@ import { redirect } from 'next/navigation';
 import Loading from "@/app/(root)/loading";
 import WebRTC from "@/components/webrtc";
 
-export default async function Home({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-    // console.log('[Home] Запрос на главную страницу, searchParams:', searchParams);
-
-    const session = await getUserSession();
-    // console.log('[Home] Сессия:', session);
-
-    // Дожидаемся searchParams перед использованием
+export default async function Home({
+                                       searchParams
+                                   }: {
+    searchParams: Promise<{ roomId?: string | string[] }>
+}) {
     const params = await searchParams;
-    const roomId = Array.isArray(params.roomId) ? params.roomId[0] : params.roomId;
+    const session = await getUserSession();
+
+    const roomId = Array.isArray(params.roomId)
+        ? params.roomId[0]
+        : params.roomId;
 
     if (!session?.id) {
-        console.log('[Home] Нет сессии, редирект на /register');
         if (roomId) {
-            console.log('[Home] Обнаружен roomId, редирект на /no-reg');
             redirect(`/no-reg?roomId=${roomId}`);
         }
         redirect('/register');
     }
-
-    // console.log('[Home] Пользователь авторизован, доступ к WebRTC и WebSocket разрешен');
 
     return (
         <Suspense fallback={<Loading />}>
