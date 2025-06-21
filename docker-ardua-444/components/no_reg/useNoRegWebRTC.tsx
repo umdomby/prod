@@ -43,7 +43,7 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
     const preferredCodec = 'VP8';
     const MAX_RETRIES = 10;
     const VIDEO_CHECK_TIMEOUT = 12000;
-    const WS_TIMEOUT = 5000;
+    const WS_TIMEOUT = 10000; // Увеличили до 10 сек
 
     const detectPlatform = () => {
         const ua = navigator.userAgent;
@@ -166,6 +166,7 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
             const maxRetries = 3;
 
             const attemptConnection = () => {
+                console.log(`Попытка подключения WebSocket ${retryCount + 1}/${maxRetries + 1}`);
                 try {
                     ws.current = new WebSocket(process.env.WEBSOCKET_URL_WSGO || 'wss://ardua.site:444/wsgo');
                     console.log('Инициализация WebSocket...');
@@ -206,18 +207,21 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
                     };
 
                     const cleanupEvents = () => {
-                        ws.current?.removeEventListener('open', onOpen);
-                        ws.current?.removeEventListener('error', onError);
-                        ws.current?.removeEventListener('close', onClose);
+                        if (ws.current) {
+                            ws.current.removeEventListener('open', onOpen);
+                            ws.current.removeEventListener('error', onError);
+                            ws.current.removeEventListener('close', onClose);
+                        }
                         if (connectionTimeout.current) {
                             clearTimeout(connectionTimeout.current);
+                            connectionTimeout.current = null;
                         }
                     };
 
                     connectionTimeout.current = setTimeout(() => {
                         console.error('Таймаут подключения WebSocket');
                         cleanupEvents();
-                        if (ws.current) {
+                        if (ws.current && ws.current.readyState !== WebSocket.OPEN) {
                             ws.current.close();
                             ws.current = null;
                         }
@@ -470,6 +474,10 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
                 throw new Error('Не удалось подключиться к WebSocket');
             }
 
+            // Задержка для стабилизации WebSocket
+            await new Promise(resolve => setTimeout(resolve, 500));
+            console.log('Задержка после connectWebSocket завершена');
+
             setupWebSocketListeners();
             await initializeWebRTC();
 
@@ -503,7 +511,9 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
                 };
 
                 const cleanupEvents = () => {
-                    ws.current?.removeEventListener('message', onMessage);
+                    if (ws.current) {
+                        ws.current.removeEventListener('message', onMessage);
+                    }
                     if (connectionTimeout.current) {
                         clearTimeout(connectionTimeout.current);
                         connectionTimeout.current = null;
