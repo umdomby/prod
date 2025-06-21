@@ -46,9 +46,8 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
     const [videoTransform, setVideoTransform] = useState('')
     const leaveRoomRef = useRef<(() => void) | null>(null)
     const [showLocalVideo, setShowLocalVideo] = useState(false)
-    const wsRef = useRef<WebSocket | null>(null) // Ссылка на WebSocket из UseNoRegWebRTC
+    const wsRef = useRef<WebSocket | null>(null)
 
-    // Установка initialRoomId при монтировании
     useEffect(() => {
         if (initialRoomId) {
             const formatted = formatRoomId(initialRoomId)
@@ -56,7 +55,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         }
     }, [initialRoomId])
 
-    // Загрузка настроек из localStorage
     useEffect(() => {
         const loadSettings = () => {
             try {
@@ -89,7 +87,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         loadSettings()
     }, [])
 
-    // Форматирование ID комнаты
     const formatRoomId = (id: string | undefined): string => {
         if (!id || typeof id !== 'string') {
             return ''
@@ -98,7 +95,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         return cleanedId.replace(/(.{4})(?=.)/g, '$1-')
     }
 
-    // Обработка изменения ID комнаты
     const handleRoomIdChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const input = e.target.value.toUpperCase()
         let cleanedInput = input.replace(/[^A-Z0-9-]/gi, '')
@@ -111,7 +107,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
 
     const isRoomIdComplete = roomId.replace(/-/g, '').length === 16
 
-    // Применение трансформации видео
     const applyVideoTransform = useCallback((settings: VideoSettings) => {
         const { rotation, flipH, flipV } = settings
         let transform = ''
@@ -120,12 +115,10 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         setVideoTransform(transform)
     }, [])
 
-    // Сохранение настроек
     const saveSettings = useCallback((settings: VideoSettings) => {
         localStorage.setItem('videoSettings', JSON.stringify(settings))
     }, [])
 
-    // Обновление настроек видео
     const updateVideoSettings = useCallback((newSettings: Partial<VideoSettings>) => {
         const updated = { ...videoSettings, ...newSettings }
         setVideoSettings(updated)
@@ -133,7 +126,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         saveSettings(updated)
     }, [videoSettings, applyVideoTransform, saveSettings])
 
-    // Переключение вкладок
     const toggleTab = useCallback(
         debounce((tab: 'webrtc' | 'esp' | 'cam') => {
             if (tab === 'cam') {
@@ -147,7 +139,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         [showCam, activeMainTab]
     )
 
-    // Управление полноэкранным режимом
     const toggleFullscreen = useCallback(
         debounce(async () => {
             if (!videoContainerRef.current) return
@@ -168,7 +159,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         []
     )
 
-    // Управление звуком удалённого потока
     const toggleMuteRemoteAudio = useCallback(
         debounce(() => {
             const newState = !muteRemoteAudio
@@ -178,12 +168,10 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         [muteRemoteAudio]
     )
 
-    // Поворот видео
     const rotateVideo = useCallback((degrees: number) => {
         updateVideoSettings({ rotation: degrees })
     }, [updateVideoSettings])
 
-    // Отражение видео по горизонтали
     const flipVideoHorizontal = useCallback(
         debounce(() => {
             updateVideoSettings({ flipH: !videoSettings.flipH })
@@ -191,7 +179,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         [videoSettings, updateVideoSettings]
     )
 
-    // Отражение видео по вертикали
     const flipVideoVertical = useCallback(
         debounce(() => {
             updateVideoSettings({ flipV: !videoSettings.flipV })
@@ -199,7 +186,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         [videoSettings, updateVideoSettings]
     )
 
-    // Сброс настроек видео
     const resetVideo = useCallback(
         debounce(() => {
             updateVideoSettings({ rotation: 0, flipH: false, flipV: false })
@@ -207,7 +193,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         [updateVideoSettings]
     )
 
-    // Временное уведомление в UI
     const showNotification = useCallback((message: string) => {
         const notification = document.createElement('div')
         notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded shadow-lg z-50'
@@ -216,7 +201,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         setTimeout(() => notification.remove(), 2000)
     }, [])
 
-    // Переключение камеры
     const toggleCamera = useCallback(
         debounce(() => {
             const newCameraState = !useBackCamera
@@ -245,7 +229,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         [useBackCamera, wsRef, roomId, username, setError, showNotification]
     )
 
-    // Управление фонариком
     const toggleFlashlight = useCallback(
         debounce(() => {
             if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -269,7 +252,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         [wsRef, roomId, username, setError, showNotification]
     )
 
-    // Обработка отключения
     const handleDisconnect = useCallback(
         debounce(async () => {
             setIsJoining(false)
@@ -288,13 +270,14 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                 }
             }
 
-            // Отключаем WebSocket
+            // Отключаем WebSocket устройства (двигателя)
             if (socketClientRef.current?.disconnectWebSocket) {
                 try {
                     await socketClientRef.current.disconnectWebSocket()
-                    console.log('WebSocket отключен')
+                    console.log('WebSocket устройства отключен')
                 } catch (err) {
-                    console.error('Ошибка отключения WebSocket:', err)
+                    console.error('Ошибка отключения WebSocket устройства:', err)
+                    setError('Ошибка при отключении устройства')
                 }
             }
         }, 100),
@@ -303,23 +286,23 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
 
     return (
         <div className={`${styles.container} relative w-full h-screen overflow-hidden`} suppressHydrationWarning>
-            {/* VideoPlayer как фон */}
             <div className="absolute inset-0 z-10" ref={videoContainerRef}>
                 <UseNoRegWebRTC
                     roomId={roomId}
                     setLeaveRoom={(leaveRoom) => { leaveRoomRef.current = leaveRoom }}
                     videoTransform={videoTransform}
-                    setWebSocket={(ws) => { wsRef.current = ws }} // Передаем WebSocket
-                    useBackCamera={useBackCamera} // Передаем состояние камеры
+                    setWebSocket={(ws) => { wsRef.current = ws }}
+                    useBackCamera={useBackCamera}
                 />
             </div>
 
-            {/* SocketClient поверх видео */}
             <div className="relative h-full">
-                <NoRegSocketClient roomId={roomId} />
+                <NoRegSocketClient
+                    roomId={roomId}
+                    setDisconnectWebSocket={(disconnect) => { socketClientRef.current.disconnectWebSocket = disconnect }}
+                />
             </div>
 
-            {/* Управление интерфейсом */}
             <div className={styles.topControls}>
                 <div className={styles.tabsContainer}>
                     <button
