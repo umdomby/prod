@@ -294,7 +294,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             </div>
 
             {/* SocketClient поверх видео */}
-            <div className="relative z-20 h-full">
+            <div className="relative h-full">
                     <NoRegSocketClient
                         roomId={roomId}
                         onConnectionStatusChange={setIsDeviceConnected}

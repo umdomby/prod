@@ -48,6 +48,7 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
     const VIDEO_CHECK_TIMEOUT = 12000;
     const WS_TIMEOUT = 10000;
     const MAX_JOIN_MESSAGE_RETRIES = 3;
+    const [isMuted, setIsMuted] = useState<boolean>(true);
 
     const detectPlatform = () => {
         const ua = navigator.userAgent;
@@ -352,6 +353,9 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
                 stream.getTracks().forEach(track => {
                     newRemoteStream.addTrack(track);
                     console.log(`Добавлен ${track.kind} трек в remoteStream:`, track.id);
+                    if (track.kind === 'audio') {
+                        track.enabled = !isMuted; // Синхронизируем с isMuted
+                    }
                 });
                 setRemoteStream(newRemoteStream);
                 setIsInRoom(true);
@@ -642,6 +646,35 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
         joinRoom();
     };
 
+    const toggleMute = () => {
+        const video = videoRef.current;
+        const newMutedState = !isMuted;
+
+        setIsMuted(newMutedState);
+        console.log('Звук переключён:', newMutedState ? 'отключён' : 'включён');
+
+        if (video) {
+            video.muted = newMutedState;
+            console.log('HTML-видеоэлемент: muted =', newMutedState);
+        } else {
+            console.warn('Видеоэлемент не найден (videoRef.current is null)');
+        }
+
+        if (remoteStream) {
+            const audioTracks = remoteStream.getAudioTracks();
+            if (audioTracks.length > 0) {
+                audioTracks.forEach((track) => {
+                    track.enabled = !newMutedState;
+                    console.log(`Аудиотрек ${track.id}: enabled =`, track.enabled);
+                });
+            } else {
+                console.warn('Аудиотреки отсутствуют в потоке');
+            }
+        } else {
+            console.warn('Удалённый поток не доступен (remoteStream is null)');
+        }
+    };
+
     useEffect(() => {
         if (roomId && !isJoining.current) {
             joinRoom();
@@ -665,7 +698,7 @@ export default function UseNoRegWebRTC({ roomId }: NoRegWebRTCProps) {
             <VideoPlayer
                 stream={remoteStream}
                 videoRef={videoRef}
-                muted={false}
+                muted={isMuted}
                 className="w-full h-full"
             />
             {/*<div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">*/}
