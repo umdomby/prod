@@ -52,7 +52,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
     const MAX_RETRIES = 10;
     const VIDEO_CHECK_TIMEOUT = 12000;
     const WS_TIMEOUT = 10000;
-    const MAX_JOIN_MESSAGE_RETRIES = 3;
+    const MAX_JOIN_MESSAGE_RETRIES = 10;
     const [isMuted, setIsMuted] = useState<boolean>(true);
     const [flashlightState, setFlashlightState] = useState<boolean>(false);
 
@@ -190,7 +190,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
             }
 
             let retryCount = 0;
-            const maxRetries = 3;
+            const maxRetries = 10;
 
             const attemptConnection = () => {
                 console.log(`Попытка подключения WebSocket ${retryCount + 1}/${maxRetries + 1}`);
