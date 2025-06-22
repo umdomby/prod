@@ -127,6 +127,7 @@ export const VideoCallApp = () => {
     const socketClientRef = useRef<{ disconnectWebSocket?: () => Promise<void> }>({});
     const [roomLink, setRoomLink] = useState('');
     const [isProxyConnection, setIsProxyConnection] = useState(false);
+    const isLoadingRoomsRef = useRef(false);
 
     useEffect(() => {
         setIsClient(true)
@@ -184,6 +185,12 @@ export const VideoCallApp = () => {
         }
 
         const loadSavedRooms = async () => {
+            if (isLoadingRoomsRef.current) {
+                console.log('loadSavedRooms: Пропуск, уже выполняется');
+                return;
+            }
+
+            isLoadingRoomsRef.current = true;
             try {
                 const response: GetSavedRoomsResponse = await getSavedRooms();
                 if (response.error) {
@@ -246,6 +253,8 @@ export const VideoCallApp = () => {
                 setError('Не удалось загрузить сохраненные комнаты');
                 setSavedRooms([]);
                 setSavedProxyRooms([]);
+            } finally {
+                isLoadingRoomsRef.current = false;
             }
         };
 
@@ -1643,7 +1652,7 @@ export const VideoCallApp = () => {
                                         Привязать
                                     </Button>
                                 )}
-                                {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
+                                {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId !== null && r.deviceId !== undefined) && (
                                     <Button
                                         onClick={handleUnbindDeviceFromRoom}
                                         className="bg-red-600 hover:bg-red-700 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
@@ -1652,10 +1661,10 @@ export const VideoCallApp = () => {
                                     </Button>
                                 )}
                             </div>
-                            {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId) && (
+                            {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId !== null && r.deviceId !== undefined) && (
                                 <span className="text-xs sm:text-sm text-gray-600">
-            Привязано устройство: {formatRoomId(savedRooms.find(r => r.id === roomId.replace(/-/g, ''))?.deviceId || '')}
-        </span>
+        Привязано устройство: {formatRoomId(savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId !== null)?.deviceId || '')}
+    </span>
                             )}
                         </div>
 

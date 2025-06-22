@@ -740,6 +740,15 @@ export async function bindDeviceToRoom(roomId: string, deviceId: string | null) 
     if (!device || device.userId !== userId) {
       throw new Error('Устройство не найдено или доступ запрещен');
     }
+
+    // Проверяем, не привязано ли устройство к другой комнате
+    const existingRoom = await prisma.savedRoom.findFirst({
+      where: { devicesId: device.id, userId, roomId: { not: roomId } },
+    });
+
+    if (existingRoom) {
+      throw new Error('Устройство уже привязано к другой комнате');
+    }
   }
 
   await prisma.savedRoom.update({
@@ -764,34 +773,21 @@ async function generateUniqueProxyRoomId(): Promise<string> {
   }
   return proxyRoomId;
 }
-export async function getSavedRoomWithDevice(deviceId: string) {
+export async function getSavedRoomWithDevice(roomId: string) {
   const session = await getUserSession();
   if (!session) {
     throw new Error('Пользователь не аутентифицирован');
   }
 
-  const parsedDeviceId = deviceIdSchema.safeParse(deviceId);
-  if (!parsedDeviceId.success) {
-    throw new Error(parsedDeviceId.error.errors[0].message);
+  const parsedRoomId = roomIdSchema.safeParse(roomId);
+  if (!parsedRoomId.success) {
+    throw new Error(parsedRoomId.error.errors[0].message);
   }
 
   const userId = parseInt(session.id);
 
-  const device = await prisma.devices.findUnique({
-    where: { idDevice: parsedDeviceId.data, userId },
-  });
-
-  if (!device) {
-    return {
-      id: null,
-      isDefault: false,
-      autoConnect: false,
-      deviceId: null,
-    };
-  }
-
   const room = await prisma.savedRoom.findFirst({
-    where: { devicesId: device.id, userId },
+    where: { roomId: parsedRoomId.data, userId },
     include: { devices: true },
   });
 
