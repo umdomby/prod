@@ -692,35 +692,6 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
         joinRoom();
     };
 
-    const toggleMute = () => {
-        const video = videoRef.current;
-        const newMutedState = !isMuted;
-
-        setIsMuted(newMutedState);
-        console.log('Звук переключён:', newMutedState ? 'отключён' : 'включён');
-
-        if (video) {
-            video.muted = newMutedState;
-            console.log('HTML-видеоэлемент: muted =', newMutedState);
-        } else {
-            console.warn('Видеоэлемент не найден (videoRef.current is null)');
-        }
-
-        if (remoteStream) {
-            const audioTracks = remoteStream.getAudioTracks();
-            if (audioTracks.length > 0) {
-                audioTracks.forEach((track) => {
-                    track.enabled = !newMutedState;
-                    console.log(`Аудиотрек ${track.id}: enabled =`, track.enabled);
-                });
-            } else {
-                console.warn('Аудиотреки отсутствуют в потоке');
-            }
-        } else {
-            console.warn('Удалённый поток не доступен (remoteStream is null)');
-        }
-    };
-
     useEffect(() => {
         if (roomId && !isJoining.current) {
             joinRoom();
