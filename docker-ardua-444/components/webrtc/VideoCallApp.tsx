@@ -70,7 +70,12 @@ interface DeleteProxyAccessResponse {
     error?: string;
 }
 
-export const VideoCallApp = () => {
+interface VideoCallAppProps {
+    roomIdRef?: string; // Добавляем roomId как пропс
+}
+
+export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
+
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
     const [selectedDevices, setSelectedDevices] = useState({
         video: '',
@@ -78,7 +83,7 @@ export const VideoCallApp = () => {
     })
     const [showLocalVideo, setShowLocalVideo] = useState(true)
     const [videoTransform, setVideoTransform] = useState('')
-    const [roomId, setRoomId] = useState('')
+    const [roomId, setRoomId] = useState(roomIdRef)
     const [username, setUsername] = useState('user_' + Math.floor(Math.random() * 1000))
     const [hasPermission, setHasPermission] = useState(false)
     const [devicesLoaded, setDevicesLoaded] = useState(false)

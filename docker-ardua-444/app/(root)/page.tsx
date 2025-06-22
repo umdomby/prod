@@ -1,23 +1,20 @@
-"use server"
+'use server';
 import { Container } from '@/components/container';
 import { getUserSession } from '@/components/lib/get-user-session';
 import React, { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import Loading from "@/app/(root)/loading";
-import WebRTC from "@/components/webrtc";
+import Loading from '@/app/(root)/loading';
+import WebRTC from '@/components/webrtc';
 
 export default async function Home({
-                                       searchParams
+                                       searchParams,
                                    }: {
-    searchParams: Promise<{ roomId?: string | string[] }>
+    searchParams: Promise<{ roomId?: string | string[] }>;
 }) {
-    // console.log('Home ' + searchParams);
     const params = await searchParams;
     const session = await getUserSession();
 
-    const roomId = Array.isArray(params.roomId)
-        ? params.roomId[0]
-        : params.roomId;
+    const roomId = Array.isArray(params.roomId) ? params.roomId[0] : params.roomId;
 
     if (!session?.id) {
         if (roomId) {
@@ -28,7 +25,7 @@ export default async function Home({
 
     return (
         <Suspense fallback={<Loading />}>
-            <WebRTC />
+            <WebRTC roomId={roomId} /> {/* Передаём roomId в WebRTC */}
         </Suspense>
     );
 }

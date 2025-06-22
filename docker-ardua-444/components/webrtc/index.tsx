@@ -1,12 +1,15 @@
-// file: client/app/webrtc/index.tsx
-'use client'
+'use client';
 
 import { VideoCallApp } from './VideoCallApp';
 import { useEffect, useState } from 'react';
 import { checkWebRTCSupport } from './lib/webrtc';
 import styles from './styles.module.css';
 
-export default function WebRTCPage() {
+interface WebRTCPageProps {
+    roomId?: string; // Добавляем roomId как пропс
+}
+
+export default function WebRTCPage({ roomId }: WebRTCPageProps) {
     const [isSupported, setIsSupported] = useState<boolean | null>(null);
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
 
@@ -39,8 +42,8 @@ export default function WebRTCPage() {
             {isSupported === null ? (
                 <div>Loading...</div>
             ) : (
-                <VideoCallApp />
-            )}
+                <VideoCallApp roomIdRef={roomId} />
+                )}
         </div>
     );
 }
