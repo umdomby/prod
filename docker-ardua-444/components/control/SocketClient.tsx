@@ -870,8 +870,8 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                 co,
                 pa,
                 de,
-                ts: Date.now(),
-                expectAck: true
+                // ts: Date.now(),
+                // expectAck: true
             });
 
             socketRef.current.send(msg);

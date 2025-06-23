@@ -90,7 +90,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
                     ws.send(JSON.stringify({
                         ty: "sys", // type → ty, system → sys
-                        me: "Identification successful", // message → me
+                        me: "Ident ok", // message → me
                         clientId,
                         de: parsed.de, // deviceId → de
                         st: "con" // status → st, connected → con
@@ -106,7 +106,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                                     ty: "est", // type → ty, esp_status → est
                                     st: "con", // status → st, connected → con
                                     de: parsed.de, // deviceId → de
-                                    ts: new Date().toISOString() // timestamp → ts
+                                    // ts: new Date().toISOString() // timestamp → ts
                                 }));
                             }
                         });
@@ -114,7 +114,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 } else {
                     ws.send(JSON.stringify({
                         ty: "err", // type → ty, error → err
-                        me: "Invalid device ID", // message → me
+                        me: "ID err", // message → me
                         clientId,
                         st: "rej" // status → st, rejected → rej
                     }));
@@ -126,7 +126,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             if (!client.isIdentified) {
                 ws.send(JSON.stringify({
                     ty: "err", // type → ty, error → err
-                    me: "Not identified", // message → me
+                    me: "Ident Not", // message → me
                     clientId
                 }));
                 return;
@@ -141,7 +141,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                             ty: "log", // type → ty
                             me: parsed.me, // message → me
                             de: client.de, // deviceId → de
-                            ts: new Date().toISOString(), // timestamp → ts
+                            // ts: new Date().toISOString(), // timestamp → ts
                             or: "esp", // origin → or
                             b1: parsed.b1, // Пересылаем состояние реле 1
                             b2: parsed.b2, // Пересылаем состояние реле 2
@@ -163,7 +163,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                             ty: "ack", // type → ty, acknowledge → ack
                             co: parsed.co, // command → co
                             de: client.de, // deviceId → de
-                            ts: new Date().toISOString() // timestamp → ts
+                            // ts: new Date().toISOString() // timestamp → ts
                         }));
                     }
                 });
@@ -187,7 +187,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                     st: delivered ? "dvd" : "enf", // status → st, delivered → dvd, esp_not_found → enf
                     co: parsed.co, // command → co
                     de: parsed.de, // deviceId → de
-                    ts: new Date().toISOString() // timestamp → ts
+                    // ts: new Date().toISOString() // timestamp → ts
                 }));
             }
 
@@ -212,7 +212,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                         ty: "est", // type → ty, esp_status → est
                         st: "dis", // status → st, disconnected → dis
                         de: client.de, // deviceId → de
-                        ts: new Date().toISOString(), // timestamp → ts
+                        // ts: new Date().toISOString(), // timestamp → ts
                         re: "connection closed" // reason → re
                     }));
                 }
