@@ -1020,12 +1020,12 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
             {activeTab === 'controls' && (
                 <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-full max-w-md z-50">
                     <div
-                        className="space-y-2 bg-black rounded-lg p-2 sm:p-2 border border-gray-200 backdrop-blur-sm"
+                        className="space-y-2 bg-black rounded-lg p-2 sm:p-2 border border-gray-200 "
                         style={{maxHeight: '90vh', overflowY: 'auto'}}
                     >
                         <Button
                             onClick={handleCloseControls}
-                            className="absolute top-0 right-1 bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-1 rounded-full transition-all"
+                            className="absolute top-0 right-1 bg-transparent hover:bg-gray-700/30  p-1 rounded-full transition-all"
                             title="Закрыть"
                         >
                             <X className="h-4 w-4 sm:h-5 sm:w-5 text-gray-300" />
@@ -1075,7 +1075,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                 <SelectTrigger className="flex-1 bg-transparent h-8 sm:h-10">
                                     <SelectValue placeholder={noDevices ? "Устройства еще не добавлены" : "Выберите устройство"} />
                                 </SelectTrigger>
-                                <SelectContent className="bg-transparent backdrop-blur-sm border border-gray-200">
+                                <SelectContent className="bg-transparent  border border-gray-200">
                                     {deviceList.map(id => (
                                         <SelectItem key={id} value={id} className="hover:bg-gray-100/50 text-xs sm:text-sm">
                                             {formatDeviceId(id)}
@@ -1222,7 +1222,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
 
                         {logVisible && (
                             <div
-                                className="border border-gray-200 rounded-md overflow-hidden bg-transparent backdrop-blur-sm">
+                                className="border border-gray-200 rounded-md overflow-hidden bg-transparent ">
                                 <div className="h-32 sm:h-48 overflow-y-auto p-2 bg-transparent text-xs font-mono">
                                     {log.length === 0 ? (
                                         <div className="text-gray-500 italic">Логов пока нет</div>
@@ -1274,26 +1274,26 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                 <div className="flex items-center justify-center space-x-2">
                                     <Button
                                         onClick={() => adjustServo('1', -180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
+                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-down.svg" alt="Image"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('1', -15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
+                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/arrow-down-2-thin.svg" alt="Image"/>
                                     </Button>
                                     <span className="text-sm font-medium text-gray-700 mt-1">{servoAngle}°</span>
                                     <Button
                                         onClick={() => adjustServo('1', 15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
+                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/arrow-up-2.svg" alt="Image"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('1', 180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
+                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-up.svg" alt="Image"/>
                                     </Button>
@@ -1304,26 +1304,26 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                 <div className="flex items-center justify-center space-x-2">
                                     <Button
                                         onClick={() => adjustServo('2', 180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
+                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-left.svg" alt="Image"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('2', 15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
+                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/arrow-left-2.svg" alt="Image"/>
                                     </Button>
                                     <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
                                     <Button
                                         onClick={() => adjustServo('2', -15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
+                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/arrow-right-2.svg" alt="Image"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('2', -180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
+                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-right.svg" alt="Image"/>
                                     </Button>
@@ -1340,7 +1340,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     const newState = button1State ? 'off' : 'on';
                                     sendCommand('RLY', {pin: 'D0', state: newState});
                                 }}
-                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
+                                className="bg-transparent hover:bg-gray-700/30  border border-gray-600 p-2 rounded-full transition-all flex items-center"
                             >
                                 {button1State ? (
                                     <img width={'25px'} height={'25px'} src="/off.svg" alt="Image"/>
@@ -1357,7 +1357,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     sendCommand('RLY', {pin: '3', state: newState});
                                     // Не обновляем состояние локально, ждём ответа сервера
                                 }}
-                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
+                                className="bg-transparent hover:bg-gray-700/30  border border-gray-600 p-2 rounded-full transition-all flex items-center"
                             >
                                 {button2State ? (
                                     <img width={'25px'} height={'25px'} src="/off.svg" alt="Image"/>
@@ -1378,7 +1378,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                         {/*{showServos !== null && (*/}
                             <Button
                                 onClick={toggleServosVisibility}
-                                className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
+                                className="bg-transparent hover:bg-gray-700/30  border border-gray-600 p-2 rounded-full transition-all flex items-center"
                                 title={showServos ? 'Скрыть сервоприводы' : 'Показать сервоприводы'}
                             >
                                 {showServos ? (
@@ -1391,7 +1391,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
 
                         <Button
                             onClick={handleCloseControls}
-                            className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all flex items-center"
+                            className="bg-transparent hover:bg-gray-700/30  border border-gray-600 p-2 rounded-full transition-all flex items-center"
                         >
                             {activeTab === 'controls' ? (
                                 <img width={'25px'} height={'25px'} src="/settings2.svg" alt="Image"/>
