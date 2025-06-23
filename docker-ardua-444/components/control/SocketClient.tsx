@@ -1274,71 +1274,64 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                 <div className="flex items-center justify-center space-x-2">
                                     <Button
                                         onClick={() => adjustServo('1', -180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full transition-all"
+                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <ArrowLeft className="h-5 w-5"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-down.svg" alt="Image"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('1', -15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
+                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <ArrowDown className="h-5 w-5"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-down-2-thin.svg" alt="Image"/>
                                     </Button>
+                                    <span className="text-sm font-medium text-gray-700 mt-1">{servoAngle}°</span>
                                     <Button
                                         onClick={() => adjustServo('1', 15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
+                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <ArrowUp className="h-5 w-5"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-up-2.svg" alt="Image"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('1', 180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
+                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <ArrowRight className="h-5 w-5"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-up.svg" alt="Image"/>
                                     </Button>
                                 </div>
-                                <span className="text-sm font-medium text-gray-700 mt-1">{servoAngle}°</span>
                             </div>
 
                             <div className="flex flex-col items-center">
                                 <div className="flex items-center justify-center space-x-2">
                                     <Button
-                                        onClick={() => adjustServo('2', -180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
+                                        onClick={() => adjustServo('2', 180)}
+                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <ArrowLeft className="h-5 w-5"/>
-                                    </Button>
-                                    <Button
-                                        onClick={() => adjustServo('2', -15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
-                                    >
-                                        <ArrowDown className="h-5 w-5"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-left.svg" alt="Image"/>
                                     </Button>
                                     <Button
                                         onClick={() => adjustServo('2', 15)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
+                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <ArrowUp className="h-5 w-5"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-left-2.svg" alt="Image"/>
+                                    </Button>
+                                    <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
+                                    <Button
+                                        onClick={() => adjustServo('2', -15)}
+                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
+                                    >
+                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-right-2.svg" alt="Image"/>
                                     </Button>
                                     <Button
-                                        onClick={() => adjustServo('2', 180)}
-                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm border border-gray-600 p-2 rounded-full"
+                                        onClick={() => adjustServo('2', -180)}
+                                        className="bg-transparent hover:bg-gray-700/30 backdrop-blur-sm p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <ArrowRight className="h-5 w-5"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-right.svg" alt="Image"/>
                                     </Button>
                                 </div>
-                                <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
                             </div>
                         </>
                     )}
 
-                    {inputVoltage !== null && (
-                        <span
-                            className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
-                        >
-                            {inputVoltage.toFixed(2)}
-                        </span>
-                    )}
 
                     <div className="flex items-center justify-center space-x-2">
                         {button1State !== null && (
@@ -1372,6 +1365,14 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     <img width={'25px'} height={'25px'} src="/on.svg" alt="Image"/>
                                 )}
                             </Button>
+                        )}
+
+                        {inputVoltage !== null && (
+                            <span
+                                className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
+                            >
+                            {inputVoltage.toFixed(2)}
+                        </span>
                         )}
 
                         {/*{showServos !== null && (*/}
