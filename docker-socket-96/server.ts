@@ -5,11 +5,26 @@ import { createServer } from 'http';
 import axios from 'axios'; // Добавляем axios для запросов
 
 // Telegram Bot конфигурация
-const TELEGRAM_BOT_TOKEN = '7861501595:AAGEDzbeBVLVVLkzffreI5OX-aRjmGWkcw8'; // Замените на ваш токен
-const TELEGRAM_CHAT_ID = '5112905163'; // ID чата или имя пользователя
+const TELEGRAM_BOT_TOKEN = '7861501595:AAGEDzbeBVLVVLkzffreI5OX-aRjmGWkcw8'; // Ваш токен
+const TELEGRAM_CHAT_ID = '5112905163'; // Ваш числовой chat_id
+let lastTelegramMessageTime = 0;
+const TELEGRAM_MESSAGE_INTERVAL = 5000;
+const DEVICE_NAME='R1';
 
 const PORT = 8096;
 const WS_PATH = '/wsar';
+
+// Функция для форматирования времени в формате "24.06.2025 13:56" (Москва, UTC+3)
+function formatDateTime(date: Date): string {
+    const moscowOffset = 3 * 60 * 60 * 1000; // Смещение Москвы в миллисекундах (+3 часа)
+    const moscowDate = new Date(date.getTime() + moscowOffset);
+    const day = String(moscowDate.getUTCDate()).padStart(2, '0');
+    const month = String(moscowDate.getUTCMonth() + 1).padStart(2, '0');
+    const year = moscowDate.getUTCFullYear();
+    const hours = String(moscowDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(moscowDate.getUTCMinutes()).padStart(2, '0');
+    return `${day}.${month}.${year} ${hours}:${minutes}`;
+}
 
 const server = createServer();
 const wss = new WebSocketServer({
@@ -44,7 +59,7 @@ setInterval(() => {
 }, 30000);
 
 wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
-// Проверяем путь подключения
+    // Проверяем путь подключения
     if (req.url !== WS_PATH) {
         ws.close(1002, 'Invalid path');
         return;
@@ -138,11 +153,11 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             }
 
             // Process logs from ESP
-// Process logs from ESP
             if (parsed.ty === "log" && client.ct === "esp") { // type → ty, clientType → ct
                 // Проверяем условия для отправки уведомления в Telegram
                 if (parsed.b1 === 'on' && parsed.z && Number(parsed.z) < 1) { // Реле 1 включено и напряжение < 1В
-                    const message = `🚨 Датчик движения сработал! Устройство: ${client.de}, Время: ${new Date().toISOString()}`;
+                    const now = new Date();
+                    const message = `🚨 Датчик движения сработал! Устройство: ${DEVICE_NAME}, Время: ${formatDateTime(now)}`;
                     console.log(message);
                     sendTelegramMessage(message);
                 }
@@ -240,18 +255,23 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 });
 
 async function sendTelegramMessage(message: string) {
+    const currentTime = Date.now();
+    if (currentTime - lastTelegramMessageTime < TELEGRAM_MESSAGE_INTERVAL) {
+        console.log('Telegram message throttled');
+        return;
+    }
     try {
-        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             chat_id: TELEGRAM_CHAT_ID,
             text: message,
         });
-        console.log(`Telegram message sent: ${message}`);
-    } catch (error) {
-        console.error('Error sending Telegram message:', error);
+        console.log(`Telegram message sent: ${message}`, response.data);
+        lastTelegramMessageTime = currentTime;
+    } catch (error: any) {
+        console.error('Error sending Telegram message:', error.response?.data || error.message);
     }
 }
 
 server.listen(PORT, () => {
     console.log(`WebSocket server running on ws://0.0.0.0:${PORT}${WS_PATH}`);
 });
-
