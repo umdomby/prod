@@ -2,6 +2,11 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
 import { getAllowedDeviceIds } from './actions';
 import { createServer } from 'http';
+import axios from 'axios'; // Добавляем axios для запросов
+
+// Telegram Bot конфигурация
+const TELEGRAM_BOT_TOKEN = '7861501595:AAGEDzbeBVLVVLkzffreI5OX-aRjmGWkcw8'; // Замените на ваш токен
+const TELEGRAM_CHAT_ID = '5112905163'; // ID чата или имя пользователя
 
 const PORT = 8096;
 const WS_PATH = '/wsar';
@@ -133,7 +138,15 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             }
 
             // Process logs from ESP
+// Process logs from ESP
             if (parsed.ty === "log" && client.ct === "esp") { // type → ty, clientType → ct
+                // Проверяем условия для отправки уведомления в Telegram
+                if (parsed.b1 === 'on' && parsed.z && Number(parsed.z) < 1) { // Реле 1 включено и напряжение < 1В
+                    const message = `🚨 Датчик движения сработал! Устройство: ${client.de}, Время: ${new Date().toISOString()}`;
+                    console.log(message);
+                    sendTelegramMessage(message);
+                }
+
                 clients.forEach(targetClient => {
                     if (targetClient.ct === "browser" && // clientType → ct
                         targetClient.de === client.de) { // deviceId → de
@@ -225,6 +238,18 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         console.error(`[${clientId}] WebSocket error:`, err);
     });
 });
+
+async function sendTelegramMessage(message: string) {
+    try {
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            chat_id: TELEGRAM_CHAT_ID,
+            text: message,
+        });
+        console.log(`Telegram message sent: ${message}`);
+    } catch (error) {
+        console.error('Error sending Telegram message:', error);
+    }
+}
 
 server.listen(PORT, () => {
     console.log(`WebSocket server running on ws://0.0.0.0:${PORT}${WS_PATH}`);
