@@ -1375,7 +1375,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                         <span
                             className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
                         >
-                            Alarm
+                            {inputVoltage?.toFixed(2) < 1 ? <span>Motion</span> : <span>Alarm</span> }
                         </span>
                     }
                     </div>
