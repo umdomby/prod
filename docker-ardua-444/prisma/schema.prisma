@@ -39,7 +39,7 @@ model Devices {
   closedDel     Boolean
   settings      Settings[]
   telegramToken String?
-  telegramId    Int?
+  telegramId    BigInt?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }

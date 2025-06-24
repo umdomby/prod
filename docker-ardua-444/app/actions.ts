@@ -215,9 +215,17 @@ export async function updateDeviceSettings(idDevice: string, settings: {
     throw new Error('Устройство не найдено или доступ запрещен');
   }
 
+  // Преобразуем telegramId в BigInt, если оно не null
+  const updateData = {
+    ...settings,
+    telegramId: settings.telegramId !== null && settings.telegramId !== undefined
+        ? BigInt(settings.telegramId) // Преобразование в BigInt
+        : null,
+  };
+
   await prisma.devices.update({
     where: { idDevice: parsedIdDevice.data },
-    data: settings,
+    data: updateData,
   });
 
   revalidatePath('/');

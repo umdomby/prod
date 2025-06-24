@@ -419,6 +419,53 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
 
     const isAddDisabled = cleanDeviceId(newDe).length !== 16;
 
+    const handleTelegramPaste = useCallback(
+        async (e: React.ClipboardEvent<HTMLInputElement>, field: 'telegramToken' | 'telegramId') => {
+            e.preventDefault();
+            const pastedText = e.clipboardData.getData('text').trim();
+
+            try {
+                if (field === 'telegramToken') {
+                    setTelegramTokenInput(pastedText);
+                    await updateDeviceSettings(inputDe, {
+                        telegramToken: pastedText || null,
+                        telegramId: telegramId,
+                    });
+                    setTelegramToken(pastedText || null);
+                    addLog('Telegram Token успешно сохранён', 'success');
+                } else {
+                    if (!/^[0-9]*$/.test(pastedText)) {
+                        addLog('Telegram ID должен содержать только цифры', 'error');
+                        return;
+                    }
+                    const parsedTelegramId = pastedText ? Number(pastedText) : null;
+                    if (parsedTelegramId === null || isNaN(parsedTelegramId)) {
+                        addLog('Telegram ID должен быть числом', 'error');
+                        return;
+                    }
+                    setTelegramIdInput(pastedText);
+                    await updateDeviceSettings(inputDe, {
+                        telegramToken: telegramTokenInput || null,
+                        telegramId: parsedTelegramId,
+                    });
+                    setTelegramId(parsedTelegramId);
+                    addLog('Telegram ID успешно сохранён', 'success');
+                }
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                addLog(`Ошибка сохранения настроек Telegram: ${errorMessage}`, 'error');
+                console.error('Ошибка в handleTelegramPaste:', errorMessage);
+                // Восстанавливаем предыдущие значения
+                if (field === 'telegramToken') {
+                    setTelegramTokenInput(telegramToken ?? '');
+                } else {
+                    setTelegramIdInput(telegramId?.toString() ?? '');
+                }
+            }
+        },
+        [inputDe, telegramToken, telegramId, addLog]
+    );
+
     const handleTelegramInputBlur = useCallback(
         async () => {
             try {
@@ -426,7 +473,6 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                 if (telegramIdInput && (parsedTelegramId === null || isNaN(parsedTelegramId))) {
                     throw new Error('Telegram ID должен быть числом');
                 }
-
 
                 await updateDeviceSettings(inputDe, {
                     telegramToken: telegramTokenInput || null,
@@ -439,12 +485,10 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 addLog(`Ошибка сохранения настроек Telegram: ${errorMessage}`, 'error');
-                // Восстанавливаем предыдущие значения
                 setTelegramTokenInput(telegramToken ?? '');
                 setTelegramIdInput(telegramId?.toString() ?? '');
             }
         },
-
         [inputDe, telegramTokenInput, telegramIdInput, telegramToken, telegramId, addLog]
     );
 
@@ -1215,6 +1259,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                     type="text"
                                                     value={telegramTokenInput}
                                                     onChange={(e) => setTelegramTokenInput(e.target.value)}
+                                                    onPaste={(e) => handleTelegramPaste(e, 'telegramToken')}
                                                     onBlur={handleTelegramInputBlur}
                                                     placeholder="Введите токен"
                                                     className="bg-gray-700 text-white border-gray-600 h-8 sm:h-10 text-xs sm:text-sm"
@@ -1228,6 +1273,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                     type="text"
                                                     value={telegramIdInput}
                                                     onChange={(e) => setTelegramIdInput(e.target.value)}
+                                                    onPaste={(e) => handleTelegramPaste(e, 'telegramId')}
                                                     onBlur={handleTelegramInputBlur}
                                                     placeholder="Введите ID"
                                                     className="bg-gray-700 text-white border-gray-600 h-8 sm:h-10 text-xs sm:text-sm"
