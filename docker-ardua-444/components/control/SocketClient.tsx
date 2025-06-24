@@ -945,19 +945,21 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
     }, [sendCommand, isConnected])
 
     const adjustServo = useCallback(
-        (servoId: '1' | '2', delta: number) => {
+        (servoId: '1' | '2', value: number, isAbsolute: boolean) => {
             const currentAngle = servoId === '1' ? servoAngle : servo2Angle;
             const minAngle = servoId === '1' ? servo1MinAngle : servo2MinAngle;
             const maxAngle = servoId === '1' ? servo1MaxAngle : servo2MaxAngle;
 
-            const newAngle = Math.max(minAngle, Math.min(maxAngle, currentAngle + delta));
-
-            if (newAngle === currentAngle) {
-                addLog(`Угол сервопривода ${servoId} не изменён: в пределах ${minAngle}-${maxAngle}`, 'error');
-                return;
+            // Определяем новый угол: абсолютный или относительный
+            let newAngle;
+            if (isAbsolute) {
+                newAngle = Math.max(minAngle, Math.min(maxAngle, value)); // Абсолютное значение
+            } else {
+                newAngle = Math.max(minAngle, Math.min(maxAngle, currentAngle + value)); // Относное изменение
             }
 
-            sendCommand(servoId === '1' ? 'SSR' : 'SSR2', {an: newAngle});
+            sendCommand(servoId === '1' ? 'SSR' : 'SSR2', { an: newAngle });
+            addLog(`Установлен угол сервопривода ${servoId}: ${newAngle}°`, 'info');
         },
         [servoAngle, servo2Angle, servo1MinAngle, servo1MaxAngle, servo2MinAngle, servo2MaxAngle, sendCommand, addLog]
     );
@@ -1270,62 +1272,86 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                 <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex flex-col space-y-2 z-50">
                     {showServos && (
                         <>
+                            {/* Управление первым сервоприводом (Servo1) */}
                             <div className="flex flex-col items-center">
                                 <div className="flex items-center justify-center space-x-2">
+                                    {/* Кнопка для установки 0° */}
                                     <Button
-                                        onClick={() => adjustServo('1', -180)}
-                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
+                                        onClick={() => adjustServo('1', 0, true)} // Абсолютное значение 0°
+                                        className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-down.svg" alt="Image"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-down.svg" alt="0°"/>
                                     </Button>
+                                    {/* Кнопка для шага -15° (относительное изменение) */}
                                     <Button
-                                        onClick={() => adjustServo('1', -15)}
-                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
+                                        onClick={() => adjustServo('1', -15, false)} // Относительное изменение
+                                        className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-down-2-thin.svg" alt="Image"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-down-2-thin.svg" alt="-15°"/>
+                                    </Button>
+                                    {/* Новая кнопка для установки 90° */}
+                                    <Button
+                                        onClick={() => adjustServo('1', 90, true)} // Абсолютное значение 90°
+                                        className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
+                                    >
+                                        <img width={'25px'} height={'25px'} src="/arrow/two-arrow-in-down-up.svg" alt="90°"/>
                                     </Button>
                                     <span className="text-sm font-medium text-gray-700 mt-1">{servoAngle}°</span>
+                                    {/* Кнопка для шага +15° (относительное изменение) */}
                                     <Button
-                                        onClick={() => adjustServo('1', 15)}
-                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
+                                        onClick={() => adjustServo('1', 15, false)} // Относительное изменение
+                                        className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-up-2.svg" alt="Image"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-up-2.svg" alt="+15°"/>
                                     </Button>
+                                    {/* Кнопка для установки 180° */}
                                     <Button
-                                        onClick={() => adjustServo('1', 180)}
-                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
+                                        onClick={() => adjustServo('1', 180, true)} // Абсолютное значение 180°
+                                        className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-up.svg" alt="Image"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-up.svg" alt="180°"/>
                                     </Button>
                                 </div>
                             </div>
 
+                            {/* Управление вторым сервоприводом (Servo2) */}
                             <div className="flex flex-col items-center">
                                 <div className="flex items-center justify-center space-x-2">
+                                    {/* Кнопка для установки 0° */}
                                     <Button
-                                        onClick={() => adjustServo('2', 180)}
-                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
+                                        onClick={() => adjustServo('2', 0, true)} // Абсолютное значение 0°
+                                        className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-left.svg" alt="Image"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-left.svg"/>
                                     </Button>
+                                    {/* Кнопка для шага +15° (относительное изменение) */}
                                     <Button
-                                        onClick={() => adjustServo('2', 15)}
-                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
+                                        onClick={() => adjustServo('2', 15, false)} // Относительное изменение
+                                        className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-left-2.svg" alt="Image"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-left-2.svg" alt="+15°"/>
+                                    </Button>
+                                    {/* Новая кнопка для установки 90° */}
+                                    <Button
+                                        onClick={() => adjustServo('2', 90, true)} // Абсолютное значение 90°
+                                        className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
+                                    >
+                                        <img width={'25px'} height={'25px'} src="/arrow/two-arrow-in-left-right.svg"/>
                                     </Button>
                                     <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
+                                    {/* Кнопка для шага -15° (относительное изменение) */}
                                     <Button
-                                        onClick={() => adjustServo('2', -15)}
-                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
+                                        onClick={() => adjustServo('2', -15, false)} // Относительное изменение
+                                        className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-right-2.svg" alt="Image"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/arrow-right-2.svg" alt="-15°"/>
                                     </Button>
+                                    {/* Кнопка для установки 180° */}
                                     <Button
-                                        onClick={() => adjustServo('2', -180)}
-                                        className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
+                                        onClick={() => adjustServo('2', 180, true)} // Абсолютное значение 180°
+                                        className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
-                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-right.svg" alt="Image"/>
+                                        <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-right.svg" alt="180°"/>
                                     </Button>
                                 </div>
                             </div>
