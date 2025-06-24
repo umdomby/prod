@@ -461,6 +461,16 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                 </div>
             )}
 
+                <div className={styles.bottomRightButton}>
+                    <button
+                        onClick={toggleCamera}
+                        className={`${styles.controlButton} ${useBackCamera ? styles.active : ''}`}
+                        title={useBackCamera ? 'Переключить на фронтальную камеру' : 'Переключить на заднюю камеру'}
+                    >
+                        {useBackCamera ? '📷' : '📷'}
+                    </button>
+                </div>
+
             <Dialog open={showRoomNotExistDialog} onOpenChange={setShowRoomNotExistDialog}>
                 <DialogContent>
                     <DialogHeader>

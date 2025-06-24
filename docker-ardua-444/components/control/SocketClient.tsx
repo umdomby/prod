@@ -1363,7 +1363,22 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             </div>
                         </>
                     )}
+                    <div className="flex items-center justify-center space-x-2">
+                    {inputVoltage !== null && button2State ? (
+                            <span
+                                className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
+                            >
+                            {inputVoltage.toFixed(2)}
+                        </span>
+                        ):
 
+                        <span
+                            className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
+                        >
+                            Alarm
+                        </span>
+                    }
+                    </div>
 
                     <div className="flex items-center justify-center space-x-2">
                         {button1State !== null && (
@@ -1398,21 +1413,6 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                 )}
                             </Button>
                         )}
-
-                        {inputVoltage !== null && button2State ? (
-                            <span
-                                className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
-                            >
-                            {inputVoltage.toFixed(2)}
-                        </span>
-                        ):
-
-                            <span
-                                className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
-                            >
-                            Alarm
-                        </span>
-                        }
 
                         {/*{showServos !== null && (*/}
                             <Button
