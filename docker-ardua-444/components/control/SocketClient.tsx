@@ -52,8 +52,7 @@ interface SocketClientProps {
     isProxySocket?: boolean; // Новый пропс
 }
 
-export default function SocketClient({onConnectionStatusChange, selectedDeviceId, onDisconnectWebSocket, onDeviceAdded, isProxySocket }: SocketClientProps) {
-    const {
+export default function SocketClient({ onConnectionStatusChange, selectedDeviceId, onDisconnectWebSocket, onDeviceAdded, isProxySocket }: SocketClientProps) {    const {
         servoAngle,
         servo2Angle,
         servo1MinAngle,
@@ -67,7 +66,6 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
         setServo2MinAngle,
         setServo2MaxAngle,
     } = useServo();
-
     const [log, setLog] = useState<LogEntry[]>([])
     const [isConnected, setIsConnected] = useState(false)
     const [isIdentified, setIsIdentified] = useState(false)
@@ -1364,20 +1362,19 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                         </>
                     )}
                     <div className="flex items-center justify-center space-x-2">
-                    {inputVoltage !== null && button2State ? (
+                        {inputVoltage !== null && button2State ? (
                             <span
                                 className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
                             >
-                            {inputVoltage.toFixed(2)}
-                        </span>
-                        ):
-
-                        <span
-                            className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
-                        >
-                            {inputVoltage?.toFixed(2) < 1 ? <span>Motion</span> : <span>Alarm</span> }
-                        </span>
-                    }
+            {inputVoltage.toFixed(2)}
+        </span>
+                        ) : (
+                            <span
+                                className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
+                            >
+            {inputVoltage !== null && inputVoltage < 1 ? <span>Motion</span> : <span>Alarm</span>}
+        </span>
+                        )}
                     </div>
 
                     <div className="flex items-center justify-center space-x-2">
@@ -1397,7 +1394,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             </Button>
                         )}
 
-                        {button2State !== null && (
+                        {button2State !== null && isProxySocket === false && (
                             <Button
                                 onClick={() => {
                                     const newState = button2State ? 'off' : 'on';
