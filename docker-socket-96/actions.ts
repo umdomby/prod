@@ -1,41 +1,50 @@
-// Заглушка для получения разрешенных идентификаторов устройств
-// export async function getAllowedDeviceIds(): Promise<string[]> {
-//     // Возвращаем массив с разрешенными идентификаторами
-//     return ['123', '222', '333', '444', 'YNNGUT123PP5KMNB', 'NTKKKM96JMTPRP90','4444444444444444'];
-// }
-
-
-// import { PrismaClient } from '@prisma/client';
-// const prisma = new PrismaClient();
-
-
-
-// file: docker-socket-96/actions.ts
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 interface Device {
     idDevice: string;
+    telegramToken?: string | null;
+    telegramId?: bigint | null;
 }
 
 export async function getAllowedDeviceIds(): Promise<string[]> {
     try {
-        // Запрашиваем все idDevice из таблицы Devices
-        const devices: Device[] = await prisma.devices.findMany({
+        const devices = await prisma.devices.findMany({
             select: {
                 idDevice: true,
             },
         });
-
-        // console.log(devices);
-
-        // Возвращаем массив idDevice
-        // return ['123', '222', '333', '444', 'YNNGUT123PP5KMNB', 'NTKKKM96JMTPRP90','4444444444444444'];
         return devices.map((device) => device.idDevice);
     } catch (error) {
         console.error('Ошибка при получении idDevice из базы данных:', error);
-        return []; // Возвращаем пустой массив в случае ошибки
+        return [];
     } finally {
-        await prisma.$disconnect(); // Закрываем соединение
+        await prisma.$disconnect();
+    }
+}
+
+export async function getDeviceTelegramInfo(deviceId: string): Promise<{ telegramToken?: string | null; telegramId?: string | null } | null> {
+    try {
+        const device: Device | null = await prisma.devices.findUnique({
+            where: { idDevice: deviceId },
+            select: {
+                idDevice: true, // Добавлено
+                telegramToken: true,
+                telegramId: true,
+            },
+        });
+        if (!device) {
+            console.log(`Устройство с idDevice ${deviceId} не найдено`);
+            return null;
+        }
+        return {
+            telegramToken: device.telegramToken,
+            telegramId: device.telegramId ? device.telegramId.toString() : null,
+        };
+    } catch (error) {
+        console.error('Ошибка при получении Telegram данных:', error);
+        return null;
+    } finally {
+        await prisma.$disconnect();
     }
 }

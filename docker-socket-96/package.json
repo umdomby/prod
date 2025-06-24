@@ -10,7 +10,8 @@
     "start": "node dist/server.js",
     "dev": "nodemon --exec 'ts-node' server.ts",
     "build": "tsc",
-    "prisma:pull": "prisma db pull"
+    "prisma:pull": "prisma db pull",
+    "prisma:gen": "npx prisma generate"
   },
   "dependencies": {
     "@prisma/client": "6.9.0",

@@ -1,15 +1,15 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
-import { getAllowedDeviceIds } from './actions';
+import { getAllowedDeviceIds, getDeviceTelegramInfo } from './actions';
 import { createServer } from 'http';
-import axios from 'axios'; // Добавляем axios для запросов
+import axios from 'axios';
 
 // Telegram Bot конфигурация
-const TELEGRAM_BOT_TOKEN = '7861501595:AAGEDzbeBVLVVLkzffreI5OX-aRjmGWkcw8'; // Ваш токен
-const TELEGRAM_CHAT_ID = '5112905163'; // Ваш числовой chat_id
+let TELEGRAM_BOT_TOKEN: string | null = null; // Динамически подставляем токен
+let TELEGRAM_CHAT_ID: string | null = null; // Динамически подставляем chat_id
 let lastTelegramMessageTime = 0;
 const TELEGRAM_MESSAGE_INTERVAL = 5000;
-const DEVICE_NAME='R1';
+const DEVICE_NAME = 'R1';
 
 const PORT = 8096;
 const WS_PATH = '/wsar';
@@ -108,6 +108,11 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                     client.de = parsed.de; // deviceId → de
                     client.isIdentified = true;
 
+                    // Загружаем Telegram-данные для устройства
+                    const telegramInfo = await getDeviceTelegramInfo(parsed.de);
+                    TELEGRAM_BOT_TOKEN = telegramInfo?.telegramToken ?? null;
+                    TELEGRAM_CHAT_ID = telegramInfo?.telegramId?.toString() ?? null;
+
                     ws.send(JSON.stringify({
                         ty: "sys", // type → ty, system → sys
                         me: "Ident ok", // message → me
@@ -120,7 +125,8 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                     if (client.ct === "esp") { // clientType → ct
                         clients.forEach(targetClient => {
                             if (targetClient.ct === "browser" && // clientType → ct
-                                targetClient.de === parsed.de) { // deviceId → de
+                                targetClient.de === parsed.de && // deviceId → de
+                                targetClient.de !== null) { // deviceId → de
                                 console.log(`Notifying browser client ${targetClient.de} about ESP connection`); // deviceId → de
                                 targetClient.ws.send(JSON.stringify({
                                     ty: "est", // type → ty, esp_status → est
@@ -139,6 +145,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                         st: "rej" // status → st, rejected → rej
                     }));
                     ws.close();
+                    return;
                 }
                 return;
             }
@@ -153,13 +160,17 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             }
 
             // Process logs from ESP
-            if (parsed.ty === "log" && client.ct === "esp") { // type → ty, clientType → ct
+            if (parsed.ty === "log" && client.ct === "esp") { // type → ty, log
                 // Проверяем условия для отправки уведомления в Telegram
                 if (parsed.b1 === 'on' && parsed.z && Number(parsed.z) < 1) { // Реле 1 включено и напряжение < 1В
                     const now = new Date();
                     const message = `🚨 Датчик движения сработал! Устройство: ${DEVICE_NAME}, Время: ${formatDateTime(now)}`;
                     console.log(message);
-                    sendTelegramMessage(message);
+                    if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+                        sendTelegramMessage(message);
+                    } else {
+                        console.log('Telegram credentials not available for device');
+                    }
                 }
 
                 clients.forEach(targetClient => {
@@ -182,8 +193,8 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 return;
             }
 
-            // Process command acknowledgements
-            if (parsed.ty === "ack" && client.ct === "esp") { // type → ty, acknowledge → ack, clientType → ct
+            // Process command acknowledgments
+            if (parsed.ty === "ack" && client.ct === "esp") { // type → ty, acknowledge → ack
                 clients.forEach(targetClient => {
                     if (targetClient.ct === "browser" && // clientType → ct
                         targetClient.de === client.de) { // deviceId → de
@@ -258,6 +269,10 @@ async function sendTelegramMessage(message: string) {
     const currentTime = Date.now();
     if (currentTime - lastTelegramMessageTime < TELEGRAM_MESSAGE_INTERVAL) {
         console.log('Telegram message throttled');
+        return;
+    }
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+        console.log('Cannot send Telegram message: Missing bot token or chat ID');
         return;
     }
     try {

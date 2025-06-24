@@ -113,7 +113,6 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
 
     const [inputVoltage, setInputVoltage] = useState<number | null>(null);
     const [telegramToken, setTelegramToken] = useState<string | null>(null);
-    const [telegramId, setTelegramId] = useState<number | null>(null);
     const [telegramTokenInput, setTelegramTokenInput] = useState('');
     const [telegramIdInput, setTelegramIdInput] = useState('');
 
@@ -127,17 +126,19 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
         setLog(prev => [...prev.slice(-100), {me: `${new Date().toLocaleTimeString()}: ${msg}`, ty}]);
     }, []);
 
-    // Загрузка устройств и настроек из базы данных
+
+    const [telegramId, setTelegramId] = useState<BigInt | null>(null);
+
+
+    // Обновляем useEffect для загрузки устройств
     useEffect(() => {
         const loadDevices = async () => {
             if (isProxySocket) return;
             try {
                 const devices = await getDevices();
                 setDeviceList(devices.map(d => d.idDevice));
-                // Устанавливаем noDevices в false, если есть хотя бы одно устройство
                 setNoDevices(devices.length === 0);
                 if (devices.length > 0) {
-                    // Находим устройство с autoConnect: true или берём первое
                     const autoConnectDevice = devices.find(device => device.autoConnect) || devices[0];
                     const device = autoConnectDevice;
                     setInputDe(device.idDevice);
@@ -147,11 +148,11 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                     setAutoConnect(device.autoConnect ?? false);
                     setClosedDel(device.closedDel ?? false);
                     setTelegramToken(device.telegramToken ?? null);
-                    setTelegramId(device.telegramId ?? null);
+                    setTelegramId(device.telegramId !== null ? BigInt(device.telegramId) : null); // Преобразуем в BigInt
                     setTelegramTokenInput(device.telegramToken ?? '');
                     setTelegramIdInput(device.telegramId?.toString() ?? '');
                     if (device.settings && device.settings.length > 0) {
-                        const settings = device.settings[0]; // Берем первый элемент массива
+                        const settings = device.settings[0];
                         setServo1MinAngle(settings.servo1MinAngle || 0);
                         setServo1MaxAngle(settings.servo1MaxAngle || 180);
                         setServo2MinAngle(settings.servo2MinAngle || 0);
@@ -429,7 +430,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                     setTelegramTokenInput(pastedText);
                     await updateDeviceSettings(inputDe, {
                         telegramToken: pastedText || null,
-                        telegramId: telegramId,
+                        telegramId: telegramId !== null ? Number(telegramId) : null, // Преобразуем BigInt в number для совместимости
                     });
                     setTelegramToken(pastedText || null);
                     addLog('Telegram Token успешно сохранён', 'success');
@@ -438,15 +439,15 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         addLog('Telegram ID должен содержать только цифры', 'error');
                         return;
                     }
-                    const parsedTelegramId = pastedText ? Number(pastedText) : null;
-                    if (parsedTelegramId === null || isNaN(parsedTelegramId)) {
+                    const parsedTelegramId = pastedText ? BigInt(pastedText) : null; // Используем BigInt
+                    if (parsedTelegramId === null) {
                         addLog('Telegram ID должен быть числом', 'error');
                         return;
                     }
                     setTelegramIdInput(pastedText);
                     await updateDeviceSettings(inputDe, {
                         telegramToken: telegramTokenInput || null,
-                        telegramId: parsedTelegramId,
+                        telegramId: parsedTelegramId !== null ? Number(parsedTelegramId) : null, // Преобразуем BigInt в number для сервера
                     });
                     setTelegramId(parsedTelegramId);
                     addLog('Telegram ID успешно сохранён', 'success');
@@ -455,7 +456,6 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 addLog(`Ошибка сохранения настроек Telegram: ${errorMessage}`, 'error');
                 console.error('Ошибка в handleTelegramPaste:', errorMessage);
-                // Восстанавливаем предыдущие значения
                 if (field === 'telegramToken') {
                     setTelegramTokenInput(telegramToken ?? '');
                 } else {
@@ -469,18 +469,18 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const handleTelegramInputBlur = useCallback(
         async () => {
             try {
-                const parsedTelegramId = telegramIdInput ? parseInt(telegramIdInput) : null;
-                if (telegramIdInput && (parsedTelegramId === null || isNaN(parsedTelegramId))) {
+                const parsedTelegramId = telegramIdInput ? BigInt(telegramIdInput) : null; // Используем BigInt вместо parseInt
+                if (telegramIdInput && parsedTelegramId === null) {
                     throw new Error('Telegram ID должен быть числом');
                 }
 
                 await updateDeviceSettings(inputDe, {
                     telegramToken: telegramTokenInput || null,
-                    telegramId: parsedTelegramId,
+                    telegramId: parsedTelegramId !== null ? Number(parsedTelegramId) : null, // Преобразуем BigInt в number для сервера
                 });
 
                 setTelegramToken(telegramTokenInput || null);
-                setTelegramId(parsedTelegramId);
+                setTelegramId(parsedTelegramId); // Теперь типы совпадают
                 addLog('Настройки Telegram успешно сохранены', 'success');
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : String(error);

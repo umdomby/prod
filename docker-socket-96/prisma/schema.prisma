@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Devices {
+  id            Int         @id @default(autoincrement())
+  userId        Int
+  diviceName    String?
+  devicesEnum   DevicesEnum @default(ArduaESP8266)
+  idDevice      String      @unique
+  autoReconnect Boolean
+  autoConnect   Boolean
+  closedDel     Boolean
+  telegramToken String?
+  telegramId    BigInt?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime
+  User          User        @relation(fields: [userId], references: [id])
+  SavedRoom     SavedRoom?
+  Settings      Settings?
+}
+
+model SavedRoom {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  devicesId   Int?          @unique
+  roomId      String        @unique
+  isDefault   Boolean       @default(false)
+  autoConnect Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  ProxyAccess ProxyAccess[]
+  Devices     Devices?      @relation(fields: [devicesId], references: [id])
+  User        User          @relation(fields: [userId], references: [id])
+}
+
+model Settings {
+  id             Int     @id @default(autoincrement())
+  devicesId      Int     @unique
+  servo1MinAngle Int?
+  servo1MaxAngle Int?
+  servo2MinAngle Int?
+  servo2MaxAngle Int?
+  b1             Boolean
+  b2             Boolean
+  servoView      Boolean
+  Devices        Devices @relation(fields: [devicesId], references: [id])
+}
+
+model User {
+  id          Int           @id @default(autoincrement())
+  fullName    String
+  email       String        @unique
+  resetToken  String?
+  provider    String?
+  providerId  String?
+  password    String
+  role        UserRole      @default(USER)
+  img         String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  Devices     Devices[]
+  ProxyAccess ProxyAccess[]
+  SavedProxy  SavedProxy[]
+  SavedRoom   SavedRoom[]
+}
+
+model ProxyAccess {
+  id          Int       @id @default(autoincrement())
+  roomId      String
+  proxyRoomId String    @unique
+  name        String?
+  userId      Int?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  SavedRoom   SavedRoom @relation(fields: [roomId], references: [roomId])
+  User        User?     @relation(fields: [userId], references: [id])
+}
+
+model SavedProxy {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  proxyRoomId String
+  isDefault   Boolean  @default(false)
+  autoConnect Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  User        User     @relation(fields: [userId], references: [id])
+}
+
+enum DevicesEnum {
+  ArduaESP8266
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
