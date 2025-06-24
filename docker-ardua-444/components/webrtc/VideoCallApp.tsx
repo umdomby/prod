@@ -1705,6 +1705,8 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                     selectedDeviceId={selectedDeviceId}
                     onDisconnectWebSocket={socketClientRef.current}
                     onDeviceAdded={handleDeviceAdded} // Передаем новый пропс
+                    toggleCamera={toggleCamera} // Передаем функцию как пропс
+                    useBackCamera={useBackCamera} // Передаем состояние как пропс
                 />
             )}
 
