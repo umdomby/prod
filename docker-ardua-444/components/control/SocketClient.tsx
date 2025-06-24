@@ -5,7 +5,7 @@ import {useState, useEffect, useRef, useCallback} from 'react'
 import {Button} from "@/components/ui/button"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Input} from "@/components/ui/input"
-import {ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X} from "lucide-react"
+import {ChevronDown, ChevronUp, X} from "lucide-react"
 import {Checkbox} from "@/components/ui/checkbox"
 import {Label} from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
@@ -14,10 +14,15 @@ import {
     getDevices,
     addDevice,
     deleteDevice,
-    updateDeviceSettings,
     updateServoSettings,
-    sendDeviceSettingsToESP, getSavedRoomWithDevice
+    sendDeviceSettingsToESP, getSavedRoomWithDevice, updateDeviceSettings
 } from '@/app/actions';
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion";
 
 type MessageType = {
     ty?: string
@@ -107,6 +112,10 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [servo2MaxInput, setServo2MaxInput] = useState('');
 
     const [inputVoltage, setInputVoltage] = useState<number | null>(null);
+    const [telegramToken, setTelegramToken] = useState<string | null>(null);
+    const [telegramId, setTelegramId] = useState<number | null>(null);
+    const [telegramTokenInput, setTelegramTokenInput] = useState('');
+    const [telegramIdInput, setTelegramIdInput] = useState('');
 
     const [isProxy, setIsProxy] = useState(false);
 
@@ -137,18 +146,23 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                     setAutoReconnect(device.autoReconnect ?? false);
                     setAutoConnect(device.autoConnect ?? false);
                     setClosedDel(device.closedDel ?? false);
-                    if (device.settings) {
-                        setServo1MinAngle(device.settings.servo1MinAngle || 0);
-                        setServo1MaxAngle(device.settings.servo1MaxAngle || 180);
-                        setServo2MinAngle(device.settings.servo2MinAngle || 0);
-                        setServo2MaxAngle(device.settings.servo2MaxAngle || 180);
-                        setButton1State(device.settings.b1 ?? false);
-                        setButton2State(device.settings.b2 ?? false);
-                        setShowServos(device.settings.servoView ?? true);
-                        setServo1MinInput((device.settings.servo1MinAngle || 0).toString());
-                        setServo1MaxInput((device.settings.servo1MaxAngle || 180).toString());
-                        setServo2MinInput((device.settings.servo2MinAngle || 0).toString());
-                        setServo2MaxInput((device.settings.servo2MaxAngle || 180).toString());
+                    setTelegramToken(device.telegramToken ?? null);
+                    setTelegramId(device.telegramId ?? null);
+                    setTelegramTokenInput(device.telegramToken ?? '');
+                    setTelegramIdInput(device.telegramId?.toString() ?? '');
+                    if (device.settings && device.settings.length > 0) {
+                        const settings = device.settings[0]; // Берем первый элемент массива
+                        setServo1MinAngle(settings.servo1MinAngle || 0);
+                        setServo1MaxAngle(settings.servo1MaxAngle || 180);
+                        setServo2MinAngle(settings.servo2MinAngle || 0);
+                        setServo2MaxAngle(settings.servo2MaxAngle || 180);
+                        setButton1State(settings.b1 ?? false);
+                        setButton2State(settings.b2 ?? false);
+                        setShowServos(settings.servoView ?? true);
+                        setServo1MinInput((settings.servo1MinAngle || 0).toString());
+                        setServo1MaxInput((settings.servo1MaxAngle || 180).toString());
+                        setServo2MinInput((settings.servo2MinAngle || 0).toString());
+                        setServo2MaxInput((settings.servo2MaxAngle || 180).toString());
                     }
                     if (device.autoConnect) {
                         connectWebSocket(device.idDevice);
@@ -404,6 +418,35 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     };
 
     const isAddDisabled = cleanDeviceId(newDe).length !== 16;
+
+    const handleTelegramInputBlur = useCallback(
+        async () => {
+            try {
+                const parsedTelegramId = telegramIdInput ? parseInt(telegramIdInput) : null;
+                if (telegramIdInput && (parsedTelegramId === null || isNaN(parsedTelegramId))) {
+                    throw new Error('Telegram ID должен быть числом');
+                }
+
+
+                await updateDeviceSettings(inputDe, {
+                    telegramToken: telegramTokenInput || null,
+                    telegramId: parsedTelegramId,
+                });
+
+                setTelegramToken(telegramTokenInput || null);
+                setTelegramId(parsedTelegramId);
+                addLog('Настройки Telegram успешно сохранены', 'success');
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                addLog(`Ошибка сохранения настроек Telegram: ${errorMessage}`, 'error');
+                // Восстанавливаем предыдущие значения
+                setTelegramTokenInput(telegramToken ?? '');
+                setTelegramIdInput(telegramId?.toString() ?? '');
+            }
+        },
+
+        [inputDe, telegramTokenInput, telegramIdInput, telegramToken, telegramId, addLog]
+    );
 
     // Добавление нового устройства
     const saveNewDe = useCallback(async () => {
@@ -825,18 +868,22 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
             if (selectedDevice) {
                 setAutoConnect(selectedDevice.autoConnect ?? false);
                 setClosedDel(selectedDevice.closedDel ?? false);
-                if (selectedDevice.settings) {
-                    setServo1MinAngle(selectedDevice.settings.servo1MinAngle || 0);
-                    setServo1MaxAngle(selectedDevice.settings.servo1MaxAngle || 180);
-                    setServo2MinAngle(selectedDevice.settings.servo2MinAngle || 0);
-                    setServo2MaxAngle(selectedDevice.settings.servo2MaxAngle || 180);
-                    setButton1State(selectedDevice.settings.b1 ?? false);
-                    setButton2State(selectedDevice.settings.b2 ?? false);
-                    setShowServos(selectedDevice.settings.servoView ?? true);
-                    setServo1MinInput((selectedDevice.settings.servo1MinAngle || 0).toString());
-                    setServo1MaxInput((selectedDevice.settings.servo1MaxAngle || 180).toString());
-                    setServo2MinInput((selectedDevice.settings.servo2MinAngle || 0).toString());
-                    setServo2MaxInput((selectedDevice.settings.servo2MaxAngle || 180).toString());
+                setTelegramToken(selectedDevice.telegramToken ?? null);
+                setTelegramId(selectedDevice.telegramId ?? null);
+                setTelegramTokenInput(selectedDevice.telegramToken ?? '');
+                setTelegramIdInput(selectedDevice.telegramId?.toString() ?? '');
+                if (selectedDevice.settings && selectedDevice.settings[0]) {
+                    setServo1MinAngle(selectedDevice.settings[0].servo1MinAngle || 0);
+                    setServo1MaxAngle(selectedDevice.settings[0].servo1MaxAngle || 180);
+                    setServo2MinAngle(selectedDevice.settings[0].servo2MinAngle || 0);
+                    setServo2MaxAngle(selectedDevice.settings[0].servo2MaxAngle || 180);
+                    setButton1State(selectedDevice.settings[0].b1 ?? false);
+                    setButton2State(selectedDevice.settings[0].b2 ?? false);
+                    setShowServos(selectedDevice.settings[0].servoView ?? true);
+                    setServo1MinInput((selectedDevice.settings[0].servo1MinAngle || 0).toString());
+                    setServo1MaxInput((selectedDevice.settings[0].servo1MaxAngle || 180).toString());
+                    setServo2MinInput((selectedDevice.settings[0].servo2MinAngle || 0).toString());
+                    setServo2MaxInput((selectedDevice.settings[0].servo2MaxAngle || 180).toString());
                 }
                 // Подключаемся только если autoReconnect включён
                 if (selectedDevice.autoReconnect) {
@@ -1154,6 +1201,46 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         </div>
 
                         <div className="space-y-2 sm:space-y-3">
+                            <Accordion type="single" collapsible>
+                                <AccordionItem value="telegram-settings">
+                                    <AccordionTrigger className="text-xs sm:text-sm font-medium text-gray-700">
+                                        Настройки Telegram
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="space-y-2">
+                                            <div>
+                                                <Label htmlFor="telegram-token" className="text-xs sm:text-sm">Telegram Token</Label>
+                                                <Input
+                                                    id="telegram-token"
+                                                    type="text"
+                                                    value={telegramTokenInput}
+                                                    onChange={(e) => setTelegramTokenInput(e.target.value)}
+                                                    onBlur={handleTelegramInputBlur}
+                                                    placeholder="Введите токен"
+                                                    className="bg-gray-700 text-white border-gray-600 h-8 sm:h-10 text-xs sm:text-sm"
+                                                    disabled={noDevices || isProxy}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="telegram-id" className="text-xs sm:text-sm">Telegram ID</Label>
+                                                <Input
+                                                    id="telegram-id"
+                                                    type="text"
+                                                    value={telegramIdInput}
+                                                    onChange={(e) => setTelegramIdInput(e.target.value)}
+                                                    onBlur={handleTelegramInputBlur}
+                                                    placeholder="Введите ID"
+                                                    className="bg-gray-700 text-white border-gray-600 h-8 sm:h-10 text-xs sm:text-sm"
+                                                    disabled={noDevices || isProxy}
+                                                />
+                                            </div>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
+                        </div>
+
+                        <div className="space-y-2 sm:space-y-3">
                             <Label className="block text-xs sm:text-sm font-medium text-gray-700">Настройки
                                 сервоприводов</Label>
                             <div className="grid grid-cols-2 gap-2">
@@ -1324,7 +1411,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                 <div className="flex items-center justify-center space-x-2">
                                     {/* Кнопка для установки 0° */}
                                     <Button
-                                        onClick={() => adjustServo('2', 0, true)} // Абсолютное значение 0°
+                                        onClick={() => adjustServo('2', 180, true)} // Абсолютное значение 0°
                                         className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-left.svg"/>
@@ -1352,7 +1439,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                     </Button>
                                     {/* Кнопка для установки 180° */}
                                     <Button
-                                        onClick={() => adjustServo('2', 180, true)} // Абсолютное значение 180°
+                                        onClick={() => adjustServo('2', 0, true)} // Абсолютное значение 180°
                                         className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-right.svg" alt="180°"/>

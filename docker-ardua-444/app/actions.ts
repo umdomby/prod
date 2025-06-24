@@ -72,19 +72,30 @@ export async function getDevices() {
     throw new Error('Пользователь не аутентифицирован');
   }
 
-  const devices = await prisma.devices.findMany({
-    where: { userId: parseInt(session.id) },
-    include: { settings: true },
-    orderBy: { createdAt: 'asc' },
-  });
+  const userId = parseInt(session.id);
 
-  return devices.map(device => ({
-    idDevice: device.idDevice,
-    autoReconnect: device.autoReconnect,
-    autoConnect: device.autoConnect,
-    closedDel: device.closedDel,
-    settings: device.settings[0] || null,
-  }));
+  return await prisma.devices.findMany({
+    where: { userId },
+    select: {
+      idDevice: true,
+      autoConnect: true,
+      autoReconnect: true,
+      closedDel: true,
+      telegramToken: true,
+      telegramId: true,
+      settings: {
+        select: {
+          servo1MinAngle: true,
+          servo1MaxAngle: true,
+          servo2MinAngle: true,
+          servo2MaxAngle: true,
+          servoView: true,
+          b1: true,
+          b2: true,
+        },
+      },
+    },
+  });
 }
 
 // Добавление нового устройства
@@ -177,7 +188,13 @@ export async function deleteDevice(idDevice: string) {
 }
 
 // Обновление настроек устройства
-export async function updateDeviceSettings(idDevice: string, settings: { autoReconnect?: boolean, autoConnect?: boolean, closedDel?: boolean }) {
+export async function updateDeviceSettings(idDevice: string, settings: {
+  autoReconnect?: boolean;
+  autoConnect?: boolean;
+  closedDel?: boolean;
+  telegramToken?: string | null;
+  telegramId?: number | null;
+}) {
   const session = await getUserSession();
   if (!session) {
     throw new Error('Пользователь не аутентифицирован');
@@ -200,11 +217,7 @@ export async function updateDeviceSettings(idDevice: string, settings: { autoRec
 
   await prisma.devices.update({
     where: { idDevice: parsedIdDevice.data },
-    data: {
-      autoReconnect: settings.autoReconnect ?? device.autoReconnect,
-      autoConnect: settings.autoConnect ?? device.autoConnect,
-      closedDel: settings.closedDel ?? device.closedDel,
-    },
+    data: settings,
   });
 
   revalidatePath('/');
