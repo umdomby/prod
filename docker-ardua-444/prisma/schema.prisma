@@ -38,6 +38,8 @@ model Devices {
   autoConnect   Boolean
   closedDel     Boolean
   settings      Settings[]
+  telegramToken String?
+  telegramId    Int?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
