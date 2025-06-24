@@ -1277,6 +1277,12 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                         <>
                             {/* Управление первым сервоприводом (Servo1) */}
                             <div className="flex flex-col items-center">
+
+                                <div className="flex items-center justify-center space-x-2">
+                                    <span className="text-sm font-medium text-green-300 mt-1">{servoAngle}°</span>
+                                    <span className="text-sm font-medium text-green-300 mt-1">{servo2Angle}°</span>
+                                </div>
+
                                 <div className="flex items-center justify-center space-x-2">
                                     {/* Кнопка для установки 0° */}
                                     <Button
@@ -1299,7 +1305,7 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/two-arrow-in-down-up.svg" alt="90°"/>
                                     </Button>
-                                    <span className="text-sm font-medium text-gray-700 mt-1">{servoAngle}°</span>
+
                                     {/* Кнопка для шага +15° (относительное изменение) */}
                                     <Button
                                         onClick={() => adjustServo('1', 15, false)} // Относительное изменение
@@ -1341,7 +1347,6 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/two-arrow-in-left-right.svg"/>
                                     </Button>
-                                    <span className="text-sm font-medium text-gray-700 mt-1">{servo2Angle}°</span>
                                     {/* Кнопка для шага -15° (относительное изменение) */}
                                     <Button
                                         onClick={() => adjustServo('2', -15, false)} // Относительное изменение
@@ -1396,13 +1401,20 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             </Button>
                         )}
 
-                        {inputVoltage !== null && (
+                        {inputVoltage !== null && button2State ? (
                             <span
                                 className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
                             >
                             {inputVoltage.toFixed(2)}
                         </span>
-                        )}
+                        ):
+
+                            <span
+                                className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center"
+                            >
+                            Alarm
+                        </span>
+                        }
 
                         {/*{showServos !== null && (*/}
                             <Button
