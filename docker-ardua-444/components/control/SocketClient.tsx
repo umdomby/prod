@@ -50,11 +50,9 @@ interface SocketClientProps {
     onDisconnectWebSocket?: { disconnectWebSocket?: () => Promise<void> };
     onDeviceAdded?: (deviceId: string) => void;
     isProxySocket?: boolean; // Новый пропс
-    toggleCamera?: () => void; // Добавляем пропс для функции toggleCamera
-    useBackCamera?: boolean; // Добавляем пропс для состояния useBackCamera
 }
 
-export default function SocketClient({onConnectionStatusChange, selectedDeviceId, onDisconnectWebSocket, onDeviceAdded, isProxySocket, toggleCamera, useBackCamera }: SocketClientProps) {
+export default function SocketClient({onConnectionStatusChange, selectedDeviceId, onDisconnectWebSocket, onDeviceAdded, isProxySocket }: SocketClientProps) {
     const {
         servoAngle,
         servo2Angle,
@@ -1439,15 +1437,6 @@ export default function SocketClient({onConnectionStatusChange, selectedDeviceId
                             ) : (
                                 <img width={'25px'} height={'25px'} src="/settings1.svg" alt="Image"/>
                             )}
-                        </Button>
-                        <Button
-                            onClick={toggleCamera}
-                            onTouchEnd={toggleCamera}
-                            className={[styles.controlButton, useBackCamera ? styles.active : '', "bg-transparent hover:bg-gray-700/30 border border-gray-600 p-2 rounded-full transition-all flex items-center"].join(' ')}
-                            title={useBackCamera ? 'Переключить на фронтальную камеру' : 'Переключить на заднюю камеру'}
-                            disabled={!toggleCamera} // Отключаем кнопку, если функция не передана
-                        >
-                            {useBackCamera ? '📷⬅️' : '📷➡️'}
                         </Button>
                     </div>
                 </div>
