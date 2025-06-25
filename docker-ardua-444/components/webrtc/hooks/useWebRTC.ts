@@ -89,7 +89,7 @@ export const useWebRTC = (
 
     // 1. Улучшенная функция для получения параметров видео для Huawei
     const getVideoConstraints = () => {
-        const { isHuawei, isSafari, isIOS, isMobile } = detectPlatform();
+        const { isHuawei, isSafari, isIOS, isMobile, isAndroid } = detectPlatform();
         // Специальные параметры для Huawei
         if (isHuawei) {
             return {
@@ -110,13 +110,17 @@ export const useWebRTC = (
         };
 
         // Специфичные настройки для Huawei
-        if (isHuawei) {
+        if (isAndroid && !isHuawei) {
             return {
                 ...baseConstraints,
-                width: { ideal: 480 },
-                height: { ideal: 360 },
-                frameRate: { ideal: 24 },
-                advanced: [{ width: { max: 480 } }]
+                width: { ideal: 480, max: 640 },
+                height: { ideal: 360, max: 480 },
+                frameRate: { ideal: 15, max: 24 },
+                advanced: [
+                    { width: { max: 640 } },
+                    { height: { max: 480 } },
+                    { frameRate: { max: 24 } }
+                ]
             };
         }
         if (isIOS) {
@@ -679,7 +683,7 @@ export const useWebRTC = (
                             // }
                             const offer = await pc.current.createOffer({
                                 offerToReceiveAudio: true,
-                                offerToReceiveVideo: false
+                                offerToReceiveVideo: true
                             });
                             const normalizedOffer = {
                                 ...offer,
@@ -1019,7 +1023,6 @@ export const useWebRTC = (
                         videoTrackReadyState: stream.getVideoTracks()[0]?.readyState,
                         videoTrackId: stream.getVideoTracks()[0]?.id
                     });
-
                     const videoTrack = stream.getVideoTracks()[0];
                     if (videoTrack && videoTrack.enabled && videoTrack.readyState === 'live') {
                         console.log('Получен активный видеотрек:', videoTrack.id);
@@ -1210,6 +1213,12 @@ export const useWebRTC = (
                         autoGainControl: true
                     }
                     : true
+            });
+            console.log('Получен медиапоток:', {
+                videoTracks: mediaStream.getVideoTracks().length,
+                audioTracks: mediaStream.getAudioTracks().length,
+                videoTrackEnabled: mediaStream.getVideoTracks()[0]?.enabled,
+                videoTrackReadyState: mediaStream.getVideoTracks()[0]?.readyState
             });
 
             // Синхронизация аудиотреков с muteLocalAudio

@@ -500,12 +500,40 @@ func handlePeerJoin(room string, username string, isLeader bool, conn *websocket
         }
     })
 
-    if !isLeader {
-        peerConnection.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-            log.Printf("Track received for follower %s in room %s: Codec %s",
-                username, room, track.Codec().MimeType)
-        })
-    }
+if !isLeader {
+    peerConnection.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+        log.Printf("Track received for follower %s in room %s: Codec %s, ID %s, Kind %s",
+            username, room, track.Codec().MimeType, track.ID(), track.Kind().String())
+        if track.Kind() == webrtc.RTPCodecTypeVideo {
+            // Уведомляем лидера о новом треке
+            mu.Lock()
+            var leaderPeer *Peer
+            for _, p := range rooms[room] {
+                if p.isLeader {
+                    leaderPeer = p
+                    break
+                }
+            }
+            mu.Unlock()
+            if leaderPeer != nil {
+                leaderPeer.mu.Lock()
+                if leaderPeer.conn != nil && isConnAlive(leaderPeer.conn) {
+                    err := leaderPeer.conn.WriteJSON(map[string]interface{}{
+                        "type": "track_received",
+                        "data": map[string]interface{}{
+                            "trackId": track.ID(),
+                            "kind":    track.Kind().String(),
+                        },
+                    })
+                    if err != nil {
+                        log.Printf("Error sending track_received to leader %s: %v", leaderPeer.username, err)
+                    }
+                }
+                leaderPeer.mu.Unlock()
+            }
+        }
+    })
+}
 
     rooms[room][username] = peer
     peers[conn.RemoteAddr().String()] = peer
@@ -673,24 +701,24 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
                 log.Printf("WARN: No target peer found for offer from %s", currentPeer.username)
             }
 
-        case "answer":
-            if targetPeer != nil && !currentPeer.isLeader && targetPeer.isLeader {
-                log.Printf("<<< Forwarding Answer from %s to %s", currentPeer.username, targetPeer.username)
-                if sdp, ok := data["sdp"].(string); ok {
-                    data["sdp"] = normalizeSdpForCodec(sdp, "VP8")
-                    msgBytes, _ = json.Marshal(data)
-                }
-                targetPeer.mu.Lock()
-                targetWsConn := targetPeer.conn
-                targetPeer.mu.Unlock()
-                if targetWsConn != nil {
-                    if err := targetWsConn.WriteMessage(websocket.TextMessage, msgBytes); err != nil {
-                        log.Printf("!!! Error forwarding answer to %s: %v", targetPeer.username, err)
+            case "answer":
+                if targetPeer != nil && targetPeer.isLeader {
+                    log.Printf("<<< Forwarding Answer from %s to %s", currentPeer.username, targetPeer.username)
+                    if sdp, ok := data["sdp"].(string); ok {
+                        data["sdp"] = normalizeSdpForCodec(sdp, "VP8")
+                        msgBytes, _ = json.Marshal(data)
                     }
+                    targetPeer.mu.Lock()
+                    targetWsConn := targetPeer.conn
+                    targetPeer.mu.Unlock()
+                    if targetWsConn != nil {
+                        if err := targetWsConn.WriteMessage(websocket.TextMessage, msgBytes); err != nil {
+                            log.Printf("!!! Error forwarding answer to %s: %v", targetPeer.username, err)
+                        }
+                    }
+                } else {
+                    log.Printf("WARN: No target leader found for answer from %s.", currentPeer.username)
                 }
-            } else {
-                log.Printf("WARN: Received 'answer' from non-follower or no target leader.")
-            }
 
         case "ice_candidate":
             if targetPeer != nil {
