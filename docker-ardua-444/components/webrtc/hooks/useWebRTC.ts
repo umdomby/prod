@@ -1188,7 +1188,7 @@ export const useWebRTC = (
         leaveRoom(); // Полная очистка соединения
     };
 
-    const enableCamera = async () => {
+    const enableCamera = async (muteLocalAudio: boolean) => {
         if (isCameraEnabled) {
             console.log('Камера и микрофон уже включены');
             return;
@@ -1211,7 +1211,25 @@ export const useWebRTC = (
                     }
                     : true
             });
+
+            // Синхронизация аудиотреков с muteLocalAudio
+            mediaStream.getAudioTracks().forEach(track => {
+                track.enabled = !muteLocalAudio; // Устанавливаем состояние в зависимости от muteLocalAudio
+                console.log(`Аудиотрек ${track.id} установлен в enabled=${track.enabled}`);
+            });
+
             if (localStream) {
+                // Удаляем старые треки, чтобы избежать дублирования
+                localStream.getTracks().forEach(track => {
+                    localStream.removeTrack(track);
+                    if (pc.current) {
+                        const sender = pc.current.getSenders().find(s => s.track === track);
+                        if (sender) {
+                            pc.current.removeTrack(sender);
+                        }
+                    }
+                });
+                // Добавляем новые треки
                 mediaStream.getTracks().forEach(track => {
                     localStream.addTrack(track);
                     if (pc.current) {
@@ -1238,6 +1256,33 @@ export const useWebRTC = (
                     }
                 });
             }
+
+            // Инициируем пересогласование
+            if (pc.current && isInRoom) {
+                try {
+                    const offer = await pc.current.createOffer({
+                        offerToReceiveAudio: true,
+                        offerToReceiveVideo: true
+                    });
+                    const normalizedOffer = {
+                        ...offer,
+                        sdp: normalizeSdp(offer.sdp)
+                    };
+                    await pc.current.setLocalDescription(normalizedOffer);
+                    sendWebSocketMessage({
+                        type: 'offer',
+                        sdp: normalizedOffer,
+                        room: roomId,
+                        username,
+                        preferredCodec
+                    });
+                    console.log('Отправлен новый offer для пересогласования:', normalizedOffer);
+                } catch (err) {
+                    console.error('Ошибка при создании offer для пересогласования:', err);
+                    setError('Ошибка пересогласования WebRTC');
+                }
+            }
+
             setIsCameraEnabled(true);
             console.log('Камера и микрофон успешно включены');
         } catch (err) {
@@ -1246,17 +1291,17 @@ export const useWebRTC = (
         }
     };
 
-    const disableCamera = () => {
+    const disableCamera = async () => {
         if (!isCameraEnabled || !localStream) {
             console.log('Камера и микрофон уже отключены или локальный поток отсутствует');
             return;
         }
         try {
             localStream.getTracks().forEach(track => {
-                track.stop();
-                console.log(`Остановлен ${track.kind} трек: ${track.id}`);
+                track.enabled = false; // Отключаем трек вместо остановки
+                console.log(`Трек ${track.kind} (${track.id}) отключен: enabled=${track.enabled}`);
             });
-            setLocalStream(null);
+
             if (pc.current) {
                 pc.current.getSenders().forEach(sender => {
                     if (sender.track) {
@@ -1264,7 +1309,34 @@ export const useWebRTC = (
                         console.log(`${sender.track.kind} трек удалён из PeerConnection`);
                     }
                 });
+
+                // Инициируем пересогласование
+                if (isInRoom) {
+                    try {
+                        const offer = await pc.current.createOffer({
+                            offerToReceiveAudio: true,
+                            offerToReceiveVideo: true
+                        });
+                        const normalizedOffer = {
+                            ...offer,
+                            sdp: normalizeSdp(offer.sdp)
+                        };
+                        await pc.current.setLocalDescription(normalizedOffer);
+                        sendWebSocketMessage({
+                            type: 'offer',
+                            sdp: normalizedOffer,
+                            room: roomId,
+                            username,
+                            preferredCodec
+                        });
+                        console.log('Отправлен новый offer для пересогласования после отключения:', normalizedOffer);
+                    } catch (err) {
+                        console.error('Ошибка при создании offer для пересогласования:', err);
+                        setError('Ошибка пересогласования WebRTC');
+                    }
+                }
             }
+
             setIsCameraEnabled(false);
             console.log('Камера и микрофон успешно отключены');
         } catch (err) {

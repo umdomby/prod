@@ -1464,7 +1464,10 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
 
                         <div className={styles.inputGroup}>
                             <Button
-                                onClick={() => enableCamera()}
+                                onClick={() => {
+                                    setMuteLocalAudio(false); // Явно включаем микрофон
+                                    enableCamera(false); // Передаём false, чтобы аудиотрек был активен
+                                }}
                                 disabled={isCameraEnabled || !isInRoom}
                                 className={styles.button}
                             >

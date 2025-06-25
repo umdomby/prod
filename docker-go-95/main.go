@@ -1,12 +1,13 @@
 package main
+
 import (
-"encoding/json"
+    "encoding/json"
     "errors"
     "fmt"
     "log"
     "net/http"
-    "regexp" // Добавлено для normalizeSdpForCodec
-    "strings" // Добавлено для normalizeSdpForCodec
+    "regexp"
+    "strings"
     "sync"
     "time"
     "github.com/gorilla/websocket"
@@ -14,30 +15,29 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-CheckOrigin: func(r *http.Request) bool { return true },
+    CheckOrigin: func(r *http.Request) bool { return true },
 }
 
 type Peer struct {
-conn     *websocket.Conn
-pc       *webrtc.PeerConnection
-username string
-room     string
-isLeader bool
-mu       sync.Mutex
+    conn     *websocket.Conn
+    pc       *webrtc.PeerConnection
+    username string
+    room     string
+    isLeader bool
+    mu       sync.Mutex
 }
 
 type RoomInfo struct {
-Users    []string `json:"users"`
-Leader   string   `json:"leader"`
-Follower string   `json:"follower"`
+    Users    []string `json:"users"`
+    Leader   string   `json:"leader"`
+    Follower string   `json:"follower"`
 }
 
 var (
     peers     = make(map[string]*Peer)
     rooms     = make(map[string]map[string]*Peer)
     mu        sync.Mutex
-    // letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") // Не используется, но оставлено для вашего сведения
-    webrtcAPI *webrtc.API // Глобальный API с настроенным MediaEngine
+    webrtcAPI *webrtc.API
 )
 
 func isConnAlive(conn *websocket.Conn) bool {
@@ -49,59 +49,68 @@ func isConnAlive(conn *websocket.Conn) bool {
 }
 
 func normalizeSdpForCodec(sdp, preferredCodec string) string {
-    log.Printf("Normalizing SDP for codec: %s", preferredCodec)
+    log.Printf("Normalizing SDP for codec: VP8")
     lines := strings.Split(sdp, "\r\n")
     var newLines []string
     targetPayloadTypes := []string{}
-    targetCodec := preferredCodec
-    if targetCodec != "H264" && targetCodec != "VP8" {
-        targetCodec = "H264"
-        log.Printf("Invalid codec %s, defaulting to H264", preferredCodec)
-    }
 
-    // Найти payload types для целевого кодека
-    codecRegex := regexp.MustCompile(fmt.Sprintf(`a=rtpmap:(\d+) %s/\d+`, targetCodec))
+    // Check for audio section
+    hasAudioSection := false
     for _, line := range lines {
-        matches := codecRegex.FindStringSubmatch(line)
-        if matches != nil {
-            targetPayloadTypes = append(targetPayloadTypes, matches[1])
-            log.Printf("Found %s payload type: %s", targetCodec, matches[1])
+        if strings.HasPrefix(line, "m=audio") {
+            hasAudioSection = true
+            break
         }
     }
-
-    // Добавить H.264, если отсутствует
-    if len(targetPayloadTypes) == 0 && targetCodec == "H264" {
-        log.Printf("No H264 payload types found, adding manually")
-        targetPayloadTypes = []string{"126"}
-        h264Lines := []string{
-            "a=rtpmap:126 H264/90000",
-            "a=fmtp:126 profile-level-id=42e01f;level-asymmetry-allowed=1;packetization-mode=1",
-            "a=rtcp-fb:126 ccm fir",
-            "a=rtcp-fb:126 nack",
-            "a=rtcp-fb:126 nack pli",
-        }
-        videoSectionFound := false
-        for i, line := range lines {
-            if strings.HasPrefix(line, "m=video") {
-                videoSectionFound = true
-                newLines = append(lines[:i+1], append(h264Lines, lines[i+1:]...)...)
-                newLines[i] = "m=video 9 UDP/TLS/RTP/SAVPF 126"
-                break
-            }
-        }
-        if !videoSectionFound {
-            log.Printf("No m=video section found, returning original SDP")
-            return sdp
-        }
+    if !hasAudioSection {
+        log.Printf("No audio section found in SDP, adding default Opus audio section")
+        newLines = append([]string{
+            "m=audio 9 UDP/TLS/RTP/SAVPF 111",
+            "a=rtpmap:111 opus/48000/2",
+            "a=fmtp:111 minptime=10;useinbandfec=1",
+        }, lines...)
     } else {
         newLines = lines
     }
 
-    // Удалить другие кодеки
-    otherCodecs := []string{"VP8", "VP9", "AV1"}
-    if targetCodec == "VP8" {
-        otherCodecs = []string{"H264", "VP9", "AV1"}
+    // Find VP8 payload types
+    codecRegex := regexp.MustCompile(`a=rtpmap:(\d+) VP8/\d+`)
+    for _, line := range newLines {
+        matches := codecRegex.FindStringSubmatch(line)
+        if matches != nil {
+            targetPayloadTypes = append(targetPayloadTypes, matches[1])
+            log.Printf("Found VP8 payload type: %s", matches[1])
+        }
     }
+
+    // Add VP8 if not found
+    if len(targetPayloadTypes) == 0 {
+        log.Printf("No VP8 payload types found, adding manually")
+        targetPayloadTypes = []string{"96"}
+        vp8Lines := []string{
+            "a=rtpmap:96 VP8/90000",
+            "a=rtcp-fb:96 ccm fir",
+            "a=rtcp-fb:96 nack",
+            "a=rtcp-fb:96 nack pli",
+        }
+        videoSectionFound := false
+        for i, line := range newLines {
+            if strings.HasPrefix(line, "m=video") {
+                videoSectionFound = true
+                newLines = append(newLines[:i+1], append(vp8Lines, newLines[i+1:]...)...)
+                newLines[i] = "m=video 9 UDP/TLS/RTP/SAVPF 96"
+                break
+            }
+        }
+        if !videoSectionFound {
+            log.Printf("No m=video section found, adding default video section")
+            newLines = append(newLines, "m=video 9 UDP/TLS/RTP/SAVPF 96")
+            newLines = append(newLines, vp8Lines...)
+        }
+    }
+
+    // Remove other codecs (H264, VP9, AV1)
+    otherCodecs := []string{"H264", "VP9", "AV1"}
     filteredLines := []string{}
     for _, line := range newLines {
         skip := false
@@ -119,16 +128,16 @@ func normalizeSdpForCodec(sdp, preferredCodec string) string {
     }
     newLines = filteredLines
 
-    // Убедиться, что m=video содержит только целевой payload type
+    // Ensure m=video uses only VP8 payload type
     for i, line := range newLines {
         if strings.HasPrefix(line, "m=video") {
             newLines[i] = fmt.Sprintf("m=video 9 UDP/TLS/RTP/SAVPF %s", targetPayloadTypes[0])
-            log.Printf("Updated m=video to use only %s payload type: %s", targetCodec, targetPayloadTypes[0])
+            log.Printf("Updated m=video to use only VP8 payload type: %s", targetPayloadTypes[0])
             break
         }
     }
 
-    // Установить битрейт
+    // Set bitrate
     for i, line := range newLines {
         if strings.HasPrefix(line, "a=mid:video") {
             newLines = append(newLines[:i+1], append([]string{"b=AS:300"}, newLines[i+1:]...)...)
@@ -137,11 +146,10 @@ func normalizeSdpForCodec(sdp, preferredCodec string) string {
     }
 
     newSdp := strings.Join(newLines, "\r\n")
-    log.Printf("Normalized SDP for %s:\n%s", targetCodec, newSdp)
+    log.Printf("Normalized SDP for VP8:\n%s", newSdp)
     return newSdp
 }
 
-// contains проверяет, есть ли элемент в срезе
 func contains(slice []string, item string) bool {
     for _, s := range slice {
         if s == item {
@@ -151,70 +159,28 @@ func contains(slice []string, item string) bool {
     return false
 }
 
-
-// createMediaEngine создает MediaEngine с учетом preferredCodec
 func createMediaEngine(preferredCodec string) *webrtc.MediaEngine {
     mediaEngine := &webrtc.MediaEngine{}
 
-    if preferredCodec == "H264" {
-        // Регистрируем только H.264
-        if err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
-            RTPCodecCapability: webrtc.RTPCodecCapability{
-                MimeType:    webrtc.MimeTypeH264,
-                ClockRate:   90000,
-                SDPFmtpLine: "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
-                RTCPFeedback: []webrtc.RTCPFeedback{
-                    {Type: "nack"},
-                    {Type: "nack", Parameter: "pli"},
-                    {Type: "ccm", Parameter: "fir"},
-                    {Type: "goog-remb"},
-                },
+    // Register only VP8
+    if err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+        RTPCodecCapability: webrtc.RTPCodecCapability{
+            MimeType:    webrtc.MimeTypeVP8,
+            ClockRate:   90000,
+            RTCPFeedback: []webrtc.RTCPFeedback{
+                {Type: "nack"},
+                {Type: "nack", Parameter: "pli"},
+                {Type: "ccm", Parameter: "fir"},
+                {Type: "goog-remb"},
             },
-            PayloadType: 126,
-        }, webrtc.RTPCodecTypeVideo); err != nil {
-            log.Printf("H264 codec registration error: %v", err)
-        }
-        log.Printf("MediaEngine configured with H.264 (PT: 126) only")
-    } else if preferredCodec == "VP8" {
-        // Регистрируем только VP8
-        if err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
-            RTPCodecCapability: webrtc.RTPCodecCapability{
-                MimeType:    webrtc.MimeTypeVP8,
-                ClockRate:   90000,
-                RTCPFeedback: []webrtc.RTCPFeedback{
-                    {Type: "nack"},
-                    {Type: "nack", Parameter: "pli"},
-                    {Type: "ccm", Parameter: "fir"},
-                    {Type: "goog-remb"},
-                },
-            },
-            PayloadType: 96,
-        }, webrtc.RTPCodecTypeVideo); err != nil {
-            log.Printf("VP8 codec registration error: %v", err)
-        }
-        log.Printf("MediaEngine configured with VP8 (PT: 96) only")
-    } else {
-        // По умолчанию H.264
-        if err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
-            RTPCodecCapability: webrtc.RTPCodecCapability{
-                MimeType:    webrtc.MimeTypeH264,
-                ClockRate:   90000,
-                SDPFmtpLine: "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
-                RTCPFeedback: []webrtc.RTCPFeedback{
-                    {Type: "nack"},
-                    {Type: "nack", Parameter: "pli"},
-                    {Type: "ccm", Parameter: "fir"},
-                    {Type: "goog-remb"},
-                },
-            },
-            PayloadType: 126,
-        }, webrtc.RTPCodecTypeVideo); err != nil {
-            log.Printf("H264 codec registration error: %v", err)
-        }
-        log.Printf("MediaEngine configured with default H.264 (PT: 126)")
+        },
+        PayloadType: 96,
+    }, webrtc.RTPCodecTypeVideo); err != nil {
+        log.Printf("VP8 codec registration error: %v", err)
     }
+    log.Printf("MediaEngine configured with VP8 (PT: 96) only")
 
-    // Регистрируем Opus аудио
+    // Register Opus audio
     if err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
         RTPCodecCapability: webrtc.RTPCodecCapability{
             MimeType:     webrtc.MimeTypeOpus,
@@ -231,27 +197,20 @@ func createMediaEngine(preferredCodec string) *webrtc.MediaEngine {
     return mediaEngine
 }
 
-func init() {
-    // rand.Seed(time.Now().UnixNano()) // Закомментировано, т.к. randSeq не используется. Если будете использовать math/rand, раскомментируйте.
-    initializeMediaAPI() // Инициализируем MediaEngine при старте
-}
-
-// initializeMediaAPI настраивает MediaEngine только с H.264 и Opus
 func initializeMediaAPI() {
-    mediaEngine := createMediaEngine("H264")
+    mediaEngine := createMediaEngine("VP8")
     webrtcAPI = webrtc.NewAPI(
         webrtc.WithMediaEngine(mediaEngine),
     )
-    log.Println("Global MediaEngine initialized with H.264 (PT: 126) and Opus (PT: 111)")
+    log.Println("Global MediaEngine initialized with VP8 (PT: 96) and Opus (PT: 111)")
 }
 
-// getWebRTCConfig осталась вашей функцией
 func getWebRTCConfig() webrtc.Configuration {
     return webrtc.Configuration{
         ICEServers: []webrtc.ICEServer{
-        {URLs: []string{"stun:stun.l.google.com:19302"}},
-        {URLs: []string{"stun:ardua.site:3478"}},
-        {URLs: []string{"turn:ardua.site:3478"}, Username: "user1", Credential: "pass1"},
+            {URLs: []string{"stun:stun.l.google.com:19302"}},
+            {URLs: []string{"stun:ardua.site:3478"}},
+            {URLs: []string{"turn:ardua.site:3478"}, Username: "user1", Credential: "pass1"},
         },
         ICETransportPolicy: webrtc.ICETransportPolicyAll,
         BundlePolicy:       webrtc.BundlePolicyMaxBundle,
@@ -260,31 +219,29 @@ func getWebRTCConfig() webrtc.Configuration {
     }
 }
 
-// logStatus осталась вашей функцией
 func logStatus() {
-mu.Lock()
-defer mu.Unlock()
-log.Printf("--- Server Status ---")
-log.Printf("Total Connections: %d", len(peers))
-log.Printf("Active Rooms: %d", len(rooms))
-for room, roomPeers := range rooms {
-var leader, follower string
-users := []string{}
-for username, p := range roomPeers {
-users = append(users, username)
-if p.isLeader {
-leader = p.username
-} else {
-follower = p.username
-}
-}
-log.Printf("  Room '%s' (%d users: %v) - Leader: [%s], Follower: [%s]",
-room, len(roomPeers), users, leader, follower)
-}
-log.Printf("---------------------")
+    mu.Lock()
+    defer mu.Unlock()
+    log.Printf("--- Server Status ---")
+    log.Printf("Total Connections: %d", len(peers))
+    log.Printf("Active Rooms: %d", len(rooms))
+    for room, roomPeers := range rooms {
+        var leader, follower string
+        users := []string{}
+        for username, p := range roomPeers {
+            users = append(users, username)
+            if p.isLeader {
+                leader = p.username
+            } else {
+                follower = p.username
+            }
+        }
+        log.Printf("  Room '%s' (%d users: %v) - Leader: [%s], Follower: [%s]",
+            room, len(roomPeers), users, leader, follower)
+    }
+    log.Printf("---------------------")
 }
 
-// sendRoomInfo осталась вашей функцией
 func sendRoomInfo(room string) {
     mu.Lock()
     defer mu.Unlock()
@@ -319,44 +276,32 @@ func sendRoomInfo(room string) {
     }
 }
 
-// closePeerResources - унифицированная функция для закрытия ресурсов пира
 func closePeerResources(peer *Peer, reason string) {
-if peer == nil {
-return
-}
-peer.mu.Lock() // Блокируем конкретного пира
-
-    // Сначала закрываем WebRTC соединение
+    if peer == nil {
+        return
+    }
+    peer.mu.Lock()
     if peer.pc != nil {
         log.Printf("Closing PeerConnection for %s (Reason: %s)", peer.username, reason)
-        // Небольшая задержка может иногда помочь отправить последние данные, но обычно не нужна
-        // time.Sleep(100 * time.Millisecond)
         if err := peer.pc.Close(); err != nil {
-            // Ошибки типа "invalid PeerConnection state" ожидаемы, если соединение уже закрывается
-            // log.Printf("Error closing peer connection for %s: %v", peer.username, err)
         }
-        peer.pc = nil // Помечаем как закрытое
+        peer.pc = nil
     }
-
-    // Затем закрываем WebSocket соединение
     if peer.conn != nil {
         log.Printf("Closing WebSocket connection for %s (Reason: %s)", peer.username, reason)
-        // Отправляем управляющее сообщение о закрытии, если возможно
         _ = peer.conn.WriteControl(websocket.CloseMessage,
             websocket.FormatCloseMessage(websocket.CloseNormalClosure, reason),
-            time.Now().Add(time.Second)) // Даем немного времени на отправку
+            time.Now().Add(time.Second))
         peer.conn.Close()
-        peer.conn = nil // Помечаем как закрытое
+        peer.conn = nil
     }
     peer.mu.Unlock()
 }
 
-// handlePeerJoin осталась вашей функцией с изменениями для создания PeerConnection через webrtcAPI
 func handlePeerJoin(room string, username string, isLeader bool, conn *websocket.Conn, preferredCodec string) (*Peer, error) {
     mu.Lock()
-    defer mu.Unlock() // Гарантируем разблокировку мьютекса при выходе из функции
+    defer mu.Unlock()
 
-    // Очистка устаревших пиров в комнате
     if roomPeers, exists := rooms[room]; exists {
         for uname, p := range roomPeers {
             p.mu.Lock()
@@ -389,7 +334,6 @@ func handlePeerJoin(room string, username string, isLeader bool, conn *websocket
 
     roomPeers := rooms[room]
 
-    // Логика замены ведомого
     if !isLeader {
         hasLeader := false
         for _, p := range roomPeers {
@@ -405,10 +349,7 @@ func handlePeerJoin(room string, username string, isLeader bool, conn *websocket
         }
 
         var existingFollower *Peer
-        codec := preferredCodec
-        if codec == "" {
-            codec = "H264"
-        }
+        codec := "VP8" // Enforce VP8
         log.Printf("Follower %s prefers codec: %s in room %s", username, codec, room)
 
         for _, p := range roomPeers {
@@ -460,13 +401,13 @@ func handlePeerJoin(room string, username string, isLeader bool, conn *websocket
         }
     }
 
-    mediaEngine := createMediaEngine(preferredCodec)
+    mediaEngine := createMediaEngine("VP8")
     peerAPI := webrtc.NewAPI(webrtc.WithMediaEngine(mediaEngine))
     peerConnection, err := peerAPI.NewPeerConnection(getWebRTCConfig())
     if err != nil {
         return nil, fmt.Errorf("failed to create PeerConnection: %w", err)
     }
-    log.Printf("PeerConnection created for %s with preferred codec %s", username, preferredCodec)
+    log.Printf("PeerConnection created for %s with codec VP8", username)
 
     peerConnection.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
         log.Printf("PeerConnection state changed for %s: %s", username, s.String())
@@ -586,9 +527,7 @@ func handlePeerJoin(room string, username string, isLeader bool, conn *websocket
     return peer, nil
 }
 
-// main осталась вашей функцией
 func main() {
-
     cleanupPeers()
     initializeMediaAPI()
     http.HandleFunc("/wsgo", handleWebSocket)
@@ -601,8 +540,8 @@ func main() {
     })
 
     log.Println("Server starting on :8095 (Logic: Leader Re-joins on Follower connect)")
-    log.Println("WebRTC MediaEngine configured for H.264 (video) and Opus (audio).")
-    logStatus() // Логируем статус при запуске
+    log.Println("WebRTC MediaEngine configured for VP8 (video) and Opus (audio).")
+    logStatus()
     if err := http.ListenAndServe(":8095", nil); err != nil {
         log.Fatalf("Failed to start server: %v", err)
     }
@@ -620,7 +559,6 @@ func cleanupPeers() {
     log.Println("All peers and rooms have been cleaned up")
 }
 
-// handleWebSocket осталась вашей функцией с минимальными изменениями для очистки
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
@@ -669,7 +607,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
     logStatus()
     sendRoomInfo(currentPeer.room)
 
-    // Цикл чтения сообщений от клиента
     for {
         msgType, msgBytes, err := conn.ReadMessage()
         if err != nil {
@@ -715,17 +652,10 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
         switch dataType {
         case "offer":
             log.Printf("Received offer from %s: %s", currentPeer.username, string(msgBytes))
-            if currentPeer.isLeader && targetPeer != nil && !targetPeer.isLeader {
+            if targetPeer != nil {
                 log.Printf(">>> Forwarding Offer from %s to %s", currentPeer.username, targetPeer.username)
-                preferredCodec, _ := data["preferredCodec"].(string)
-                if preferredCodec == "" {
-                    preferredCodec = initData.PreferredCodec
-                    if preferredCodec == "" {
-                        preferredCodec = "H264"
-                    }
-                }
                 if sdp, ok := data["sdp"].(string); ok {
-                    data["sdp"] = normalizeSdpForCodec(sdp, preferredCodec)
+                    data["sdp"] = normalizeSdpForCodec(sdp, "VP8")
                     msgBytes, _ = json.Marshal(data)
                 }
                 targetPeer.mu.Lock()
@@ -740,22 +670,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
                     log.Printf("Target WebSocket connection for %s is not alive, skipping offer forwarding", targetPeer.username)
                 }
             } else {
-                log.Printf("WARN: Received 'offer' from non-leader or no target.")
+                log.Printf("WARN: No target peer found for offer from %s", currentPeer.username)
             }
 
         case "answer":
             if targetPeer != nil && !currentPeer.isLeader && targetPeer.isLeader {
                 log.Printf("<<< Forwarding Answer from %s to %s", currentPeer.username, targetPeer.username)
-                // Нормализуем SDP
-                preferredCodec, _ := data["preferredCodec"].(string)
-                if preferredCodec == "" {
-                    preferredCodec = initData.PreferredCodec
-                    if preferredCodec == "" {
-                        preferredCodec = "H264"
-                    }
-                }
                 if sdp, ok := data["sdp"].(string); ok {
-                    data["sdp"] = normalizeSdpForCodec(sdp, preferredCodec)
+                    data["sdp"] = normalizeSdpForCodec(sdp, "VP8")
                     msgBytes, _ = json.Marshal(data)
                 }
                 targetPeer.mu.Lock()
