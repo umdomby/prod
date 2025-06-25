@@ -702,7 +702,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
             }
 
             case "answer":
-                if targetPeer != nil && targetPeer.isLeader {
+                if targetPeer != nil {
                     log.Printf("<<< Forwarding Answer from %s to %s", currentPeer.username, targetPeer.username)
                     if sdp, ok := data["sdp"].(string); ok {
                         data["sdp"] = normalizeSdpForCodec(sdp, "VP8")
