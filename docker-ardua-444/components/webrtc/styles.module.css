@@ -371,6 +371,7 @@
     .tabContent.webrtcTab {
         max-width: 90%;
         padding: 15px;
+        max-height: calc(100vh - 50px); /* Увеличиваем доступную высоту */
     }
 
     .tabContent.webrtcTab .controls {

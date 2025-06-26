@@ -1428,7 +1428,7 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                                         disabled={!isRoomIdComplete}
                                         className={styles.button}
                                     >
-                                        Войти со звуком и видео
+                                        Войти 📷 🔈
                                     </Button>
                                 </div>
                             )}
@@ -1506,13 +1506,13 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                                 <ul>
                                     {savedRooms.map((room) => (
                                         <li key={room.id} className={styles.savedRoomItem}>
-    <span
-        onClick={() => handleSelectRoom(room.id)}
-        onTouchEnd={() => handleSelectRoom(room.id)}
-        className={room.isDefault ? styles.defaultRoom : ''}
-    >
-      {formatRoomId(room.id)}
-    </span>
+                                            <span
+                                                onClick={() => handleSelectRoom(room.id)}
+                                                onTouchEnd={() => handleSelectRoom(room.id)}
+                                                className={room.isDefault ? styles.defaultRoom : ''}
+                                            >
+                                              {formatRoomId(room.id)}
+                                            </span>
                                             <div className="flex items-center mr-3">
                                                 <Checkbox
                                                     id={`default-room-${room.id}`}
@@ -1569,13 +1569,13 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                                     ))}
                                     {savedProxyRooms.map((proxy) => (
                                         <li key={proxy.id} className={styles.savedRoomItem}>
-    <span
-        onClick={() => handleSelectRoom(proxy.id)}
-        onTouchEnd={() => handleSelectRoom(proxy.id)}
-        className={proxy.isDefault ? styles.defaultRoom : ''}
-    >
-      {formatRoomId(proxy.id)} (прокси)
-    </span>
+                                            <span
+                                                onClick={() => handleSelectRoom(proxy.id)}
+                                                onTouchEnd={() => handleSelectRoom(proxy.id)}
+                                                className={proxy.isDefault ? styles.defaultRoom : ''}
+                                            >
+                                              {formatRoomId(proxy.id)} (прокси)
+                                            </span>
                                             <div className="flex items-center space-x-2">
                                                 <Checkbox
                                                     id={`default-proxy-${proxy.id}`}
@@ -1689,8 +1689,8 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                             </div>
                             {savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId !== null && r.deviceId !== undefined) && (
                                 <span className="text-xs sm:text-sm text-gray-600">
-        Привязано устройство: {formatRoomId(savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId !== null)?.deviceId || '')}
-    </span>
+                                    Привязано устройство: {formatRoomId(savedRooms.find(r => r.id === roomId.replace(/-/g, '') && r.deviceId !== null)?.deviceId || '')}
+                                </span>
                             )}
                         </div>
 
