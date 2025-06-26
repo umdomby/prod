@@ -151,13 +151,15 @@ export const VideoPlayer = ({ stream, muted = true, className, transform, videoR
                 }}
             />
             {stream && (
+                <div>
                 <Button
                     onClick={toggleMute}
-                    className="absolute top-2 left-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1 z-10"
+                    className="absolute bg-transparent top-2 left-1 hover:bg-blue-700 rounded-lg px-3 py-1 z-10"
                     title={isMuted ? 'Включить звук' : 'Отключить звук'}
                 >
-                    {isMuted ? '🔇' : '🔈'}
+                    {isMuted ? '🔇⬅️' : '🔈⬅️'}
                 </Button>
+                </div>
             )}
         </div>
     );
