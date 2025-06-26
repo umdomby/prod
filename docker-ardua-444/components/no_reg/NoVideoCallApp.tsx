@@ -1,3 +1,4 @@
+// file: docker-ardua-444/components/no_reg/NoVideoCallApp.tsx
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { VideoPlayer } from '@/components/webrtc/components/VideoPlayer'
 import { debounce } from 'lodash'
 
 type VideoSettings = {
@@ -39,14 +41,24 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
     const [error, setError] = useState<string | null>(null)
     const [showRoomNotExistDialog, setShowRoomNotExistDialog] = useState(false)
     const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
+    const [showLocalVideo, setShowLocalVideo] = useState(false)
     const videoContainerRef = useRef<HTMLDivElement>(null)
     const remoteVideoRef = useRef<HTMLVideoElement>(null)
-    const localAudioTracks = useRef<MediaStreamTrack[]>([])
+    const localVideoRef = useRef<HTMLVideoElement>(null)
     const socketClientRef = useRef<{ disconnectWebSocket?: () => Promise<void> }>({})
     const [videoTransform, setVideoTransform] = useState('')
     const leaveRoomRef = useRef<(() => void) | null>(null)
-    const [showLocalVideo, setShowLocalVideo] = useState(false)
     const wsRef = useRef<WebSocket | null>(null)
+
+    const webRTCRef = useRef<{
+        joinRoom: (mediaType?: 'none' | 'audio' | 'audio-video') => void
+        leaveRoom: () => void
+        isCameraEnabled: boolean
+        enableCamera: (muteLocalAudio: boolean) => void
+        disableCamera: () => void
+        toggleMicrophone: (mute: boolean) => void
+        localStream: MediaStream | null
+    } | null>(null)
 
     useEffect(() => {
         if (initialRoomId) {
@@ -164,8 +176,29 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             const newState = !muteRemoteAudio
             setMuteRemoteAudio(newState)
             localStorage.setItem('muteRemoteAudio', String(newState))
+            if (webRTCRef.current?.localStream) {
+                webRTCRef.current.localStream.getAudioTracks().forEach(track => {
+                    track.enabled = !newState
+                })
+            }
         }, 100),
         [muteRemoteAudio]
+    )
+
+    const toggleMuteLocalAudio = useCallback(
+        debounce(() => {
+            const newState = !muteLocalAudio
+            setMuteLocalAudio(newState)
+            localStorage.setItem('muteLocalAudio', String(newState))
+            if (webRTCRef.current?.localStream) {
+                webRTCRef.current.localStream.getAudioTracks().forEach(track => {
+                    track.enabled = !newState
+                    console.log(`Локальный аудиотрек ${track.id} установлен в enabled=${track.enabled}`)
+                })
+            }
+            webRTCRef.current?.toggleMicrophone(newState)
+        }, 100),
+        [muteLocalAudio]
     )
 
     const rotateVideo = useCallback((degrees: number) => {
@@ -259,8 +292,8 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             setActiveMainTab('webrtc')
             setShowDisconnectDialog(true)
             setTimeout(() => setShowDisconnectDialog(false), 3000)
+            setShowLocalVideo(false)
 
-            // Отключаем WebRTC
             if (leaveRoomRef.current) {
                 try {
                     leaveRoomRef.current()
@@ -270,7 +303,6 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                 }
             }
 
-            // Отключаем WebSocket устройства (двигателя)
             if (socketClientRef.current?.disconnectWebSocket) {
                 try {
                     await socketClientRef.current.disconnectWebSocket()
@@ -284,6 +316,29 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
         []
     )
 
+    useEffect(() => {
+        if (leaveRoomRef.current) {
+            webRTCRef.current = {
+                joinRoom: webRTCRef.current?.joinRoom || (async () => {}),
+                leaveRoom: leaveRoomRef.current,
+                isCameraEnabled: webRTCRef.current?.isCameraEnabled || false,
+                enableCamera: webRTCRef.current?.enableCamera || (async () => {}),
+                disableCamera: webRTCRef.current?.disableCamera || (async () => {}),
+                toggleMicrophone: webRTCRef.current?.toggleMicrophone || (() => {}),
+                localStream: webRTCRef.current?.localStream || null
+            }
+        }
+    }, [
+        leaveRoomRef.current,
+        webRTCRef.current?.joinRoom,
+        webRTCRef.current?.leaveRoom,
+        webRTCRef.current?.isCameraEnabled,
+        webRTCRef.current?.enableCamera,
+        webRTCRef.current?.disableCamera,
+        webRTCRef.current?.toggleMicrophone,
+        webRTCRef.current?.localStream
+    ])
+
     return (
         <div className={`${styles.container} relative w-full h-screen overflow-hidden`} suppressHydrationWarning>
             <div className="absolute inset-0 z-10" ref={videoContainerRef}>
@@ -293,7 +348,16 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                     videoTransform={videoTransform}
                     setWebSocket={(ws) => { wsRef.current = ws }}
                     useBackCamera={useBackCamera}
+                    mediaType={showLocalVideo ? 'audio-video' : 'none'}
                 />
+                {showLocalVideo && webRTCRef.current?.localStream && (
+                    <VideoPlayer
+                        stream={webRTCRef.current.localStream}
+                        videoRef={localVideoRef}
+                        muted={true}
+                        className="absolute bottom-4 right-4 w-1/4 h-1/4 border-2 border-white rounded"
+                    />
+                )}
             </div>
 
             <div className="relative h-full">
@@ -305,6 +369,42 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
 
             <div className={styles.topControls}>
                 <div className={styles.tabsContainer}>
+                    <button
+                        onClick={() => {
+                            if (webRTCRef.current?.isCameraEnabled) {
+                                webRTCRef.current.disableCamera()
+                                setShowLocalVideo(false)
+                                showNotification('Камера и микрофон отключены')
+                            } else {
+                                webRTCRef.current?.enableCamera(muteLocalAudio)
+                                setShowLocalVideo(true)
+                                showNotification('Камера и микрофон включены')
+                            }
+                        }}
+                        onTouchEnd={() => {
+                            if (webRTCRef.current?.isCameraEnabled) {
+                                webRTCRef.current.disableCamera()
+                                setShowLocalVideo(false)
+                                showNotification('Камера и микрофон отключены')
+                            } else {
+                                webRTCRef.current?.enableCamera(muteLocalAudio)
+                                setShowLocalVideo(true)
+                                showNotification('Камера и микрофон включены')
+                            }
+                        }}
+                        className={[styles.controlButton, webRTCRef.current?.isCameraEnabled ? styles.active : ''].join(' ')}
+                        title={webRTCRef.current?.isCameraEnabled ? 'Отключить камеру' : 'Включить камеру'}
+                    >
+                        {webRTCRef.current?.isCameraEnabled ? '📷✕' : '📷'}
+                    </button>
+                    <button
+                        onClick={toggleMuteLocalAudio}
+                        onTouchEnd={toggleMuteLocalAudio}
+                        className={[styles.controlButton, muteLocalAudio ? styles.active : ''].join(' ')}
+                        title={muteLocalAudio ? 'Включить микрофон' : 'Отключить микрофон'}
+                    >
+                        {muteLocalAudio ? '🎤✕' : '🎤'}
+                    </button>
                     <button
                         onClick={() => toggleTab('webrtc')}
                         onTouchEnd={() => toggleTab('webrtc')}
@@ -363,6 +463,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                                 <Button
                                     onClick={handleDisconnect}
                                     className={styles.button}
+                                    disabled={!isRoomIdComplete}
                                 >
                                     Отключить подключение
                                 </Button>
@@ -468,8 +569,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                     title={useBackCamera ? 'Переключить на фронтальную камеру' : 'Переключить на заднюю камеру'}
                 >
                     {useBackCamera ?
-                        <img width={'20px'} height={'20px'} src="/camera/flip-camera.svg" alt="Image"/>
-                                   :
+                        <img width={'20px'} height={'20px'} src="/camera/flip-camera.svg" alt="Image"/> :
                         <img width={'20px'} height={'20px'} src="/camera/flip-camera2.svg" alt="Image"/>
                     }
                 </button>

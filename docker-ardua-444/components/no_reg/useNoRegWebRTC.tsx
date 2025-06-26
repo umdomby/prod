@@ -10,6 +10,7 @@ interface NoRegWebRTCProps {
     videoTransform?: string;
     setWebSocket?: (ws: WebSocket | null) => void;
     useBackCamera?: boolean;
+    mediaType?: 'none' | 'audio' | 'audio-video';
 }
 
 interface WebSocketMessage {
@@ -25,8 +26,9 @@ interface WebSocketMessage {
     preferredCodec?: string;
 }
 
-export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, setWebSocket, useBackCamera }: NoRegWebRTCProps) {
+export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, setWebSocket, useBackCamera, mediaType = 'none' }: NoRegWebRTCProps) {
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [isInRoom, setIsInRoom] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -35,6 +37,9 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
         ice: string | null;
         signaling: string | null;
     }>({ ice: null, signaling: null });
+    const [isCameraEnabled, setIsCameraEnabled] = useState(false);
+    const [isMuted, setIsMuted] = useState<boolean>(true);
+    const [flashlightState, setFlashlightState] = useState<boolean>(false);
     const ws = useRef<WebSocket | null>(null);
     const pc = useRef<RTCPeerConnection | null>(null);
     const retryAttempts = useRef(0);
@@ -53,14 +58,213 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
     const VIDEO_CHECK_TIMEOUT = 12000;
     const WS_TIMEOUT = 10000;
     const MAX_JOIN_MESSAGE_RETRIES = 10;
-    const [isMuted, setIsMuted] = useState<boolean>(true);
-    const [flashlightState, setFlashlightState] = useState<boolean>(false);
 
     const detectPlatform = () => {
         const ua = navigator.userAgent;
         const isIOS = /iPad|iPhone|iPod/.test(ua);
         const isSafari = /^((?!chrome|android).)*safari/i.test(ua) || isIOS;
         return { isIOS, isSafari, isHuawei: /huawei/i.test(ua) };
+    };
+
+    const getVideoConstraints = () => {
+        const { isHuawei, isSafari, isIOS } = detectPlatform();
+        if (isHuawei) {
+            return {
+                width: { ideal: 480, max: 640 },
+                height: { ideal: 360, max: 480 },
+                frameRate: { ideal: 20, max: 24 },
+                facingMode: useBackCamera ? 'environment' : 'user',
+                resizeMode: 'crop-and-scale'
+            };
+        }
+
+        const baseConstraints = {
+            width: { ideal: isIOS ? 640 : 1280 },
+            height: { ideal: isIOS ? 480 : 720 },
+            frameRate: { ideal: isIOS ? 24 : 30 },
+            facingMode: useBackCamera ? 'environment' : 'user'
+        };
+
+        if (isSafari || isIOS) {
+            return {
+                ...baseConstraints,
+                frameRate: { ideal: 24 },
+                advanced: [
+                    { frameRate: { max: 24 } },
+                    { width: { max: 640 }, height: { max: 480 } }
+                ]
+            };
+        }
+
+        return baseConstraints;
+    };
+
+    const configureVideoSender = (sender: RTCRtpSender) => {
+        const { isHuawei } = detectPlatform();
+        if (isHuawei && sender.track?.kind === 'video') {
+            const parameters = sender.getParameters();
+            if (!parameters.encodings) {
+                parameters.encodings = [{}];
+            }
+            parameters.encodings[0] = {
+                ...parameters.encodings[0],
+                maxBitrate: 300000,
+                scaleResolutionDownBy: 1,
+                maxFramerate: 15,
+                priority: 'high',
+                networkPriority: 'high'
+            };
+            try {
+                sender.setParameters(parameters);
+            } catch (err) {
+                console.error('Ошибка настройки параметров видео:', err);
+            }
+        }
+    };
+
+    const toggleMicrophone = (mute: boolean) => {
+        if (localStream) {
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = !mute;
+                console.log(`Аудиотрек ${track.id} установлен в enabled=${track.enabled}`);
+            });
+        }
+        setIsMuted(mute);
+    };
+
+    const enableCamera = async (muteLocalAudio: boolean) => {
+        if (isCameraEnabled) {
+            console.log('Камера уже включена');
+            return;
+        }
+        try {
+            const constraints = {
+                video: getVideoConstraints(),
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            };
+            const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log('Получен медиапоток:', {
+                videoTracks: mediaStream.getVideoTracks().length,
+                audioTracks: mediaStream.getAudioTracks().length,
+                videoTrackEnabled: mediaStream.getVideoTracks()[0]?.enabled,
+                videoTrackReadyState: mediaStream.getVideoTracks()[0]?.readyState
+            });
+
+            mediaStream.getAudioTracks().forEach(track => {
+                track.enabled = !muteLocalAudio;
+                console.log(`Аудиотрек ${track.id} установлен в enabled=${track.enabled}`);
+            });
+
+            // Очищаем старый локальный поток, если он существует
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    track.stop();
+                    if (pc.current) {
+                        const sender = pc.current.getSenders().find(s => s.track === track);
+                        if (sender) {
+                            pc.current.removeTrack(sender);
+                        }
+                    }
+                });
+            }
+
+            setLocalStream(mediaStream);
+            if (pc.current) {
+                mediaStream.getTracks().forEach(track => {
+                    const sender = pc.current!.getSenders().find(s => s.track?.kind === track.kind);
+                    if (sender) {
+                        sender.replaceTrack(track);
+                    } else {
+                        pc.current!.addTrack(track, mediaStream);
+                    }
+                    if (track.kind === 'video') {
+                        configureVideoSender(pc.current!.getSenders().find(s => s.track === track)!);
+                    }
+                });
+            }
+
+            if (pc.current && isInRoom) {
+                try {
+                    const offer = await pc.current.createOffer({
+                        offerToReceiveAudio: true,
+                        offerToReceiveVideo: true
+                    });
+                    await pc.current.setLocalDescription(offer);
+                    sendWebSocketMessage({
+                        type: 'offer',
+                        sdp: offer,
+                        room: roomId.replace(/-/g, ''),
+                        username,
+                        preferredCodec
+                    });
+                    console.log('Отправлен новый offer для пересогласования:', offer);
+                } catch (err) {
+                    console.error('Ошибка при создании offer для пересогласования:', err);
+                    setError('Ошибка пересогласования WebRTC');
+                }
+            }
+
+            setIsCameraEnabled(true);
+            console.log('Камера и микрофон успешно включены');
+        } catch (err) {
+            console.error('Ошибка включения камеры и микрофона:', err);
+            setError(`Ошибка включения медиа: ${err instanceof Error ? err.message : String(err)}`);
+        }
+    };
+
+    const disableCamera = async () => {
+        if (!isCameraEnabled || !localStream) {
+            console.log('Камера и микрофон уже отключены или локальный поток отсутствует');
+            return;
+        }
+        try {
+            localStream.getTracks().forEach(track => {
+                track.enabled = false;
+                track.stop();
+                console.log(`Трек ${track.kind} (${track.id}) отключен и остановлен: enabled=${track.enabled}`);
+            });
+
+            if (pc.current) {
+                pc.current.getSenders().forEach(sender => {
+                    if (sender.track) {
+                        sender.replaceTrack(null);
+                        console.log(`${sender.track.kind} трек удалён из PeerConnection`);
+                    }
+                });
+
+                if (isInRoom) {
+                    try {
+                        const offer = await pc.current.createOffer({
+                            offerToReceiveAudio: true,
+                            offerToReceiveVideo: true
+                        });
+                        await pc.current.setLocalDescription(offer);
+                        sendWebSocketMessage({
+                            type: 'offer',
+                            sdp: offer,
+                            room: roomId.replace(/-/g, ''),
+                            username,
+                            preferredCodec
+                        });
+                        console.log('Отправлен новый offer для пересогласования после отключения:', offer);
+                    } catch (err) {
+                        console.error('Ошибка при создании offer для пересогласования:', err);
+                        setError('Ошибка пересогласования WebRTC');
+                    }
+                }
+            }
+
+            setLocalStream(null);
+            setIsCameraEnabled(false);
+            console.log('Камера и микрофон успешно отключены');
+        } catch (err) {
+            console.error('Ошибка отключения камеры и микрофона:', err);
+            setError(`Ошибка отключения медиа: ${err instanceof Error ? err.message : String(err)}`);
+        }
     };
 
     const leaveRoom = () => {
@@ -83,6 +287,14 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
         if (connectionTimeout.current) clearTimeout(connectionTimeout.current);
         if (webRTCRetryTimeoutRef.current) clearTimeout(webRTCRetryTimeoutRef.current);
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+
+        if (localStream) {
+            localStream.getTracks().forEach(track => {
+                track.stop();
+                console.log(`Локальный трек ${track.kind} (${track.id}) остановлен`);
+            });
+            setLocalStream(null);
+        }
 
         if (pc.current) {
             pc.current.onicecandidate = null;
@@ -123,6 +335,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
 
         setIsConnected(false);
         setIsInRoom(false);
+        setIsCameraEnabled(false);
         setError(null);
         setConnectionState({ ice: null, signaling: null });
         retryAttempts.current = 0;
@@ -132,163 +345,6 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
         isReconnecting.current = false;
         isConnectionStable.current = false;
         if (setWebSocket) setWebSocket(null);
-    };
-
-    useEffect(() => {
-        if (setLeaveRoom) {
-            setLeaveRoom(leaveRoom);
-        }
-    }, [setLeaveRoom]);
-
-    const startVideoCheckTimer = () => {
-        if (videoCheckTimeout.current) {
-            clearTimeout(videoCheckTimeout.current);
-            console.log('Очищен предыдущий таймер проверки видео');
-        }
-        console.log('Запуск таймера проверки видео');
-        videoCheckTimeout.current = setTimeout(() => {
-            const videoElement = videoRef.current;
-            const hasVideoContent = videoElement && videoElement.videoWidth > 0 && videoElement.videoHeight > 0;
-            console.log('Проверка видео:', {
-                remoteStream: !!remoteStream,
-                videoTracks: remoteStream?.getVideoTracks().length || 0,
-                firstTrackEnabled: remoteStream?.getVideoTracks()[0]?.enabled,
-                firstTrackReadyState: remoteStream?.getVideoTracks()[0]?.readyState,
-                hasVideoContent,
-                iceConnectionState: pc.current?.iceConnectionState,
-                signalingState: pc.current?.signalingState,
-            });
-            if (
-                isConnectionStable.current ||
-                (remoteStream &&
-                    remoteStream.getVideoTracks().length > 0 &&
-                    remoteStream.getVideoTracks()[0]?.enabled &&
-                    remoteStream.getVideoTracks()[0]?.readyState === 'live' &&
-                    hasVideoContent) ||
-                pc.current?.iceConnectionState === 'connected' ||
-                pc.current?.iceConnectionState === 'checking' ||
-                ws.current?.readyState === WebSocket.OPEN
-            ) {
-                console.log('Соединение стабильно или видео активно, переподключение не требуется');
-                if (pc.current?.iceConnectionState === 'connected' && hasVideoContent) {
-                    isConnectionStable.current = true;
-                }
-            } else {
-                console.warn('Видео не получено и соединение не активно, переподключение...');
-                resetConnection();
-            }
-        }, VIDEO_CHECK_TIMEOUT);
-    };
-
-    const connectWebSocket = async (): Promise<boolean> => {
-        return new Promise((resolve) => {
-            if (ws.current?.readyState === WebSocket.OPEN) {
-                console.log('WebSocket уже открыт');
-                if (setWebSocket) setWebSocket(ws.current);
-                resolve(true);
-                return;
-            }
-
-            let retryCount = 0;
-            const maxRetries = 10;
-
-            const attemptConnection = () => {
-                console.log(`Попытка подключения WebSocket ${retryCount + 1}/${maxRetries + 1}`);
-                try {
-                    ws.current = new WebSocket(process.env.WEBSOCKET_URL_WSGO || 'wss://ardua.site:444/wsgo');
-                    console.log('Инициализация WebSocket...');
-
-                    const onOpen = () => {
-                        console.log('WebSocket успешно подключен');
-                        cleanupEvents();
-                        setIsConnected(true);
-                        setError(null);
-                        if (setWebSocket) setWebSocket(ws.current);
-                        pingIntervalRef.current = setInterval(() => {
-                            if (ws.current?.readyState === WebSocket.OPEN) {
-                                sendWebSocketMessage({ type: 'ping' });
-                                console.log('Отправлен ping для поддержания WebSocket');
-                            }
-                        }, 30000);
-                        resolve(true);
-                    };
-
-                    const onError = (event: Event) => {
-                        console.error('Ошибка WebSocket:', event);
-                        cleanupEvents();
-                        if (retryCount < maxRetries) {
-                            retryCount++;
-                            console.log(`Повторная попытка подключения WebSocket (${retryCount}/${maxRetries})`);
-                            setTimeout(attemptConnection, 3000);
-                        } else {
-                            setError('Не удалось подключиться к WebSocket');
-                            resolve(false);
-                        }
-                    };
-
-                    const onClose = (event: CloseEvent) => {
-                        console.log('WebSocket закрыт:', event.code, event.reason);
-                        cleanupEvents();
-                        setIsConnected(false);
-                        if (setWebSocket) setWebSocket(null);
-                        if (retryCount < maxRetries) {
-                            retryCount++;
-                            console.log(`Повторная попытка подключения WebSocket (${retryCount}/${maxRetries})`);
-                            setTimeout(attemptConnection, 3000);
-                        } else {
-                            setError(event.code !== 1000 ? `WebSocket закрыт: ${event.reason || 'код ' + event.code}` : null);
-                            resolve(false);
-                        }
-                    };
-
-                    const cleanupEvents = () => {
-                        if (ws.current) {
-                            ws.current.removeEventListener('open', onOpen);
-                            ws.current.removeEventListener('error', onError);
-                            ws.current.removeEventListener('close', onClose);
-                        }
-                        if (connectionTimeout.current) {
-                            clearTimeout(connectionTimeout.current);
-                            connectionTimeout.current = null;
-                        }
-                    };
-
-                    connectionTimeout.current = setTimeout(() => {
-                        console.error('Таймаут подключения WebSocket');
-                        cleanupEvents();
-                        if (ws.current && ws.current.readyState !== WebSocket.OPEN) {
-                            ws.current.close();
-                            ws.current = null;
-                            if (setWebSocket) setWebSocket(null);
-                        }
-                        if (retryCount < maxRetries) {
-                            retryCount++;
-                            console.log(`Повторная попытка подключения WebSocket (${retryCount}/${maxRetries})`);
-                            setTimeout(attemptConnection, 3000);
-                        } else {
-                            setError('Таймаут подключения WebSocket');
-                            resolve(false);
-                        }
-                    }, WS_TIMEOUT);
-
-                    ws.current.addEventListener('open', onOpen);
-                    ws.current.addEventListener('error', onError);
-                    ws.current.addEventListener('close', onClose);
-                } catch (err) {
-                    console.error('Ошибка создания WebSocket:', err);
-                    if (retryCount < maxRetries) {
-                        retryCount++;
-                        console.log(`Повторная попытка подключения WebSocket (${retryCount}/${maxRetries})`);
-                        setTimeout(attemptConnection, 3000);
-                    } else {
-                        setError('Не удалось создать WebSocket');
-                        resolve(false);
-                    }
-                }
-            };
-
-            attemptConnection();
-        });
     };
 
     const initializeWebRTC = async () => {
@@ -313,6 +369,26 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
             rtcpMuxPolicy: 'require',
             iceTransportPolicy: 'all'
         });
+
+        if (mediaType === 'audio' || mediaType === 'audio-video') {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: mediaType === 'audio-video' ? getVideoConstraints() : false,
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+            setLocalStream(stream);
+            stream.getTracks().forEach(track => {
+                pc.current?.addTrack(track, stream);
+                console.log(`Добавлен ${track.kind} трек в PeerConnection:`, track.id);
+                if (track.kind === 'video') {
+                    configureVideoSender(pc.current!.getSenders().find(s => s.track === track)!);
+                }
+            });
+            setIsCameraEnabled(true);
+        }
 
         pc.current.onsignalingstatechange = () => {
             if (!pc.current) return;
@@ -520,13 +596,164 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
         };
     };
 
-    const joinRoom = async () => {
+    const startVideoCheckTimer = () => {
+        if (videoCheckTimeout.current) {
+            clearTimeout(videoCheckTimeout.current);
+            console.log('Очищен предыдущий таймер проверки видео');
+        }
+        console.log('Запуск таймера проверки видео');
+        videoCheckTimeout.current = setTimeout(() => {
+            const videoElement = videoRef.current;
+            const hasVideoContent = videoElement && videoElement.videoWidth > 0 && videoElement.videoHeight > 0;
+            console.log('Проверка видео:', {
+                remoteStream: !!remoteStream,
+                videoTracks: remoteStream?.getVideoTracks().length || 0,
+                firstTrackEnabled: remoteStream?.getVideoTracks()[0]?.enabled,
+                firstTrackReadyState: remoteStream?.getVideoTracks()[0]?.readyState,
+                hasVideoContent,
+                iceConnectionState: pc.current?.iceConnectionState,
+                signalingState: pc.current?.signalingState,
+            });
+            if (
+                isConnectionStable.current ||
+                (remoteStream &&
+                    remoteStream.getVideoTracks().length > 0 &&
+                    remoteStream.getVideoTracks()[0]?.enabled &&
+                    remoteStream.getVideoTracks()[0]?.readyState === 'live' &&
+                    hasVideoContent) ||
+                pc.current?.iceConnectionState === 'connected' ||
+                pc.current?.iceConnectionState === 'checking' ||
+                ws.current?.readyState === WebSocket.OPEN
+            ) {
+                console.log('Соединение стабильно или видео активно, переподключение не требуется');
+                if (pc.current?.iceConnectionState === 'connected' && hasVideoContent) {
+                    isConnectionStable.current = true;
+                }
+            } else {
+                console.warn('Видео не получено и соединение не активно, переподключение...');
+                resetConnection();
+            }
+        }, VIDEO_CHECK_TIMEOUT);
+    };
+
+    const connectWebSocket = async (): Promise<boolean> => {
+        return new Promise((resolve) => {
+            if (ws.current?.readyState === WebSocket.OPEN) {
+                console.log('WebSocket уже открыт');
+                if (setWebSocket) setWebSocket(ws.current);
+                resolve(true);
+                return;
+            }
+
+            let retryCount = 0;
+            const maxRetries = 10;
+
+            const attemptConnection = () => {
+                console.log(`Попытка подключения WebSocket ${retryCount + 1}/${maxRetries + 1}`);
+                try {
+                    ws.current = new WebSocket(process.env.WEBSOCKET_URL_WSGO || 'wss://ardua.site:444/wsgo');
+                    console.log('Инициализация WebSocket...');
+
+                    const onOpen = () => {
+                        console.log('WebSocket успешно подключен');
+                        cleanupEvents();
+                        setIsConnected(true);
+                        setError(null);
+                        if (setWebSocket) setWebSocket(ws.current);
+                        pingIntervalRef.current = setInterval(() => {
+                            if (ws.current?.readyState === WebSocket.OPEN) {
+                                sendWebSocketMessage({ type: 'ping' });
+                                console.log('Отправлен ping для поддержания WebSocket');
+                            }
+                        }, 30000);
+                        resolve(true);
+                    };
+
+                    const onError = (event: Event) => {
+                        console.error('Ошибка WebSocket:', event);
+                        cleanupEvents();
+                        if (retryCount < maxRetries) {
+                            retryCount++;
+                            console.log(`Повторная попытка подключения WebSocket (${retryCount}/${maxRetries})`);
+                            setTimeout(attemptConnection, 3000);
+                        } else {
+                            setError('Не удалось подключиться к WebSocket');
+                            resolve(false);
+                        }
+                    };
+
+                    const onClose = (event: CloseEvent) => {
+                        console.log('WebSocket закрыт:', event.code, event.reason);
+                        cleanupEvents();
+                        setIsConnected(false);
+                        if (setWebSocket) setWebSocket(null);
+                        if (retryCount < maxRetries) {
+                            retryCount++;
+                            console.log(`Повторная попытка подключения WebSocket (${retryCount}/${maxRetries})`);
+                            setTimeout(attemptConnection, 3000);
+                        } else {
+                            setError(event.code !== 1000 ? `WebSocket закрыт: ${event.reason || 'код ' + event.code}` : null);
+                            resolve(false);
+                        }
+                    };
+
+                    const cleanupEvents = () => {
+                        if (ws.current) {
+                            ws.current.removeEventListener('open', onOpen);
+                            ws.current.removeEventListener('error', onError);
+                            ws.current.removeEventListener('close', onClose);
+                        }
+                        if (connectionTimeout.current) {
+                            clearTimeout(connectionTimeout.current);
+                            connectionTimeout.current = null;
+                        }
+                    };
+
+                    connectionTimeout.current = setTimeout(() => {
+                        console.error('Таймаут подключения WebSocket');
+                        cleanupEvents();
+                        if (ws.current && ws.current.readyState !== WebSocket.OPEN) {
+                            ws.current.close();
+                            ws.current = null;
+                            if (setWebSocket) setWebSocket(null);
+                        }
+                        if (retryCount < maxRetries) {
+                            retryCount++;
+                            console.log(`Повторная попытка подключения WebSocket (${retryCount}/${maxRetries})`);
+                            setTimeout(attemptConnection, 3000);
+                        } else {
+                            setError('Таймаут подключения WebSocket');
+                            resolve(false);
+                        }
+                    }, WS_TIMEOUT);
+
+                    ws.current.addEventListener('open', onOpen);
+                    ws.current.addEventListener('error', onError);
+                    ws.current.addEventListener('close', onClose);
+                } catch (err) {
+                    console.error('Ошибка создания WebSocket:', err);
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        console.log(`Повторная попытка подключения WebSocket (${retryCount}/${maxRetries})`);
+                        setTimeout(attemptConnection, 3000);
+                    } else {
+                        setError('Не удалось создать WebSocket');
+                        resolve(false);
+                    }
+                }
+            };
+
+            attemptConnection();
+        });
+    };
+
+    const joinRoom = async (mediaType: 'none' | 'audio' | 'audio-video' = 'none') => {
         if (isJoining.current) {
             console.log('joinRoom уже выполняется, пропускаем...');
             return;
         }
         isJoining.current = true;
-        console.log('Запуск joinRoom, полная очистка перед новым соединением');
+        console.log('Запуск joinRoom, полная очистка перед новым соединением, mediaType:', mediaType);
         leaveRoom();
         setError(null);
         joinMessageRetries.current = 0;
@@ -570,7 +797,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
                         } else if (data.type === 'error') {
                             console.error('Ошибка при подключении:', data.data);
                             cleanupEvents();
-                            setError(`Error ${data.error}: ${data.message}`); // Исправлено: передаём строку
+                            setError(`Error ${data.error}: ${data.message}`);
                             if (joinMessageRetries.current < MAX_JOIN_MESSAGE_RETRIES) {
                                 joinMessageRetries.current += 1;
                                 console.log(`Повторная отправка join сообщения (${joinMessageRetries.current}/${MAX_JOIN_MESSAGE_RETRIES})`);
@@ -661,10 +888,6 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
             return;
         }
         lastRetryTimestamp.current = now;
-        if (isReconnecting.current) {
-            console.log('Переподключение уже выполняется, пропускаем...');
-            return;
-        }
         if (isConnectionStable.current) {
             console.log('Соединение стабильно, переподключение запрещено:', {
                 iceConnectionState: pc.current?.iceConnectionState,
@@ -689,15 +912,15 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
         }
         isReconnecting.current = true;
         console.log('Переподключение WebRTC...');
-        joinRoom();
+        joinRoom(mediaType);
     };
 
     useEffect(() => {
         if (roomId && !isJoining.current) {
-            joinRoom();
+            joinRoom(mediaType);
         }
         return () => leaveRoom();
-    }, [roomId]);
+    }, [roomId, mediaType]);
 
     return (
         <div className="relative w-full h-full">
