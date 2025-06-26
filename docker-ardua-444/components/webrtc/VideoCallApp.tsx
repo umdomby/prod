@@ -1845,11 +1845,17 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
 
             {isInRoom && (
                 <div className={styles.bottomRightButton}>
-                    {useBackCamera ?
-                        <img width={'20px'} height={'20px'} src="/camera/flip-camera.svg" alt="Image"/>
-                        :
-                        <img width={'20px'} height={'20px'} src="/camera/flip-camera2.svg" alt="Image"/>
-                    }
+                    <button
+                        onClick={toggleCamera}
+                        className={`${styles.controlButton}`}
+                        title={useBackCamera ? 'Переключить на фронтальную камеру' : 'Переключить на заднюю камеру'}
+                    >
+                        {useBackCamera ?
+                                <img width={'20px'} height={'20px'} src="/camera/flip-camera2.svg" alt="Image"/>
+                                :
+                                <img width={'20px'} height={'20px'} src="/camera/flip-camera.svg" alt="Image"/>
+                        }
+                    </button>
                 </div>
             )}
 
