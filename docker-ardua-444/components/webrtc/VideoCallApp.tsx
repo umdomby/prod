@@ -770,7 +770,7 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
     )
 
     const handleJoinRoom = useCallback(
-        debounce(async () => {
+        debounce(async (mediaType: 'none' | 'audio' | 'audio-video') => {
             if (!isRoomIdComplete) {
                 console.warn('ID комнаты не полный, подключение невозможно');
                 setError('ID комнаты должен состоять из 16 символов');
@@ -778,7 +778,7 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
             }
 
             setIsJoining(true);
-            console.log('Попытка подключения к комнате:', roomId);
+            console.log('Попытка подключения к комнате:', roomId, 'с медиа:', mediaType);
 
             try {
                 const checkResult = await checkRoom(roomId.replace(/-/g, ''));
@@ -804,7 +804,7 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                 }
 
                 if (checkResult.isProxy) {
-                    setIsProxyConnection(true); // Устанавливаем при прокси-подключении
+                    setIsProxyConnection(true);
                     const proxyNotification = document.createElement('div');
                     proxyNotification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white mt-10 px-4 py-2 rounded shadow-lg';
                     proxyNotification.textContent = 'Подключение через прокси-комнату';
@@ -824,9 +824,16 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                     await handleSetDefaultRoom(roomId.replace(/-/g, ''));
                 }
 
-                await joinRoom(username, checkResult.targetRoomId);
-                console.log('Успешно подключено к комнате:', roomId);
+                await joinRoom(username, checkResult.targetRoomId, mediaType);
+                console.log('Успешно подключено к комнате:', roomId, 'с медиа:', mediaType);
                 setActiveMainTab('esp');
+
+                // Включаем медиа в зависимости от mediaType
+                if (mediaType === 'audio') {
+                    await enableCamera(true); // Включаем только аудио (muteLocalAudio=true отключает аудио, но нам нужно включить)
+                } else if (mediaType === 'audio-video') {
+                    await enableCamera(false); // Включаем и аудио, и видео
+                }
             } catch (error) {
                 console.error('Ошибка подключения к комнате:', error);
                 setError(`Ошибка подключения: ${(error instanceof Error ? error.message : String(error))}`);
@@ -835,8 +842,9 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                 console.log('Состояние isJoining сброшено');
             }
         }, 300),
-        [isRoomIdComplete, roomId, username, joinRoom, setError, handleSetDefaultRoom, savedRooms, savedProxyRooms, checkRoom]
+        [isRoomIdComplete, roomId, username, joinRoom, setError, handleSetDefaultRoom, savedRooms, savedProxyRooms, checkRoom, enableCamera]
     );
+
     useEffect(() => {
         if (
             autoJoin &&
@@ -1361,32 +1369,25 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                             {isInRoom ? (
                                 <Button
                                     onClick={async () => {
-                                        leaveRoom(); // Полная очистка WebRTC
+                                        leaveRoom();
                                         setActiveMainTab('webrtc');
                                         setIsJoining(false);
-                                        setAutoJoin(false); // Отключаем автоподключение
+                                        setAutoJoin(false);
                                         setError(null);
-                                        hasAttemptedAutoJoin.current = true; // Блокируем повторное автоподключение
+                                        hasAttemptedAutoJoin.current = true;
                                         setSelectedDeviceId(null);
                                         if (socketClientRef.current?.disconnectWebSocket) {
                                             console.log(`Отключение WebSocket устройства для: ${selectedDeviceId || 'не выбрано'}`);
                                             await socketClientRef.current.disconnectWebSocket();
                                             console.log("WebSocket устройства отключен");
                                         }
-                                        // Восстанавливаем roomId из URL для UI
                                         const urlParams = new URLSearchParams(window.location.search);
                                         const roomIdFromUrl = urlParams.get('roomId');
                                         if (roomIdFromUrl) {
                                             setRoomId(formatRoomId(roomIdFromUrl.replace(/-/g, '')));
                                         }
-                                        // Обновляем локальное состояние savedRooms и savedProxyRooms
-                                        // const normalizedRoomId = roomId.replace(/-/g, '');
-                                        // setSavedRooms((prev) =>
-                                        //     prev.map((r) => (r.id === normalizedRoomId ? { ...r, autoConnect: false } : r))
-                                        // );
-                                        // setSavedProxyRooms((prev) =>
-                                        //     prev.map((p) => (p.id === normalizedRoomId ? { ...p, autoConnect: false } : p))
-                                        // );
+                                        setShowDisconnectDialog(true);
+                                        setTimeout(() => setShowDisconnectDialog(false), 3000);
                                     }}
                                     disabled={!isConnected}
                                     className={styles.button}
@@ -1394,25 +1395,42 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                                     Покинуть комнату
                                 </Button>
                             ) : isJoining ? (
-                                <Button
-                                    // onClick={handleCancelJoin}
-                                    disabled={true}
-                                    className={styles.button}
-                                    variant="destructive"
-                                >
+                                <Button disabled={true} className={styles.button} variant="destructive">
                                     Подключение...
                                 </Button>
                             ) : (
-                                <Button
-                                    onClick={() => {
-                                        hasAttemptedAutoJoin.current = false;
-                                        handleJoinRoom();
-                                    }}
-                                    disabled={!isRoomIdComplete}
-                                    className={styles.button}
-                                >
-                                    Войти в комнату
-                                </Button>
+                                <div className="flex space-x-2">
+                                    <Button
+                                        onClick={() => {
+                                            hasAttemptedAutoJoin.current = false;
+                                            handleJoinRoom('none');
+                                        }}
+                                        disabled={!isRoomIdComplete}
+                                        className={styles.button}
+                                    >
+                                        Войти в комнату
+                                    </Button>
+                                    <Button
+                                        onClick={() => {
+                                            hasAttemptedAutoJoin.current = false;
+                                            handleJoinRoom('audio');
+                                        }}
+                                        disabled={!isRoomIdComplete}
+                                        className={styles.button}
+                                    >
+                                        Войти со звуком
+                                    </Button>
+                                    <Button
+                                        onClick={() => {
+                                            hasAttemptedAutoJoin.current = false;
+                                            handleJoinRoom('audio-video');
+                                        }}
+                                        disabled={!isRoomIdComplete}
+                                        className={styles.button}
+                                    >
+                                        Войти со звуком и видео
+                                    </Button>
+                                </div>
                             )}
                         </div>
 

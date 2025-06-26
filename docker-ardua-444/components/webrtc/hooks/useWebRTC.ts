@@ -1411,8 +1411,8 @@ export const useWebRTC = (
         }
     };
 
-    const joinRoom = async (uniqueUsername: string, customRoomId?: string) => {
-        console.log('Запуск joinRoom, полная очистка перед новым соединением');
+    const joinRoom = async (uniqueUsername: string, customRoomId?: string, mediaType: 'none' | 'audio' | 'audio-video' = 'none') => {
+        console.log('Запуск joinRoom, полная очистка перед новым соединением, mediaType:', mediaType);
         leaveRoom(); // Полная очистка перед новым соединением
         setError(null);
         setIsInRoom(false);
@@ -1426,10 +1426,15 @@ export const useWebRTC = (
 
             setupWebSocketListeners();
 
-            // if (!(await initializeWebRTC())) {
-            //     throw new Error('Не удалось инициализировать WebRTC');
-            // }
             await initializeWebRTC();
+
+            // Устанавливаем isCameraEnabled в зависимости от mediaType
+            if (mediaType === 'audio' || mediaType === 'audio-video') {
+                setIsCameraEnabled(true);
+                await enableCamera(mediaType === 'audio'); // muteLocalAudio=true для только аудио
+            } else {
+                setIsCameraEnabled(false);
+            }
 
             await new Promise<void>((resolve, reject) => {
                 if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
@@ -1446,8 +1451,8 @@ export const useWebRTC = (
                             cleanupEvents();
                             setIsInRoom(true);
                             setUsers(data.data?.users || []);
-                            setError(null); // Сбрасываем ошибку при успешном подключении
-                            retryAttempts.current = 0; // Сбрасываем счетчик попыток
+                            setError(null);
+                            retryAttempts.current = 0;
                             setRetryCount(0);
                             resolve();
                         } else if (data.type === 'error') {
@@ -1459,7 +1464,7 @@ export const useWebRTC = (
                                     webRTCRetryTimeoutRef.current = setTimeout(() => {
                                         retryAttempts.current += 1;
                                         setRetryCount(retryAttempts.current);
-                                        joinRoom(uniqueUsername, customRoomId).catch(console.error);
+                                        joinRoom(uniqueUsername, customRoomId, mediaType).catch(console.error);
                                     }, 5000);
                                     return;
                                 } else {
@@ -1530,7 +1535,7 @@ export const useWebRTC = (
                 webRTCRetryTimeoutRef.current = setTimeout(() => {
                     retryAttempts.current += 1;
                     setRetryCount(retryAttempts.current);
-                    joinRoom(uniqueUsername, customRoomId).catch(console.error);
+                    joinRoom(uniqueUsername, customRoomId, mediaType).catch(console.error);
                 }, 5000);
             } else {
                 console.error('Исчерпаны все попытки подключения');
@@ -1562,8 +1567,8 @@ export const useWebRTC = (
         setError,
         ws: ws.current,
         activeCodec,
-        isCameraEnabled, // Добавляем состояние камеры
-        enableCamera, // Добавляем функцию включения камеры
-        disableCamera
+        isCameraEnabled,
+        enableCamera,
+        disableCamera,
     };
 };
