@@ -42,6 +42,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
     const [showRoomNotExistDialog, setShowRoomNotExistDialog] = useState(false)
     const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
     const [showLocalVideo, setShowLocalVideo] = useState(false)
+    const [isCameraEnabled, setIsCameraEnabled] = useState(false) // Новое состояние
     const videoContainerRef = useRef<HTMLDivElement>(null)
     const remoteVideoRef = useRef<HTMLVideoElement>(null)
     const localVideoRef = useRef<HTMLVideoElement>(null)
@@ -293,6 +294,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             setShowDisconnectDialog(true)
             setTimeout(() => setShowDisconnectDialog(false), 3000)
             setShowLocalVideo(false)
+            setIsCameraEnabled(false) // Сбрасываем состояние камеры
 
             if (leaveRoomRef.current) {
                 try {
@@ -321,23 +323,14 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             webRTCRef.current = {
                 joinRoom: webRTCRef.current?.joinRoom || (async () => {}),
                 leaveRoom: leaveRoomRef.current,
-                isCameraEnabled: webRTCRef.current?.isCameraEnabled || false,
+                isCameraEnabled: isCameraEnabled, // Используем локальное состояние
                 enableCamera: webRTCRef.current?.enableCamera || (async () => {}),
                 disableCamera: webRTCRef.current?.disableCamera || (async () => {}),
                 toggleMicrophone: webRTCRef.current?.toggleMicrophone || (() => {}),
                 localStream: webRTCRef.current?.localStream || null
             }
         }
-    }, [
-        leaveRoomRef.current,
-        webRTCRef.current?.joinRoom,
-        webRTCRef.current?.leaveRoom,
-        webRTCRef.current?.isCameraEnabled,
-        webRTCRef.current?.enableCamera,
-        webRTCRef.current?.disableCamera,
-        webRTCRef.current?.toggleMicrophone,
-        webRTCRef.current?.localStream
-    ])
+    }, [leaveRoomRef.current, isCameraEnabled])
 
     return (
         <div className={`${styles.container} relative w-full h-screen overflow-hidden`} suppressHydrationWarning>
@@ -349,6 +342,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                     setWebSocket={(ws) => { wsRef.current = ws }}
                     useBackCamera={useBackCamera}
                     mediaType={showLocalVideo ? 'audio-video' : 'none'}
+                    setIsCameraEnabled={setIsCameraEnabled} // Передаем setIsCameraEnabled
                 />
                 {showLocalVideo && webRTCRef.current?.localStream && (
                     <VideoPlayer
@@ -371,40 +365,36 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                 <div className={styles.tabsContainer}>
                     <button
                         onClick={() => {
-                            if (webRTCRef.current?.isCameraEnabled) {
-                                webRTCRef.current.disableCamera()
+                            if (isCameraEnabled) {
+                                webRTCRef.current?.disableCamera()
                                 setShowLocalVideo(false)
+                                setIsCameraEnabled(false)
                                 showNotification('Камера и микрофон отключены')
                             } else {
                                 webRTCRef.current?.enableCamera(muteLocalAudio)
                                 setShowLocalVideo(true)
+                                setIsCameraEnabled(true)
                                 showNotification('Камера и микрофон включены')
                             }
                         }}
                         onTouchEnd={() => {
-                            if (webRTCRef.current?.isCameraEnabled) {
-                                webRTCRef.current.disableCamera()
+                            if (isCameraEnabled) {
+                                webRTCRef.current?.disableCamera()
                                 setShowLocalVideo(false)
+                                setIsCameraEnabled(false)
                                 showNotification('Камера и микрофон отключены')
                             } else {
                                 webRTCRef.current?.enableCamera(muteLocalAudio)
                                 setShowLocalVideo(true)
+                                setIsCameraEnabled(true)
                                 showNotification('Камера и микрофон включены')
                             }
                         }}
-                        className={[styles.controlButton, webRTCRef.current?.isCameraEnabled ? styles.active : ''].join(' ')}
-                        title={webRTCRef.current?.isCameraEnabled ? 'Отключить камеру' : 'Включить камеру'}
+                        className={[styles.controlButton, isCameraEnabled ? styles.active : ''].join(' ')}
+                        title={isCameraEnabled ? 'Отключить камеру' : 'Включить камеру'}
                     >
-                        {webRTCRef.current?.isCameraEnabled ? '📷✕🎤✕' : '📷🎤'}
+                        {isCameraEnabled ? '📷🎤' : '📷✕🎤✕'}
                     </button>
-                    {/*<button*/}
-                    {/*    onClick={toggleMuteLocalAudio}*/}
-                    {/*    onTouchEnd={toggleMuteLocalAudio}*/}
-                    {/*    className={[styles.controlButton, muteLocalAudio ? styles.active : ''].join(' ')}*/}
-                    {/*    title={muteLocalAudio ? 'Включить микрофон' : 'Отключить микрофон'}*/}
-                    {/*>*/}
-                    {/*    {muteLocalAudio ? '🎤✕' : '🎤'}*/}
-                    {/*</button>*/}
                     <button
                         onClick={() => toggleTab('webrtc')}
                         onTouchEnd={() => toggleTab('webrtc')}

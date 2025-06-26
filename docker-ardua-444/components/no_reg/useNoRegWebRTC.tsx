@@ -1,3 +1,4 @@
+// file: docker-ardua-444/components/no_reg/useNoRegWebRTC.tsx
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { VideoPlayer } from '@/components/webrtc/components/VideoPlayer';
@@ -11,6 +12,7 @@ interface NoRegWebRTCProps {
     setWebSocket?: (ws: WebSocket | null) => void;
     useBackCamera?: boolean;
     mediaType?: 'none' | 'audio' | 'audio-video';
+    setIsCameraEnabled?: (enabled: boolean) => void; // Новый пропс
 }
 
 interface WebSocketMessage {
@@ -26,7 +28,7 @@ interface WebSocketMessage {
     preferredCodec?: string;
 }
 
-export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, setWebSocket, useBackCamera, mediaType = 'none' }: NoRegWebRTCProps) {
+export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, setWebSocket, useBackCamera, mediaType = 'none', setIsCameraEnabled }: NoRegWebRTCProps) {
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [isConnected, setIsConnected] = useState(false);
@@ -37,7 +39,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
         ice: string | null;
         signaling: string | null;
     }>({ ice: null, signaling: null });
-    const [isCameraEnabled, setIsCameraEnabled] = useState(false);
+    const [isCameraEnabled, setIsCameraEnabledState] = useState(false); // Переименовано для избежания конфликта
     const [isMuted, setIsMuted] = useState<boolean>(true);
     const [flashlightState, setFlashlightState] = useState<boolean>(false);
     const ws = useRef<WebSocket | null>(null);
@@ -58,6 +60,14 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
     const VIDEO_CHECK_TIMEOUT = 12000;
     const WS_TIMEOUT = 10000;
     const MAX_JOIN_MESSAGE_RETRIES = 10;
+
+    // Синхронизация isCameraEnabled с родительским компонентом
+    const setCameraEnabled = (enabled: boolean) => {
+        setIsCameraEnabledState(enabled);
+        if (setIsCameraEnabled) {
+            setIsCameraEnabled(enabled);
+        }
+    };
 
     const detectPlatform = () => {
         const ua = navigator.userAgent;
@@ -208,7 +218,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
                 }
             }
 
-            setIsCameraEnabled(true);
+            setCameraEnabled(true); // Обновляем состояние
             console.log('Камера и микрофон успешно включены');
         } catch (err) {
             console.error('Ошибка включения камеры и микрофона:', err);
@@ -259,7 +269,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
             }
 
             setLocalStream(null);
-            setIsCameraEnabled(false);
+            setCameraEnabled(false); // Обновляем состояние
             console.log('Камера и микрофон успешно отключены');
         } catch (err) {
             console.error('Ошибка отключения камеры и микрофона:', err);
@@ -335,7 +345,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
 
         setIsConnected(false);
         setIsInRoom(false);
-        setIsCameraEnabled(false);
+        setCameraEnabled(false); // Сбрасываем состояние камеры
         setError(null);
         setConnectionState({ ice: null, signaling: null });
         retryAttempts.current = 0;
@@ -345,6 +355,7 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
         isReconnecting.current = false;
         isConnectionStable.current = false;
         if (setWebSocket) setWebSocket(null);
+        if (setLeaveRoom) setLeaveRoom(leaveRoom); // Передаем leaveRoom в родительский компонент
     };
 
     const initializeWebRTC = async () => {
@@ -387,7 +398,9 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
                     configureVideoSender(pc.current!.getSenders().find(s => s.track === track)!);
                 }
             });
-            setIsCameraEnabled(true);
+            setCameraEnabled(true); // Устанавливаем при инициализации
+        } else {
+            setCameraEnabled(false); // Устанавливаем при отсутствии медиа
         }
 
         pc.current.onsignalingstatechange = () => {
@@ -916,11 +929,34 @@ export default function UseNoRegWebRTC({ roomId, setLeaveRoom, videoTransform, s
     };
 
     useEffect(() => {
+        if (setLeaveRoom) {
+            setLeaveRoom(leaveRoom);
+        }
+    }, [setLeaveRoom]);
+
+    useEffect(() => {
         if (roomId && !isJoining.current) {
             joinRoom(mediaType);
         }
         return () => leaveRoom();
     }, [roomId, mediaType]);
+
+    // Передаем методы в родительский компонент
+    useEffect(() => {
+        if (setLeaveRoom) {
+            setLeaveRoom(leaveRoom);
+        }
+        // Экспортируем методы через реф
+        (window as any).webRTCRef = {
+            joinRoom,
+            leaveRoom,
+            isCameraEnabled,
+            enableCamera,
+            disableCamera,
+            toggleMicrophone,
+            localStream
+        };
+    }, [isCameraEnabled, localStream, setLeaveRoom]);
 
     return (
         <div className="relative w-full h-full">
