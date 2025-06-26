@@ -1814,22 +1814,22 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                             >
                                 {showLocalVideo ? '👁' : '👁‍🗨'}
                             </button>
-                            <button
-                                onClick={toggleMuteLocalAudio}
-                                onTouchEnd={toggleMuteLocalAudio}
-                                className={[styles.controlButton, muteLocalAudio ? styles.active : ''].join(' ')}
-                                title={muteLocalAudio ? 'Включить микрофон' : 'Отключить микрофон'}
-                            >
-                                {muteLocalAudio ? '🚫🎤' : '🎤'}
-                            </button>
-                            <button
-                                onClick={toggleMuteRemoteAudio}
-                                onTouchEnd={toggleMuteRemoteAudio}
-                                className={[styles.controlButton, muteRemoteAudio ? styles.active : ''].join(' ')}
-                                title={muteRemoteAudio ? 'Включить звук' : 'Отключить звук'}
-                            >
-                                {muteRemoteAudio ? '🔇' : '🔈'}
-                            </button>
+                            {/*<button*/}
+                            {/*    onClick={toggleMuteLocalAudio}*/}
+                            {/*    onTouchEnd={toggleMuteLocalAudio}*/}
+                            {/*    className={[styles.controlButton, muteLocalAudio ? styles.active : ''].join(' ')}*/}
+                            {/*    title={muteLocalAudio ? 'Включить микрофон' : 'Отключить микрофон'}*/}
+                            {/*>*/}
+                            {/*    {muteLocalAudio ? '🚫🎤' : '🎤'}*/}
+                            {/*</button>*/}
+                            {/*<button*/}
+                            {/*    onClick={toggleMuteRemoteAudio}*/}
+                            {/*    onTouchEnd={toggleMuteRemoteAudio}*/}
+                            {/*    className={[styles.controlButton, muteRemoteAudio ? styles.active : ''].join(' ')}*/}
+                            {/*    title={muteRemoteAudio ? 'Включить звук' : 'Отключить звук'}*/}
+                            {/*>*/}
+                            {/*    {muteRemoteAudio ? '🔇' : '🔈'}*/}
+                            {/*</button>*/}
                             <button
                                 onClick={toggleFlashlight}
                                 onTouchEnd={toggleFlashlight}
