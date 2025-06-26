@@ -395,16 +395,16 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                         className={[styles.controlButton, webRTCRef.current?.isCameraEnabled ? styles.active : ''].join(' ')}
                         title={webRTCRef.current?.isCameraEnabled ? 'Отключить камеру' : 'Включить камеру'}
                     >
-                        {webRTCRef.current?.isCameraEnabled ? '📷✕' : '📷'}
+                        {webRTCRef.current?.isCameraEnabled ? '📷✕🎤✕' : '📷🎤'}
                     </button>
-                    <button
-                        onClick={toggleMuteLocalAudio}
-                        onTouchEnd={toggleMuteLocalAudio}
-                        className={[styles.controlButton, muteLocalAudio ? styles.active : ''].join(' ')}
-                        title={muteLocalAudio ? 'Включить микрофон' : 'Отключить микрофон'}
-                    >
-                        {muteLocalAudio ? '🎤✕' : '🎤'}
-                    </button>
+                    {/*<button*/}
+                    {/*    onClick={toggleMuteLocalAudio}*/}
+                    {/*    onTouchEnd={toggleMuteLocalAudio}*/}
+                    {/*    className={[styles.controlButton, muteLocalAudio ? styles.active : ''].join(' ')}*/}
+                    {/*    title={muteLocalAudio ? 'Включить микрофон' : 'Отключить микрофон'}*/}
+                    {/*>*/}
+                    {/*    {muteLocalAudio ? '🎤✕' : '🎤'}*/}
+                    {/*</button>*/}
                     <button
                         onClick={() => toggleTab('webrtc')}
                         onTouchEnd={() => toggleTab('webrtc')}
