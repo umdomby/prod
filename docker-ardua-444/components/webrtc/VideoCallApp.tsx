@@ -1410,16 +1410,16 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                                     >
                                         Войти в комнату
                                     </Button>
-                                    <Button
-                                        onClick={() => {
-                                            hasAttemptedAutoJoin.current = false;
-                                            handleJoinRoom('audio');
-                                        }}
-                                        disabled={!isRoomIdComplete}
-                                        className={styles.button}
-                                    >
-                                        Войти со звуком
-                                    </Button>
+                                    {/*<Button*/}
+                                    {/*    onClick={() => {*/}
+                                    {/*        hasAttemptedAutoJoin.current = false;*/}
+                                    {/*        handleJoinRoom('audio');*/}
+                                    {/*    }}*/}
+                                    {/*    disabled={!isRoomIdComplete}*/}
+                                    {/*    className={styles.button}*/}
+                                    {/*>*/}
+                                    {/*    Войти со звуком*/}
+                                    {/*</Button>*/}
                                     <Button
                                         onClick={() => {
                                             hasAttemptedAutoJoin.current = false;
