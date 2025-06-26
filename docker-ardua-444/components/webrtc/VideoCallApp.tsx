@@ -1513,7 +1513,7 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
     >
       {formatRoomId(room.id)}
     </span>
-                                            <div className="flex items-center space-x-2">
+                                            <div className="flex items-center mr-3">
                                                 <Checkbox
                                                     id={`default-room-${room.id}`}
                                                     checked={room.isDefault}
@@ -1543,9 +1543,9 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                                                         }
                                                     }}
                                                 />
-                                                <Label htmlFor={`default-room-${room.id}`}>По умолчанию</Label>
+                                                <Label className="px-1" htmlFor={`default-room-${room.id}`}>Start</Label>
                                             </div>
-                                            <div className="flex items-center space-x-2">
+                                            <div className="flex items-center">
                                                 <Checkbox
                                                     id={`autoConnect-room-${room.id}`}
                                                     checked={room.autoConnect}
@@ -1556,7 +1556,7 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                                                         );
                                                     }}
                                                 />
-                                                <Label htmlFor={`autoConnect-room-${room.id}`}>Автоподключение</Label>
+                                                <Label htmlFor={`autoConnect-room-${room.id}`}><img width={'20px'} height={'20px'} src="/connect/autorenew-rounded.svg" alt="Image"/></Label>
                                             </div>
                                             <button
                                                 onClick={() => handleDeleteRoom(room.id)}
