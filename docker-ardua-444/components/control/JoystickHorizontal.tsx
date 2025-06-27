@@ -82,8 +82,8 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
                 position: 'absolute',
                 width: '150px',
                 height: '150px',
-                left: isLandscape ? '25%' : '30%', // Центр левой половины
-                top: '50%', // Вертикальный центр
+                left: isLandscape ? '15%' : '28%', // 15% дальше от центра влево
+                top: isLandscape ? '65%' : '75%', // Внизу экрана
                 transform: 'translate(-50%, -50%)',
                 touchAction: 'none',
                 userSelect: 'none',

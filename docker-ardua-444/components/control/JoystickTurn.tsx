@@ -110,8 +110,8 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
                 position: 'absolute',
                 width: '150px',
                 height: '150px',
-                left: isLandscape ? '75%' : '70%', // Центр правой половины
-                top: '50%', // Вертикальный центр
+                left: isLandscape ? '85%' : '72%', // 15% дальше от центра вправо
+                top: isLandscape ? '65%' : '75%', // Внизу экрана
                 transform: 'translate(-50%, -50%)',
                 touchAction: 'none',
                 userSelect: 'none',
