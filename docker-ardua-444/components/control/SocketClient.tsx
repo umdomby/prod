@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
 import JoystickTurn from '@/components/control/JoystickTurn'
+import JoystickHorizontal from '@/components/control/JoystickHorizontal' // Добавляем новый компонент
 import { useServo } from '@/components/ServoContext';
 import {
     getDevices,
@@ -1100,7 +1101,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const joystickComponents = {
         Joystick: Joystick,
         JoystickTurn: JoystickTurn,
-        JoystickUp: JoystickUp
+        JoystickUp: JoystickUp,
+        JoystickHorizontal: JoystickHorizontal // Добавляем новый компонент
     }
     const ActiveJoystick = joystickComponents[selectedJoystick]
 
@@ -1379,15 +1381,24 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
 
             <div className={`mt-24 ${activeTab === 'controls' ? 'opacity-50' : ''}`}>
                 {selectedJoystick === 'JoystickTurn' ? (
-                    <ActiveJoystick
-                        onChange={({ x, y }) => {
-                            handleMotorAControl(x)
-                            handleMotorBControl(y)
-                        }}
-                        direction={motorADirection}
-                        sp={motorASpeed}
-                        disabled={!isConnected}
-                    />
+                    <>
+                        <JoystickTurn
+                            onChange={({ x, y }) => {
+                                handleMotorAControl(x)
+                                handleMotorBControl(y)
+                            }}
+                            direction={motorADirection}
+                            sp={motorASpeed}
+                            disabled={!isConnected}
+                        />
+                        <JoystickHorizontal
+                            onChange={({ x, y }) => {
+                                handleMotorAControl(x)
+                                handleMotorBControl(y)
+                            }}
+                            disabled={!isConnected}
+                        />
+                    </>
                 ) : (
                     <>
                         <ActiveJoystick
