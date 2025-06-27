@@ -1546,7 +1546,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         <div className="relative">
                             <Button
                                 onClick={() => setShowJoystickMenu(!showJoystickMenu)}
-                                className="bg-transparent hover:bg-gray-700/30 border border-gray-600 p-3 rounded-full transition-all flex items-center"
+                                className="bg-transparent hover:bg-gray-700/30 border border-gray-600 p-2 rounded-full transition-all flex items-center"
                                 title={showJoystickMenu ? 'Скрыть выбор джойстика' : 'Показать выбор джойстика'}
                             >
                                 <img
