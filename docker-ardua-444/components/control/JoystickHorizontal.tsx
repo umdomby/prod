@@ -1,6 +1,7 @@
 "use client"
 import { useCallback, useEffect, useState } from 'react'
 import { Joystick } from 'react-joystick-component'
+import styles from './JoystickStyles.module.css' // Импорт CSS-модуля
 
 type JoystickHorizontalProps = {
     onChange: (value: { x: number; y: number }) => void
@@ -76,13 +77,13 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
 
     return (
         <div
-            className={`${className} select-none`}
+            className={`${className} ${styles.horizontalJoystickContainer} select-none`}
             style={{
                 position: 'absolute',
-                width: '150px', // Размер как в JoystickTurn
-                height: '150px', // Размер как в JoystickTurn
-                left: isLandscape ? '15%' : '20%', // Левый нижний угол
-                top: isLandscape ? '80%' : '85%', // Левый нижний угол
+                width: '150px',
+                height: '150px',
+                left: isLandscape ? '25%' : '30%', // Центр левой половины
+                top: '50%', // Вертикальный центр
                 transform: 'translate(-50%, -50%)',
                 touchAction: 'none',
                 userSelect: 'none',
@@ -94,15 +95,15 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
             }}
         >
             <Joystick
-                size={150} // Размер как в JoystickTurn
-                baseColor="rgba(255, 255, 255, 0.2)" // Цвет как в JoystickTurn
-                stickColor="rgba(255, 255, 255, 0.7)" // Цвет как в JoystickTurn
+                size={150}
+                baseColor="rgba(255, 255, 255, 0.2)"
+                stickColor="rgba(255, 255, 255, 0.7)"
                 move={handleMove}
                 stop={handleStop}
                 disabled={disabled}
                 throttle={40}
-                stickShape="cross" // Форма ползунка как в JoystickTurn
-                controlPlaneShape="horizontal" // Ограничение движения по горизонтали
+                stickShape="cross"
+                controlPlaneShape="horizontal"
             />
         </div>
     )

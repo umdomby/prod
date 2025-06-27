@@ -1,6 +1,7 @@
 "use client"
 import { useCallback, useEffect, useState } from 'react'
 import { Joystick } from 'react-joystick-component'
+import styles from './JoystickStyles.module.css' // Импорт CSS-модуля
 
 type JoystickProps = {
     onChange: (value: { x: number; y: number }) => void
@@ -104,20 +105,20 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
 
     return (
         <div
-            className={className}
+            className={`${className} ${styles.turnJoystickContainer} select-none`}
             style={{
                 position: 'absolute',
                 width: '150px',
                 height: '150px',
-                left: isLandscape ? '85%' : '80%', // Правый нижний угол
-                top: isLandscape ? '80%' : '85%', // Правый нижний угол
+                left: isLandscape ? '75%' : '70%', // Центр правой половины
+                top: '50%', // Вертикальный центр
                 transform: 'translate(-50%, -50%)',
                 touchAction: 'none',
-                userSelect: 'none', // Запрет выделения
-                WebkitUserSelect: 'none', // Для Safari
-                MsUserSelect: 'none', // Для Edge
-                MozUserSelect: 'none', // Для Firefox
-                WebkitTapHighlightColor: 'transparent', // Убрать подсветку касания
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                MsUserSelect: 'none',
+                MozUserSelect: 'none',
+                WebkitTapHighlightColor: 'transparent',
                 zIndex: 1001
             }}
         >
