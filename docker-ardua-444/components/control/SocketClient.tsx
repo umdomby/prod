@@ -1586,9 +1586,9 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                     width={'25px'}
                                     height={'25px'}
                                     src={
+                                        selectedJoystick === 'JoystickTurn' ? '/control/arrows-turn.svg' :
                                         selectedJoystick === 'Joystick' ? '/control/arrows-down.svg' :
-                                            selectedJoystick === 'JoystickUp' ? '/control/arrows-up.svg' :
-                                                '/control/arrows-turn.svg'
+                                            selectedJoystick === 'JoystickUp' ? '/control/arrows-up.svg' : ''
                                     }
                                     alt="Joystick Select"
                                 />
