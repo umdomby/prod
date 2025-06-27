@@ -98,8 +98,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [showServos, setShowServos] = useState<boolean | null>(null)
     const [activeTab, setActiveTab] = useState<'esp' | 'controls' | 'joystickControl' | null>('esp')
     const [showJoystickMenu, setShowJoystickMenu] = useState(false)
-    const [selectedJoystick, setSelectedJoystick] = useState<'Joystick' | 'JoystickTurn' | 'JoystickUp'>(
-        (typeof window !== 'undefined' && localStorage.getItem('selectedJoystick') as 'Joystick' | 'JoystickTurn' | 'JoystickUp') || 'Joystick'
+    const [selectedJoystick, setSelectedJoystick] = useState<'JoystickTurn' | 'Joystick' | 'JoystickUp'>(
+        (typeof window !== 'undefined' && localStorage.getItem('selectedJoystick') as 'Joystick' | 'JoystickTurn' | 'JoystickUp') || 'JoystickTurn'
     )
 
     const lastHeartbeatLogTime = useRef<number>(0);
