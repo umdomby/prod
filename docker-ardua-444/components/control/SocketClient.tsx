@@ -25,6 +25,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
+import JoystickUp from "@/components/control/JoystickUp";
 
 type MessageType = {
     ty?: string
@@ -97,8 +98,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [showServos, setShowServos] = useState<boolean | null>(null)
     const [activeTab, setActiveTab] = useState<'esp' | 'controls' | 'joystickControl' | null>('esp')
     const [showJoystickMenu, setShowJoystickMenu] = useState(false)
-    const [selectedJoystick, setSelectedJoystick] = useState<'Joystick' | 'JoystickTurn'>(
-        (typeof window !== 'undefined' && localStorage.getItem('selectedJoystick') as 'Joystick' | 'JoystickTurn') || 'Joystick'
+    const [selectedJoystick, setSelectedJoystick] = useState<'Joystick' | 'JoystickTurn' | 'JoystickUp'>(
+        (typeof window !== 'undefined' && localStorage.getItem('selectedJoystick') as 'Joystick' | 'JoystickTurn' | 'JoystickUp') || 'Joystick'
     )
 
     const lastHeartbeatLogTime = useRef<number>(0);
@@ -1100,7 +1101,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
 
     const joystickComponents = {
         Joystick: Joystick,
-        JoystickTurn: JoystickTurn
+        JoystickTurn: JoystickTurn,
+        JoystickUp: JoystickUp
     }
     const ActiveJoystick = joystickComponents[selectedJoystick]
 
@@ -1544,7 +1546,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         <div className="relative">
                             <Button
                                 onClick={() => setShowJoystickMenu(!showJoystickMenu)}
-                                className="bg-transparent hover:bg-gray-700/30 border border-gray-600 p-2 rounded-full transition-all flex items-center"
+                                className="bg-transparent hover:bg-gray-700/30 border border-gray-600 p-3 rounded-full transition-all flex items-center"
                                 title={showJoystickMenu ? 'Скрыть выбор джойстика' : 'Показать выбор джойстика'}
                             >
                                 <img
@@ -1555,27 +1557,34 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                 />
                             </Button>
                             {showJoystickMenu && (
-                                <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-black rounded-lg p-2 border border-gray-200 z-50">
+                                <div className="absolute bottom-12 bg-black rounded-lg border border-gray-200 z-50">
                                     <div className="flex flex-col items-center space-y-2">
                                         <Button
                                             onClick={() => {
                                                 setSelectedJoystick('Joystick')
                                                 setShowJoystickMenu(false)
                                             }}
-                                            className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
                                         >
-                                            <img width={'25px'} height={'25px'} src="/control/arrows-down.svg" alt="Standard Joystick" />
-                                            <span className="ml-2 text-xs sm:text-sm text-gray-300">Inverted</span>
+                                            <img width={'35px'} height={'35px'} src="/control/arrows-down.svg" alt="Down Joystick" />
+                                        </Button>
+                                        <Button
+                                            onClick={() => {
+                                                setSelectedJoystick('JoystickUp')
+                                                setShowJoystickMenu(false)
+                                            }}
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
+                                        >
+                                            <img width={'35px'} height={'35px'} src="/control/arrows-up.svg" alt="Up Joystick" />
                                         </Button>
                                         <Button
                                             onClick={() => {
                                                 setSelectedJoystick('JoystickTurn')
                                                 setShowJoystickMenu(false)
                                             }}
-                                            className="bg-transparent hover:bg-gray-700/30  p-2 rounded-full transition-all flex items-center"
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
                                         >
-                                            <img width={'25px'} height={'25px'} src="/control/arrows-up.svg" alt="Inverted Joystick" />
-                                            <span className="ml-2 text-xs sm:text-sm text-gray-300">Standart</span>
+                                            <img width={'35px'} height={'35px'} src="/control/arrows-turn.svg" alt="Turn Joystick" />
                                         </Button>
                                     </div>
                                 </div>
