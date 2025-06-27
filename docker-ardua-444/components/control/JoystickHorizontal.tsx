@@ -41,17 +41,17 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
         if (x !== 0) {
             const turnSpeed = Math.abs(x)
             if (x > 0) {
-                // Ползунок вправо: мотор A назад, мотор B вперед
-                motorASpeed = turnSpeed
-                motorBSpeed = turnSpeed
-                motorADirection = 'backward'
-                motorBDirection = 'forward'
-            } else {
-                // Ползунок влево: мотор A вперед, мотор B назад
+                // Ползунок вправо: мотор A вперед, мотор B назад (поворот влево)
                 motorASpeed = turnSpeed
                 motorBSpeed = turnSpeed
                 motorADirection = 'forward'
                 motorBDirection = 'backward'
+            } else {
+                // Ползунок влево: мотор A назад, мотор B вперед (поворот вправо)
+                motorASpeed = turnSpeed
+                motorBSpeed = turnSpeed
+                motorADirection = 'backward'
+                motorBDirection = 'forward'
             }
         }
 
