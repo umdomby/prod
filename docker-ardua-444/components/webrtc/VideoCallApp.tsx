@@ -856,13 +856,12 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
         ) {
             console.log('Инициируется автоподключение к комнате:', roomId);
             hasAttemptedAutoJoin.current = true;
-            handleJoinRoom();
+            handleJoinRoom('audio-video'); // Укажите подходящий mediaType, например, 'audio-video'
         } else if (error && autoJoin) {
             console.warn('Ошибка автоподключения, отключение autoJoin:', error);
             leaveRoom();
             setAutoJoin(false);
             const normalizedRoomId = roomId.replace(/-/g, '');
-            // Проверяем, существует ли комната в savedRooms или savedProxyRooms
             const isRoomSaved =
                 savedRooms.find((r) => r.id === normalizedRoomId) ||
                 savedProxyRooms.find((p) => p.id === normalizedRoomId);
@@ -877,7 +876,7 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
             } else {
                 console.log('Комната не сохранена, пропускаем updateAutoConnect');
             }
-            hasAttemptedAutoJoin.current = true; // Блокируем повторное автоподключение
+            hasAttemptedAutoJoin.current = true;
             if (webRTCRetryTimeoutRef.current) {
                 clearTimeout(webRTCRetryTimeoutRef.current);
                 webRTCRetryTimeoutRef.current = null;
@@ -1079,7 +1078,7 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
                 if (hasPermission && !isInRoom && !isJoining && !hasAttemptedAutoJoin.current) {
                     console.log('Инициируется автоподключение по ссылке для комнаты:', formattedRoomId);
                     hasAttemptedAutoJoin.current = true;
-                    await handleJoinRoom();
+                    await handleJoinRoom('audio-video'); // Укажите подходящий mediaType, например 'audio-video'
                 }
             } else if (proxyRoomId) {
                 console.log('Инициируется автоподключение по прокси-комнате:', proxyRoomId);
