@@ -1380,35 +1380,20 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
             )}
 
             <div className={`mt-24 ${activeTab === 'controls' ? 'opacity-50' : ''}`}>
-                {selectedJoystick === 'JoystickTurn' ? (
-                    <ActiveJoystick
-                        mo="A"
-                        onChange={(value: number) => {
-                            handleMotorAControl(value);
-                            handleMotorBControl(value); // Вертикальный ползунок управляет обоими моторами
-                        }}
-                        direction={motorADirection}
-                        sp={motorASpeed}
-                        disabled={!isConnected}
-                    />
-                ) : (
-                    <>
-                        <ActiveJoystick
-                            mo="A"
-                            onChange={handleMotorAControl}
-                            direction={motorADirection}
-                            sp={motorASpeed}
-                            disabled={!isConnected}
-                        />
-                        <ActiveJoystick
-                            mo="B"
-                            onChange={handleMotorBControl}
-                            direction={motorBDirection}
-                            sp={motorBSpeed}
-                            disabled={!isConnected}
-                        />
-                    </>
-                )}
+                <ActiveJoystick
+                    mo="A"
+                    onChange={handleMotorAControl}
+                    direction={motorADirection}
+                    sp={motorASpeed}
+                    disabled={!isConnected}
+                />
+                <ActiveJoystick
+                    mo="B"
+                    onChange={handleMotorBControl}
+                    direction={motorBDirection}
+                    sp={motorBSpeed}
+                    disabled={!isConnected}
+                />
 
                 <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex flex-col space-y-2 z-50">
                     {showServos && (
