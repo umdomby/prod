@@ -10,7 +10,7 @@ type JoystickProps = {
     disabled?: boolean
 }
 
-const JoystickUp = ({ mo, onChange, direction, sp, disabled, className }: JoystickProps) => {
+const JoystickTurn = ({ mo, onChange, direction, sp, disabled, className }: JoystickProps) => {
     const containerRef = useRef<HTMLDivElement>(null)
     const knobRef = useRef<HTMLDivElement>(null)
     const isDragging = useRef(false)
@@ -226,4 +226,4 @@ const JoystickUp = ({ mo, onChange, direction, sp, disabled, className }: Joysti
     )
 }
 
-export default JoystickUp
+export default JoystickTurn
