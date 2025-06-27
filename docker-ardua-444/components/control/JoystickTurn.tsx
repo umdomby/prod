@@ -113,6 +113,11 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
                 top: isLandscape ? '80%' : '85%', // Правый нижний угол
                 transform: 'translate(-50%, -50%)',
                 touchAction: 'none',
+                userSelect: 'none', // Запрет выделения
+                WebkitUserSelect: 'none', // Для Safari
+                MsUserSelect: 'none', // Для Edge
+                MozUserSelect: 'none', // Для Firefox
+                WebkitTapHighlightColor: 'transparent', // Убрать подсветку касания
                 zIndex: 1001
             }}
         >
