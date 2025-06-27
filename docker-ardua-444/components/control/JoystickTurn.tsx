@@ -45,8 +45,8 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
 
         if (y !== 0) {
             // Движение вперед или назад
-            motorADirection = y >= 0 ? 'forward' : 'backward'
-            motorBDirection = y >= 0 ? 'forward' : 'backward'
+            motorADirection = y >= 0 ? 'backward' : 'forward'
+            motorBDirection = y >= 0 ? 'backward' : 'forward'
             motorASpeed = baseSpeed
             motorBSpeed = baseSpeed
 
@@ -109,8 +109,8 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
                 position: 'absolute',
                 width: '150px',
                 height: '150px',
-                left: '50%',
-                top: isLandscape ? '50%' : '60%',
+                left: isLandscape ? '85%' : '80%', // Правый нижний угол
+                top: isLandscape ? '80%' : '85%', // Правый нижний угол
                 transform: 'translate(-50%, -50%)',
                 touchAction: 'none',
                 zIndex: 1001
