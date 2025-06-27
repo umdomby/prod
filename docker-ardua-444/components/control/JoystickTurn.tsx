@@ -30,43 +30,37 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
     const handleMove = useCallback((event: any) => {
         if (disabled) return
 
-        // Normalize joystick values from -1 to 1 to -255 to 255
-        const x = Math.round(event.x * 255) // X-axis for forward/backward
-        const y = Math.round(event.y * 255) // Y-axis for turning
+        // Нормализация значений джойстика от -1 до 1 в диапазон -255 до 255
+        const x = Math.round(event.x * 255) // X-ось для поворота
+        const y = Math.round(event.y * 255) // Y-ось для движения вперед/назад
 
-        // Calculate motor speeds and directions
+        // Расчет скоростей и направлений моторов
         let motorASpeed = 0
         let motorBSpeed = 0
         let motorADirection = 'stop'
         let motorBDirection = 'stop'
 
-        // X-axis: Both motors move in the same direction
-        const baseSpeed = Math.abs(x)
-        if (x !== 0) {
+        // Y-ось имеет приоритет: оба мотора движутся в одном направлении
+        if (y !== 0) {
+            const baseSpeed = Math.abs(y)
             motorASpeed = baseSpeed
             motorBSpeed = baseSpeed
-            motorADirection = x >= 0 ? 'forward' : 'backward'
-            motorBDirection = x >= 0 ? 'forward' : 'backward'
-        }
-
-        // Y-axis: Motors move in opposite directions for turning
-        if (y !== 0) {
-            const turnSpeed = Math.abs(y)
-            // Adjust motor speeds by adding/subtracting turning component
-            motorASpeed = Math.min(255, Math.max(0, motorASpeed + turnSpeed))
-            motorBSpeed = Math.min(255, Math.max(0, motorBSpeed + turnSpeed))
-            // Set opposite directions for turning
             motorADirection = y >= 0 ? 'forward' : 'backward'
-            motorBDirection = y >= 0 ? 'backward' : 'forward'
+            motorBDirection = y >= 0 ? 'forward' : 'backward'
+        }
+        // X-ось обрабатывается только если Y-ось не активна
+        else if (x !== 0) {
+            const turnSpeed = Math.abs(x)
+            motorASpeed = turnSpeed
+            motorBSpeed = turnSpeed
+            motorADirection = x >= 0 ? 'forward' : 'backward'
+            motorBDirection = x >= 0 ? 'backward' : 'forward'
         }
 
-        // If both axes are active, combine speeds (limit to 255)
-        if (x !== 0 && y !== 0) {
-            motorASpeed = Math.min(255, Math.max(0, Math.abs(x) + Math.abs(y)))
-            motorBSpeed = Math.min(255, Math.max(0, Math.abs(x) + Math.abs(y)))
-        }
+        // Отладка: выводим значения для проверки
+        console.log('Joystick Move:', { x, y, motorASpeed, motorBSpeed, motorADirection, motorBDirection });
 
-        // Pass motor values to parent component (SocketClient)
+        // Передаем значения моторов в родительский компонент (SocketClient)
         onChange({
             x: motorASpeed * (motorADirection === 'forward' ? 1 : motorADirection === 'backward' ? -1 : 0),
             y: motorBSpeed * (motorBDirection === 'forward' ? 1 : motorBDirection === 'backward' ? -1 : 0)

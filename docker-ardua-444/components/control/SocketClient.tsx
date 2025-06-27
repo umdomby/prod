@@ -1006,6 +1006,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                     clearTimeout(throttleRef.current);
                     throttleRef.current = null;
                 }
+                console.log('Motor Command:', { mo, sp, direction }); // Отладка
                 sendCommand("SPD", { mo, sp: 0 });
                 sendCommand(mo === 'A' ? "MSA" : "MSB");
                 return;
@@ -1016,6 +1017,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
             }
 
             throttleRef.current = setTimeout(() => {
+                console.log('Motor Command:', { mo, sp, direction }); // Отладка
                 sendCommand("SPD", { mo, sp });
                 sendCommand(direction === 'forward' ? `MF${mo}` : `MR${mo}`);
             }, 40);
@@ -1379,9 +1381,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                 {selectedJoystick === 'JoystickTurn' ? (
                     <ActiveJoystick
                         onChange={({ x, y }) => {
-                            // Для JoystickTurn обрабатываем оба мотора одновременно
-                            handleMotorAControl(y) // Ось Y управляет обоими моторами вперед/назад
-                            handleMotorBControl(x) // Ось X управляет поворотом (разные направления)
+                            handleMotorAControl(x)
+                            handleMotorBControl(y)
                         }}
                         direction={motorADirection}
                         sp={motorASpeed}
