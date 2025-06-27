@@ -59,6 +59,7 @@ const JoystickTurn = ({ mo, onChange, direction, sp, disabled, className }: Joys
         const value = ((normalizedY - trackTop) / trackHeight) * 510 - 255
         const clampedValue = Math.max(-255, Math.min(255, value))
 
+        // Передаём значение в onChange, которое будет обработано в SocketClient
         onChange(clampedValue)
     }, [onChange])
 

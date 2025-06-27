@@ -972,59 +972,145 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     }, [addLog, de, isIdentified, espConnected]);
 
     const createMotorHandler = useCallback((mo: 'A' | 'B') => {
-        const lastCommandRef = mo === 'A' ? lastMotorACommandRef : lastMotorBCommandRef
-        const throttleRef = mo === 'A' ? motorAThrottleRef : motorBThrottleRef
-        const setSpeed = mo === 'A' ? setMotorASpeed : setMotorBSpeed
-        const setDirection = mo === 'A' ? setMotorADirection : setMotorBDirection
+        const lastCommandRef = mo === 'A' ? lastMotorACommandRef : lastMotorBCommandRef;
+        const throttleRef = mo === 'A' ? motorAThrottleRef : motorBThrottleRef;
+        const setSpeed = mo === 'A' ? setMotorASpeed : setMotorBSpeed;
+        const setDirection = mo === 'A' ? setMotorADirection : setMotorBDirection;
 
         return (value: number) => {
             if (!isConnected) {
-                return
+                return;
             }
 
-            let direction: 'forward' | 'backward' | 'stop' = 'stop'
-            let sp = 0
+            if (selectedJoystick === 'JoystickTurn') {
+                // Логика для JoystickTurn
+                let directionA: 'forward' | 'backward' | 'stop' = 'stop';
+                let directionB: 'forward' | 'backward' | 'stop' = 'stop';
+                let spA = 0;
+                let spB = 0;
 
-            if (value > 0) {
-                direction = 'forward'
-                sp = value
-            } else if (value < 0) {
-                direction = 'backward'
-                sp = -value
-            }
-
-            setSpeed(sp)
-            setDirection(direction)
-
-            const currentCommand = { sp, direction }
-            if (JSON.stringify(lastCommandRef.current) === JSON.stringify(currentCommand)) {
-                return
-            }
-
-            lastCommandRef.current = currentCommand
-
-            if (sp === 0) {
-                if (throttleRef.current) {
-                    clearTimeout(throttleRef.current)
-                    throttleRef.current = null
+                if (mo === 'A') {
+                    // Джойстик A управляет обоими моторами в одном направлении
+                    if (value > 0) {
+                        directionA = 'forward';
+                        directionB = 'forward';
+                        spA = value;
+                        spB = value;
+                    } else if (value < 0) {
+                        directionA = 'backward';
+                        directionB = 'backward';
+                        spA = -value;
+                        spB = -value;
+                    }
+                } else {
+                    // Джойстик B управляет моторами с реверсом
+                    if (value > 0) {
+                        directionA = 'forward';
+                        directionB = 'backward';
+                        spA = value;
+                        spB = value;
+                    } else if (value < 0) {
+                        directionA = 'backward';
+                        directionB = 'forward';
+                        spA = -value;
+                        spB = -value;
+                    }
                 }
-                sendCommand("SPD", { mo, sp: 0 })
-                sendCommand(mo === 'A' ? "MSA" : "MSB")
-                return
-            }
 
-            if (throttleRef.current) {
-                clearTimeout(throttleRef.current)
-            }
+                setMotorASpeed(spA);
+                setMotorBSpeed(spB);
+                setMotorADirection(directionA);
+                setMotorBDirection(directionB);
 
-            throttleRef.current = setTimeout(() => {
-                sendCommand("SPD", { mo, sp })
-                sendCommand(direction === 'forward'
-                    ? `MF${mo}`
-                    : `MR${mo}`)
-            }, 40)
-        }
-    }, [sendCommand, isConnected])
+                const currentCommandA = { sp: spA, direction: directionA };
+                const currentCommandB = { sp: spB, direction: directionB };
+
+                if (
+                    JSON.stringify(lastMotorACommandRef.current) === JSON.stringify(currentCommandA) &&
+                    JSON.stringify(lastMotorBCommandRef.current) === JSON.stringify(currentCommandB)
+                ) {
+                    return;
+                }
+
+                lastMotorACommandRef.current = currentCommandA;
+                lastMotorBCommandRef.current = currentCommandB;
+
+                if (spA === 0 && spB === 0) {
+                    if (motorAThrottleRef.current) {
+                        clearTimeout(motorAThrottleRef.current);
+                        motorAThrottleRef.current = null;
+                    }
+                    if (motorBThrottleRef.current) {
+                        clearTimeout(motorBThrottleRef.current);
+                        motorBThrottleRef.current = null;
+                    }
+                    sendCommand("SPD", { mo: 'A', sp: 0 });
+                    sendCommand("MSA");
+                    sendCommand("SPD", { mo: 'B', sp: 0 });
+                    sendCommand("MSB");
+                    return;
+                }
+
+                if (motorAThrottleRef.current) {
+                    clearTimeout(motorAThrottleRef.current);
+                }
+                if (motorBThrottleRef.current) {
+                    clearTimeout(motorBThrottleRef.current);
+                }
+
+                motorAThrottleRef.current = setTimeout(() => {
+                    sendCommand("SPD", { mo: 'A', sp: spA });
+                    sendCommand(directionA === 'forward' ? "MFA" : directionA === 'backward' ? "MRA" : "MSA");
+                }, 40);
+
+                motorBThrottleRef.current = setTimeout(() => {
+                    sendCommand("SPD", { mo: 'B', sp: spB });
+                    sendCommand(directionB === 'forward' ? "MFB" : directionB === 'backward' ? "MRB" : "MSB");
+                }, 40);
+            } else {
+                // Оригинальная логика для Joystick и JoystickUp
+                let direction: 'forward' | 'backward' | 'stop' = 'stop';
+                let sp = 0;
+
+                if (value > 0) {
+                    direction = 'forward';
+                    sp = value;
+                } else if (value < 0) {
+                    direction = 'backward';
+                    sp = -value;
+                }
+
+                setSpeed(sp);
+                setDirection(direction);
+
+                const currentCommand = { sp, direction };
+                if (JSON.stringify(lastCommandRef.current) === JSON.stringify(currentCommand)) {
+                    return;
+                }
+
+                lastCommandRef.current = currentCommand;
+
+                if (sp === 0) {
+                    if (throttleRef.current) {
+                        clearTimeout(throttleRef.current);
+                        throttleRef.current = null;
+                    }
+                    sendCommand("SPD", { mo, sp: 0 });
+                    sendCommand(mo === 'A' ? "MSA" : "MSB");
+                    return;
+                }
+
+                if (throttleRef.current) {
+                    clearTimeout(throttleRef.current);
+                }
+
+                throttleRef.current = setTimeout(() => {
+                    sendCommand("SPD", { mo, sp });
+                    sendCommand(direction === 'forward' ? `MF${mo}` : `MR${mo}`);
+                }, 40);
+            }
+        };
+    }, [sendCommand, isConnected, selectedJoystick, setMotorASpeed, setMotorBSpeed, setMotorADirection, setMotorBDirection]);
 
     const adjustServo = useCallback(
         (servoId: '1' | '2', value: number, isAbsolute: boolean) => {
