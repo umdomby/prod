@@ -76,11 +76,11 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
 
     return (
         <div
-            className={className}
+            className={`${className} select-none`}
             style={{
                 position: 'absolute',
-                width: '200px', // Увеличенная ширина для горизонтального ползунка
-                height: '50px', // Меньшая высота для прямоугольной формы
+                width: '150px', // Размер как в JoystickTurn
+                height: '150px', // Размер как в JoystickTurn
                 left: isLandscape ? '15%' : '20%', // Левый нижний угол
                 top: isLandscape ? '80%' : '85%', // Левый нижний угол
                 transform: 'translate(-50%, -50%)',
@@ -94,14 +94,14 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
             }}
         >
             <Joystick
-                size={200} // Ширина ползунка
-                baseColor="rgba(255, 255, 255, 0.2)"
-                stickColor="rgba(255, 255, 255, 0.7)"
+                size={150} // Размер как в JoystickTurn
+                baseColor="rgba(255, 255, 255, 0.2)" // Цвет как в JoystickTurn
+                stickColor="rgba(255, 255, 255, 0.7)" // Цвет как в JoystickTurn
                 move={handleMove}
                 stop={handleStop}
                 disabled={disabled}
                 throttle={40}
-                stickShape="rectangle" // Прямоугольный ползунок
+                stickShape="cross" // Форма ползунка как в JoystickTurn
                 controlPlaneShape="horizontal" // Ограничение движения по горизонтали
             />
         </div>
