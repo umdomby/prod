@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/prisma/prisma-client';
 import nodemailer from 'nodemailer';
+import { randomUUID } from 'crypto';
 
 export async function POST(req: NextRequest) {
-    const { email } = await req.json();
-
     try {
-        console.log("11111111111111111")
-        console.log(email)
+        const { email } = await req.json();
+
+        if (!email) {
+            return NextResponse.json({ message: 'Email обязателен' }, { status: 400 });
+        }
+
         const user = await prisma.user.findUnique({
             where: { email },
         });
@@ -16,13 +19,17 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Пользователь не найден' }, { status: 404 });
         }
 
-        // Генерация токена для сброса пароля
-        const resetToken = Math.random().toString(36).substr(2);
+        if (user.resetTokenExpires && new Date(user.resetTokenExpires) < new Date()) {
+            return NextResponse.json({ message: 'Токен сброса пароля истек' }, { status: 400 });
+        }
 
-        // Сохранение токена в базе данных
+        // При сохранении токена
+        const resetToken = randomUUID();
+        const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 час
+
         await prisma.user.update({
             where: { email },
-            data: { resetToken },
+            data: { resetToken, resetTokenExpires },
         });
 
         // Настройка и отправка письма
@@ -35,10 +42,16 @@ export async function POST(req: NextRequest) {
         });
 
         const mailOptions = {
-            from: `"Heroes3" <${process.env.EMAIL_USER}>`,
+            from: `"ArduA" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: 'Сброс пароля',
             text: `Перейдите по ссылке для сброса пароля: ${process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}`,
+            html: `
+        <h2>Сброс пароля</h2>
+        <p>Чтобы сбросить пароль, перейдите по следующей ссылке:</p>
+        <a href="${process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}">Сбросить пароль</a>
+        <p>Если вы не запрашивали сброс пароля, проигнорируйте это письмо.</p>
+      `,
         };
 
         await transporter.sendMail(mailOptions);

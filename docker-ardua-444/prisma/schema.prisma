@@ -9,21 +9,22 @@ datasource db {
 }
 
 model User {
-  id          Int           @id @default(autoincrement())
-  fullName    String
-  email       String        @unique
-  resetToken  String?
-  provider    String?
-  providerId  String?
-  password    String
-  role        UserRole      @default(USER)
-  img         String?
-  devices     Devices[]
-  savedRooms  SavedRoom[]
-  savedProxy  SavedProxy[]
-  proxyAccess ProxyAccess[] @relation
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id                Int           @id @default(autoincrement())
+  fullName          String
+  email             String        @unique
+  resetToken        String?
+  resetTokenExpires DateTime? // Новое поле
+  provider          String?
+  providerId        String?
+  password          String
+  role              UserRole      @default(USER)
+  img               String?
+  devices           Devices[]
+  savedRooms        SavedRoom[]
+  savedProxy        SavedProxy[]
+  proxyAccess       ProxyAccess[] @relation
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 }
 
 model Devices {
