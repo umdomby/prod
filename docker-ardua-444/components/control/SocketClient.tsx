@@ -1543,6 +1543,39 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                             )}
                         </Button>
 
+                        {showJoystickMenu && (
+                            <div className="absolute bottom-12 bg-black rounded-lg border border-gray-200 z-50">
+                                <div className="flex flex-col items-center space-y-2">
+                                    <Button
+                                        onClick={() => {
+                                            setSelectedJoystick('Joystick')
+                                            setShowJoystickMenu(false)
+                                        }}
+                                        className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
+                                    >
+                                        <img width={'50px'} height={'50px'} src="/control/arrows-down.svg" alt="Down Joystick" />
+                                    </Button>
+                                    <Button
+                                        onClick={() => {
+                                            setSelectedJoystick('JoystickUp')
+                                            setShowJoystickMenu(false)
+                                        }}
+                                        className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
+                                    >
+                                        <img width={'50px'} height={'50px'} src="/control/arrows-up.svg" alt="Up Joystick" />
+                                    </Button>
+                                    <Button
+                                        onClick={() => {
+                                            setSelectedJoystick('JoystickTurn')
+                                            setShowJoystickMenu(false)
+                                        }}
+                                        className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
+                                    >
+                                        <img width={'50px'} height={'50px'} src="/control/arrows-turn.svg" alt="Turn Joystick" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                         <div className="relative">
                             <Button
                                 onClick={() => setShowJoystickMenu(!showJoystickMenu)}
@@ -1552,43 +1585,14 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                 <img
                                     width={'25px'}
                                     height={'25px'}
-                                    src={selectedJoystick === 'Joystick' ? '/control/arrows-down.svg' : '/control/arrows-up.svg'}
+                                    src={
+                                        selectedJoystick === 'Joystick' ? '/control/arrows-down.svg' :
+                                            selectedJoystick === 'JoystickUp' ? '/control/arrows-up.svg' :
+                                                '/control/arrows-turn.svg'
+                                    }
                                     alt="Joystick Select"
                                 />
                             </Button>
-                            {showJoystickMenu && (
-                                <div className="absolute bottom-12 bg-black rounded-lg border border-gray-200 z-50">
-                                    <div className="flex flex-col items-center space-y-2">
-                                        <Button
-                                            onClick={() => {
-                                                setSelectedJoystick('Joystick')
-                                                setShowJoystickMenu(false)
-                                            }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
-                                        >
-                                            <img width={'35px'} height={'35px'} src="/control/arrows-down.svg" alt="Down Joystick" />
-                                        </Button>
-                                        <Button
-                                            onClick={() => {
-                                                setSelectedJoystick('JoystickUp')
-                                                setShowJoystickMenu(false)
-                                            }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
-                                        >
-                                            <img width={'35px'} height={'35px'} src="/control/arrows-up.svg" alt="Up Joystick" />
-                                        </Button>
-                                        <Button
-                                            onClick={() => {
-                                                setSelectedJoystick('JoystickTurn')
-                                                setShowJoystickMenu(false)
-                                            }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
-                                        >
-                                            <img width={'35px'} height={'35px'} src="/control/arrows-turn.svg" alt="Turn Joystick" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
