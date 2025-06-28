@@ -21,3 +21,9 @@
     transform: translateX(-50%);
     z-index: 1002;
 }
+
+.horizontalJoystickContainer .joystick-stick,
+.turnJoystickContainer .joystick-stick {
+    width: 50px !important;
+    height: 50px !important;
+}

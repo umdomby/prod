@@ -1,7 +1,7 @@
 "use client"
 import { useCallback, useEffect, useState } from 'react'
 import { Joystick } from 'react-joystick-component'
-import styles from './JoystickStyles.module.css' // Импорт CSS-модуля
+import styles from './JoystickStyles.module.css'
 
 type JoystickProps = {
     onChange: (value: { x: number; y: number }) => void
@@ -110,8 +110,8 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
                 position: 'absolute',
                 width: '150px',
                 height: '150px',
-                left: isLandscape ? '85%' : '72%', // 15% дальше от центра вправо
-                top: isLandscape ? '65%' : '75%', // Внизу экрана
+                left: isLandscape ? '85%' : '82%',
+                top: isLandscape ? '65%' : '55%',
                 transform: 'translate(-50%, -50%)',
                 touchAction: 'none',
                 userSelect: 'none',
@@ -124,8 +124,9 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
         >
             <Joystick
                 size={150}
-                baseColor="rgba(255, 255, 255, 0.2)"
+                baseColor="transparent" // Прозрачная база
                 stickColor="rgba(255, 255, 255, 0.7)"
+                stickSize={30} // Уменьшенный ползунок
                 move={handleMove}
                 stop={handleStop}
                 disabled={disabled}
