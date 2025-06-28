@@ -137,7 +137,7 @@
     position: fixed;
     right: 20px;
     bottom: 20px;
-    z-index: 1100;
+    z-index: 40;
 }
 
 .telegramWrapper {
@@ -313,7 +313,7 @@
     right: 0;
     /*background-color: #1a1a1a;*/
     color: #ffffff;
-    z-index: 15;
+    z-index: 50;
     max-height: calc(100vh - 0px);
     overflow-y: auto;
     /*border-radius: 0 0 12px 12px;*/
@@ -331,9 +331,13 @@
     flex-direction: column;
     gap: 20px;
     padding: 20px;
-    background-color: #000;
-    width: 50%;
+    background-color: rgba(0, 0, 0, 0.8); /* Полупрозрачный фон для лучшей видимости */
+    width: 100%; /* Увеличиваем ширину для мобильных устройств */
+    max-width: 600px; /* Ограничиваем максимальную ширину */
     margin: 0 auto;
+    border-radius: 12px; /* Добавляем скругление углов */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Тень для визуального отделения */
+    z-index: 50; /* Устанавливаем тот же z-index, чтобы кнопки были доступны */
 }
 
 
@@ -349,9 +353,10 @@
 }
 
 @media (max-width: 768px) {
-    .localVideoContainer {
-        width: 25vw;
-        height: 20vh;
+    .videoControlsTab {
+        width: 100%; /* Полная ширина на мобильных */
+        padding: 15px;
+        max-width: none; /* Убираем ограничение ширины */
     }
 
     .controlsOverlay {
@@ -394,7 +399,8 @@
     }
 
     .tabContent {
-        padding: 15px;
+        max-height: calc(100vh - 50px); /* Увеличиваем доступную высоту */
+        z-index: 50; /* Убедимся, что z-index сохраняется */
     }
 
     .logsPanel {

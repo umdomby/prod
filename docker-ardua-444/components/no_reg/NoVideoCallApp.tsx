@@ -464,7 +464,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
             )}
 
             {showCam && (
-                <div className={`${styles.tabContent} absolute bottom-0 left-0 w-full z-30`}>
+                <div className={`${styles.tabContent} absolute bottom-0 left-0 w-full z-50`}>
                     <div className={styles.videoControlsTab}>
                         <div className={styles.controlButtons}>
                             <button

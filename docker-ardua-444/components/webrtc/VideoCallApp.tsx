@@ -1730,7 +1730,7 @@ export const VideoCallApp = ({ roomIdRef = ''}: VideoCallAppProps) => {
             )}
 
             {showCam && (
-                <div className={styles.tabContent}>
+                <div className={`${styles.tabContent} z-50`}>
                     <div className={styles.videoControlsTab}>
                         <div className={styles.controlButtons}>
                             <button
