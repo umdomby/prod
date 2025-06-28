@@ -393,7 +393,7 @@ export const NoVideoCallApp = ({ initialRoomId = '' }: NoVideoCallAppProps) => {
                         className={[styles.controlButton, isCameraEnabled ? styles.active : ''].join(' ')}
                         title={isCameraEnabled ? 'Отключить камеру' : 'Включить камеру'}
                     >
-                        {isCameraEnabled ? '📷🎤' : '📷✕🎤✕'}
+                        {isCameraEnabled ? '📷🎤' : '📷🎤'}
                     </button>
                     <button
                         onClick={() => toggleTab('webrtc')}
