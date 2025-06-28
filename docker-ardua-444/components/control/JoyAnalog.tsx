@@ -120,7 +120,7 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
 
         // Левый стик (Servo2, ось X)
         if (Math.abs(leftStickX) > deadZone) {
-            const servo2Value = Math.round((leftStickX + 1) * 90); // От 0 до 180
+            const servo2Value = Math.round((-leftStickX + 1) * 90); // От 0 до 180, инвертировано
             onServoChange("2", servo2Value, true);
         } else if (Math.abs(leftStickX) <= deadZone && Math.abs(prevStickState.current.leftStickX) > deadZone) {
             onServoChange("2", 90, true); // Возврат в центр (90°)
@@ -128,7 +128,7 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
 
         // Правый стик (Servo1, ось Y)
         if (Math.abs(rightStickY) > deadZone) {
-            const servo1Value = Math.round((rightStickY + 1) * 90); // От 0 до 180
+            const servo1Value = Math.round((-rightStickY + 1) * 90); // От 0 до 180, инвертировано
             onServoChange("1", servo1Value, true);
         } else if (Math.abs(rightStickY) <= deadZone && Math.abs(prevStickState.current.rightStickY) > deadZone) {
             onServoChange("1", 90, true); // Возврат в центр (90°)
