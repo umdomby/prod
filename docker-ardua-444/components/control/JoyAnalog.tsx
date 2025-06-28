@@ -1,5 +1,6 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import styles from './JoystickStyles.module.css'
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import styles from "./JoystickStyles.module.css";
 
 type JoyAnalogProps = {
     onChange: ({ x, y }: { x: number; y: number }) => void;
@@ -9,12 +10,19 @@ type JoyAnalogProps = {
 
 const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
     const [gamepadConnected, setGamepadConnected] = useState(false);
+    const [motorDirection, setMotorDirection] = useState<"forward" | "backward">("forward"); // Новое состояние для направления моторов
     const animationFrameRef = useRef<number | null>(null);
     const prevButtonState = useRef({
         buttonA: false,
         buttonB: false,
         buttonX: false,
         buttonY: false,
+        buttonLB: false, // Добавляем для LB
+        buttonRB: false, // Добавляем для RB
+    });
+    const prevStickState = useRef({
+        rightStickX: 0,
+        rightStickY: 0,
     });
 
     // Проверка подключения геймпада
@@ -35,8 +43,8 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
         // Аналоговые триггеры (LT и RT)
         const ltValue = gamepad.buttons[6].value; // Left Trigger
         const rtValue = gamepad.buttons[7].value; // Right Trigger
-        const motorASpeed = Math.round(ltValue * 255); // Мотор A вперед
-        const motorBSpeed = Math.round(rtValue * 255); // Мотор B вперед
+        const motorASpeed = Math.round(ltValue * 255); // Мотор A
+        const motorBSpeed = Math.round(rtValue * 255); // Мотор B
 
         // D-Pad (Крестовина)
         const dpadUp = gamepad.buttons[12].pressed; // Вверх
@@ -50,6 +58,10 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
         const buttonX = gamepad.buttons[2].pressed; // X (синяя)
         const buttonY = gamepad.buttons[3].pressed; // Y (желтая)
 
+        // Бамперы LB и RB
+        const buttonLB = gamepad.buttons[4].pressed; // Left Bumper
+        const buttonRB = gamepad.buttons[5].pressed; // Right Bumper
+
         // Правый аналоговый стик
         const rightStickX = gamepad.axes[2]; // Ось X правого стика
         const rightStickY = gamepad.axes[3]; // Ось Y правого стика
@@ -59,23 +71,22 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
         let motorA = 0;
         let motorB = 0;
 
-        // LT и RT управляют скоростью вперед
+        // LT и RT управляют скоростью
         if (motorASpeed > 0) {
-            motorA = motorASpeed;
+            motorA = motorDirection === "forward" ? -motorASpeed : motorASpeed; // Учитываем направление
         }
         if (motorBSpeed > 0) {
-            motorB = motorBSpeed;
+            motorB = motorDirection === "forward" ? -motorBSpeed : motorBSpeed; // Учитываем направление
         }
 
         // D-Pad: направление моторов
         if (dpadUp) {
-            // Оба мотора вперед
-            motorA = motorA || 255;
-            motorB = motorB || 255;
-        } else if (dpadDown) {
-            // Оба мотора назад
             motorA = motorA ? -motorA : -255;
             motorB = motorB ? -motorB : -255;
+
+        } else if (dpadDown) {
+            motorA = motorA || 255;
+            motorB = motorB || 255;
         } else if (dpadLeft) {
             // Разворот влево (мотор A назад, мотор B вперед)
             motorA = -255;
@@ -102,22 +113,41 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
             onServoChange("1", 15, false); // Y: серво 1 +15°
         }
 
+        // Бамперы для переключения направления моторов
+        if (buttonLB && !prevButtonState.current.buttonLB) {
+            setMotorDirection("backward");
+        }
+        if (buttonRB && !prevButtonState.current.buttonRB) {
+            setMotorDirection("forward");
+        }
+
         // Правый аналоговый стик
         if (Math.abs(rightStickX) > deadZone) {
             const servo2Value = Math.round((rightStickX + 1) * 90); // От 0 до 180
             onServoChange("2", servo2Value, true);
+        } else if (Math.abs(rightStickX) <= deadZone && Math.abs(prevStickState.current.rightStickX) > deadZone) {
+            onServoChange("2", 90, true); // Возврат в центр (90°)
         }
+
         if (Math.abs(rightStickY) > deadZone) {
             const servo1Value = Math.round((rightStickY + 1) * 90); // От 0 до 180
             onServoChange("1", servo1Value, true);
+        } else if (Math.abs(rightStickY) <= deadZone && Math.abs(prevStickState.current.rightStickY) > deadZone) {
+            onServoChange("1", 90, true); // Возврат в центр (90°)
         }
 
-        // Обновление предыдущего состояния кнопок
+        // Обновление предыдущего состояния
         prevButtonState.current = {
             buttonA,
             buttonB,
             buttonX,
             buttonY,
+            buttonLB,
+            buttonRB,
+        };
+        prevStickState.current = {
+            rightStickX,
+            rightStickY,
         };
 
         // Продолжаем опрос геймпада
@@ -156,36 +186,37 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
     }, [checkGamepad, handleGamepadInput]);
 
     return (
-        <div
-            className={`${styles.horizontalJoystickContainer} ${disabled ? "opacity-50" : ""}`}
-            style={{
-                position: "absolute",
-                width: "100px",
-                height: "100px",
-                bottom: "10px",
-                left: "50%",
-                transform: "translateX(-50%)",
-                backgroundColor: gamepadConnected ? "rgba(0, 255, 0, 0.2)" : "rgba(255, 0, 0, 0.2)",
-                borderRadius: "50%",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                touchAction: "none",
-                userSelect: "none",
-                zIndex: 1001,
-            }}
-        >
-            <div
-                style={{
-                    position: "absolute",
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "50%",
-                    backgroundColor: gamepadConnected ? "rgba(0, 255, 0, 0.7)" : "rgba(255, 0, 0, 0.7)",
-                    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-                }}
-            />
-        </div>
+        <div></div>
+        // <div
+        //     className={`${styles.joyAnalogContainer} ${disabled ? "opacity-50" : ""}`}
+        //     style={{
+        //         position: "absolute",
+        //         width: "100px",
+        //         height: "100px",
+        //         bottom: "10px",
+        //         left: "50%",
+        //         transform: "translateX(-50%)",
+        //         backgroundColor: gamepadConnected ? "rgba(0, 255, 0, 0.2)" : "rgba(255, 0, 0, 0.2)",
+        //         borderRadius: "50%",
+        //         display: "flex",
+        //         justifyContent: "center",
+        //         alignItems: "center",
+        //         touchAction: "none",
+        //         userSelect: "none",
+        //         zIndex: 1001,
+        //     }}
+        // >
+        //     <div
+        //         style={{
+        //             position: "absolute",
+        //             width: "40px",
+        //             height: "40px",
+        //             borderRadius: "50%",
+        //             backgroundColor: gamepadConnected ? "rgba(0, 255, 0, 0.7)" : "rgba(255, 0, 0, 0.7)",
+        //             boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+        //         }}
+        //     />
+        // </div>
     );
 };
 
