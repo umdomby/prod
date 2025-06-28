@@ -1,3 +1,13 @@
+.horizontalJoystickContainer {
+    pointer-events: auto !important; /* Контейнер обрабатывает события */
+    user-select: none !important; /* Запрет выделения */
+}
+
+.turnJoystickContainer {
+    pointer-events: auto !important; /* Контейнер обрабатывает события */
+    user-select: none !important; /* Запрет выделения */
+}
+
 .horizontalJoystickContainer::before {
     content: '';
     position: absolute;
@@ -8,6 +18,8 @@
     background: rgba(255, 255, 255, 0.2);
     transform: translateY(-50%);
     z-index: 1002;
+    pointer-events: none; /* Линия не взаимодействует */
+    user-select: none; /* Запрет выделения */
 }
 
 .turnJoystickContainer::before {
@@ -20,6 +32,8 @@
     background: rgba(255, 255, 255, 0.2);
     transform: translateX(-50%);
     z-index: 1002;
+    pointer-events: none; /* Линия не взаимодействует */
+    user-select: none; /* Запрет выделения */
 }
 
 .horizontalJoystickContainer::after,
@@ -34,4 +48,6 @@
     top: 50%;
     transform: translate(-50%, -50%);
     z-index: 1003; /* Выше линии, ниже ползунка */
+    pointer-events: none; /* Засечка не взаимодействует */
+    user-select: none; /* Запрет выделения */
 }
