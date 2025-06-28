@@ -124,14 +124,15 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
         >
             <Joystick
                 size={150}
-                baseColor="transparent" // Прозрачная база
+                baseColor="transparent"
                 stickColor="rgba(255, 255, 255, 0.7)"
-                stickSize={30} // Уменьшенный ползунок
+                stickSize={60} // Уменьшенный ползунок
                 move={handleMove}
                 stop={handleStop}
                 disabled={disabled}
                 throttle={40}
                 stickShape="cross"
+                controlPlaneShape="rectangle" // Управление всей областью
             />
         </div>
     )

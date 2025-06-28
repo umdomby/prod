@@ -82,8 +82,8 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
                 position: 'absolute',
                 width: '150px',
                 height: '150px',
-                left: isLandscape ? '15%' : '28%',
-                top: isLandscape ? '65%' : '55%',
+                left: isLandscape ? '15%' : '75%',
+                top: isLandscape ? '65%' : '20%',
                 transform: 'translate(-50%, -50%)',
                 touchAction: 'none',
                 userSelect: 'none',
@@ -96,15 +96,15 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
         >
             <Joystick
                 size={150}
-                baseColor="transparent" // Прозрачная база
+                baseColor="transparent"
                 stickColor="rgba(255, 255, 255, 0.7)"
-                stickSize={30} // Уменьшенный ползунок
+                stickSize={40}
                 move={handleMove}
                 stop={handleStop}
                 disabled={disabled}
                 throttle={40}
                 stickShape="cross"
-                controlPlaneShape="horizontal"
+                controlPlaneShape="horizontal" // Ограничение движения ползунка по горизонтали
             />
         </div>
     )

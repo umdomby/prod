@@ -22,6 +22,20 @@
     z-index: 1002;
 }
 
+.horizontalJoystickContainer::after,
+.turnJoystickContainer::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: rgba(128, 128, 128, 0.7); /* Серый цвет для засечки */
+    border-radius: 50%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1003; /* Выше линии, ниже ползунка */
+}
+
 .horizontalJoystickContainer .joystick-stick,
 .turnJoystickContainer .joystick-stick {
     width: 50px !important;
