@@ -21,8 +21,8 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
         buttonRB: false,
     });
     const prevStickState = useRef({
-        leftStickX: 0, // Изменено с rightStickX
-        rightStickY: 0,
+        leftStickX: 0, // Для Servo2 (D8, SSR2)
+        rightStickY: 0, // Для Servo1 (D7, SSR)
     });
 
     // Проверка подключения геймпада
@@ -63,8 +63,8 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
         const buttonRB = gamepad.buttons[5].pressed; // Right Bumper
 
         // Левый и правый стики
-        const leftStickX = gamepad.axes[0]; // Ось X левого стика (Servo1)
-        const rightStickY = gamepad.axes[3]; // Ось Y правого стика (Servo2)
+        const leftStickX = gamepad.axes[0]; // Ось X левого стика (Servo2)
+        const rightStickY = gamepad.axes[3]; // Ось Y правого стика (Servo1)
         const deadZone = 0.1; // Зона нечувствительности 10%
 
         // Управление моторами
@@ -118,20 +118,20 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
             setMotorDirection("forward");
         }
 
-        // Левый стик (Servo1, ось X)
+        // Левый стик (Servo2, ось X)
         if (Math.abs(leftStickX) > deadZone) {
-            const servo1Value = Math.round((leftStickX + 1) * 90); // От 0 до 180
-            onServoChange("1", servo1Value, true);
+            const servo2Value = Math.round((leftStickX + 1) * 90); // От 0 до 180
+            onServoChange("2", servo2Value, true);
         } else if (Math.abs(leftStickX) <= deadZone && Math.abs(prevStickState.current.leftStickX) > deadZone) {
-            onServoChange("1", 90, true); // Возврат в центр (90°)
+            onServoChange("2", 90, true); // Возврат в центр (90°)
         }
 
-        // Правый стик (Servo2, ось Y)
+        // Правый стик (Servo1, ось Y)
         if (Math.abs(rightStickY) > deadZone) {
-            const servo2Value = Math.round((rightStickY + 1) * 90); // От 0 до 180
-            onServoChange("2", servo2Value, true);
+            const servo1Value = Math.round((rightStickY + 1) * 90); // От 0 до 180
+            onServoChange("1", servo1Value, true);
         } else if (Math.abs(rightStickY) <= deadZone && Math.abs(prevStickState.current.rightStickY) > deadZone) {
-            onServoChange("2", 90, true); // Возврат в центр (90°)
+            onServoChange("1", 90, true); // Возврат в центр (90°)
         }
 
         // Обновление предыдущего состояния
