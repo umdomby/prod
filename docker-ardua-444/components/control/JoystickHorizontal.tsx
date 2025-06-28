@@ -97,14 +97,15 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
             <Joystick
                 size={150}
                 baseColor="transparent"
-                stickColor="rgba(255, 255, 255, 0.7)"
-                stickSize={40}
+                stickColor="transparent" // Прозрачный ползунок
+                //stickColor="rgba(255, 255, 255, 0.7)"
+                stickSize={200}
                 move={handleMove}
                 stop={handleStop}
                 disabled={disabled}
                 throttle={40}
                 stickShape="cross"
-                controlPlaneShape="horizontal" // Ограничение движения ползунка по горизонтали
+                controlPlaneShape="horizontal"
             />
         </div>
     )

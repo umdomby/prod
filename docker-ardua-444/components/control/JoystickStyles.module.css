@@ -35,9 +35,3 @@
     transform: translate(-50%, -50%);
     z-index: 1003; /* Выше линии, ниже ползунка */
 }
-
-.horizontalJoystickContainer .joystick-stick,
-.turnJoystickContainer .joystick-stick {
-    width: 50px !important;
-    height: 50px !important;
-}
