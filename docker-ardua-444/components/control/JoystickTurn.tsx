@@ -116,7 +116,7 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
                 touchAction: 'none',
                 userSelect: 'none',
                 WebkitUserSelect: 'none',
-                MsUserSelect: 'none',
+                msUserSelect: 'none', // Исправлено: MsUserSelect -> msUserSelect
                 MozUserSelect: 'none',
                 WebkitTapHighlightColor: 'transparent',
                 zIndex: 1001
@@ -132,8 +132,8 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
                 stop={handleStop}
                 disabled={disabled}
                 throttle={40}
-                stickShape="cross"
-                controlPlaneShape="rectangle"
+                //stickShape="cross"
+                //controlPlaneShape="rectangle"
             />
         </div>
     )

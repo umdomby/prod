@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/accordion";
 import JoystickUp from "@/components/control/JoystickUp";
 import JoyAnalog from '@/components/control/JoyAnalog';
+import VirtualBox from "@/components/control/VirualBox";
+
 
 type MessageType = {
     ty?: string
@@ -100,8 +102,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [showServos, setShowServos] = useState<boolean | null>(null)
     const [activeTab, setActiveTab] = useState<'esp' | 'controls' | 'joystickControl' | null>('esp')
     const [showJoystickMenu, setShowJoystickMenu] = useState(false)
-    const [selectedJoystick, setSelectedJoystick] = useState<'JoystickTurn' | 'Joystick' | 'JoystickUp' | 'JoyAnalog'>(
-        (typeof window !== 'undefined' && localStorage.getItem('selectedJoystick') as 'Joystick' | 'JoystickTurn' | 'JoystickUp' | 'JoyAnalog') || 'JoystickTurn'
+    const [selectedJoystick, setSelectedJoystick] = useState<'JoystickTurn' | 'Joystick' | 'JoystickUp' | 'JoyAnalog' | 'VirtualBox'>(
+        (typeof window !== 'undefined' && localStorage.getItem('selectedJoystick') as 'Joystick' | 'JoystickTurn' | 'JoystickUp' | 'JoyAnalog' | 'VirtualBox') || 'JoystickTurn'
     );
 
     const lastHeartbeatLogTime = useRef<number>(0);
@@ -124,6 +126,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [telegramToken, setTelegramToken] = useState<string | null>(null);
     const [telegramTokenInput, setTelegramTokenInput] = useState('');
     const [telegramIdInput, setTelegramIdInput] = useState('');
+    const [isVirtualBoxActive, setIsVirtualBoxActive] = useState(false);
+    const [isDeviceOrientationSupported, setIsDeviceOrientationSupported] = useState(false);
 
     const [isProxy, setIsProxy] = useState(false);
 
@@ -338,28 +342,30 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     useEffect(() => {
         const checkOrientation = () => {
             if (window.screen.orientation) {
-                setIsLandscape(window.screen.orientation.type.includes('landscape'))
+                setIsLandscape(window.screen.orientation.type.includes('landscape'));
             } else {
-                setIsLandscape(window.innerWidth > window.innerHeight)
+                setIsLandscape(window.innerWidth > window.innerHeight);
             }
-        }
+            // Проверка поддержки DeviceOrientationEvent
+            setIsDeviceOrientationSupported(typeof window.DeviceOrientationEvent !== "undefined");
+        };
 
-        checkOrientation()
+        checkOrientation();
 
         if (window.screen.orientation) {
-            window.screen.orientation.addEventListener('change', checkOrientation)
+            window.screen.orientation.addEventListener('change', checkOrientation);
         } else {
-            window.addEventListener('resize', checkOrientation)
+            window.addEventListener('resize', checkOrientation);
         }
 
         return () => {
             if (window.screen.orientation) {
-                window.screen.orientation.removeEventListener('change', checkOrientation)
+                window.screen.orientation.removeEventListener('change', checkOrientation);
             } else {
-                window.removeEventListener('resize', checkOrientation)
+                window.removeEventListener('resize', checkOrientation);
             }
-        }
-    }, [])
+        };
+    }, []);
 
     useEffect(() => {
         currentDeRef.current = inputDe
@@ -1105,7 +1111,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
         JoystickUp: JoystickUp,
         JoystickHorizontal: JoystickHorizontal,
         JoyAnalog: JoyAnalog,
-    }
+        VirtualBox: VirtualBox,
+    };
     const ActiveJoystick = joystickComponents[selectedJoystick]
 
     return (
@@ -1410,6 +1417,14 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         onServoChange={adjustServo}
                         disabled={!isConnected}
                     />
+                ) : selectedJoystick === 'VirtualBox' ? (
+                    <VirtualBox
+                        onChange={({ x, y }) => {
+                            handleMotorAControl(x);
+                            handleMotorBControl(y);
+                        }}
+                        disabled={!isConnected}
+                    />
                 ) : (
                     <>
                         <ActiveJoystick
@@ -1427,6 +1442,17 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                             disabled={!isConnected}
                         />
                     </>
+                )}
+                {isDeviceOrientationSupported && (
+                    <VirtualBox
+                        onChange={({ x, y }) => {
+                            if (isVirtualBoxActive) {
+                                handleMotorAControl(x);
+                                handleMotorBControl(y);
+                            }
+                        }}
+                        disabled={!isConnected}
+                    />
                 )}
 
                 <div className="fixed bottom-3 left-1/2 transform -translate-x-1/2 flex flex-col space-y-2 z-50">
@@ -1579,8 +1605,10 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
 
                         <div className="relative">
                             <Button
-                                onClick={() => setShowJoystickMenu(!showJoystickMenu)}
-                                className="bg-transparent hover:bg-gray-700/30 border border-gray-600 p-2 rounded-full transition-all flex items-center"
+                                onClick={() => {
+                                    setShowJoystickMenu(!showJoystickMenu);
+                                }}
+                                className={`bg-transparent hover:bg-gray-700/30 border ${isVirtualBoxActive ? 'border-green-500' : 'border-gray-600'} p-2 rounded-full transition-all flex items-center`}
                                 title={showJoystickMenu ? 'Скрыть выбор джойстика' : 'Показать выбор джойстика'}
                             >
                                 <img
@@ -1590,7 +1618,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                         selectedJoystick === 'JoystickTurn' ? '/control/arrows-turn.svg' :
                                             selectedJoystick === 'Joystick' ? '/control/arrows-down.svg' :
                                                 selectedJoystick === 'JoystickUp' ? '/control/arrows-up.svg' :
-                                                    selectedJoystick === 'JoyAnalog' ? '/control/xbox-controller.svg' : ''
+                                                    selectedJoystick === 'JoyAnalog' ? '/control/xbox-controller.svg' :
+                                                        selectedJoystick === 'VirtualBox' ? '/control/gyroscope.svg' : ''
                                     }
                                     alt="Joystick Select"
                                 />
@@ -1634,6 +1663,18 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                         >
                                             <img width={'50px'} height={'50px'} src="/control/xbox-controller.svg" alt="Xbox Joystick" />
                                         </Button>
+                                        {isDeviceOrientationSupported && (
+                                            <Button
+                                                onClick={() => {
+                                                    setIsVirtualBoxActive((prev) => !prev);
+                                                    setSelectedJoystick('VirtualBox');
+                                                    setShowJoystickMenu(false);
+                                                }}
+                                                className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
+                                            >
+                                                <img width={'50px'} height={'50px'} src="/control/gyroscope.svg" alt="Gyroscope Joystick" />
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             )}

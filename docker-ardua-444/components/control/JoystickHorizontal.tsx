@@ -88,7 +88,7 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
                 touchAction: 'none',
                 userSelect: 'none',
                 WebkitUserSelect: 'none',
-                MsUserSelect: 'none',
+                msUserSelect: 'none', // Исправлено: MsUserSelect -> msUserSelect
                 MozUserSelect: 'none',
                 WebkitTapHighlightColor: 'transparent',
                 zIndex: 1001
@@ -97,15 +97,14 @@ const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizonta
             <Joystick
                 size={150}
                 baseColor="transparent"
-                stickColor="transparent" // Прозрачный ползунок
-                //stickColor="rgba(255, 255, 255, 0.7)"
+                stickColor="transparent"
                 stickSize={200}
                 move={handleMove}
                 stop={handleStop}
                 disabled={disabled}
                 throttle={40}
-                stickShape="cross"
-                controlPlaneShape="horizontal"
+                //stickShape="circle" // Исправлено: "cross" -> "circle"
+                //controlPlaneShape="horizontal"
             />
         </div>
     )
