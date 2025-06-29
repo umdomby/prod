@@ -1590,7 +1590,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                         selectedJoystick === 'JoystickTurn' ? '/control/arrows-turn.svg' :
                                             selectedJoystick === 'Joystick' ? '/control/arrows-down.svg' :
                                                 selectedJoystick === 'JoystickUp' ? '/control/arrows-up.svg' :
-                                                    selectedJoystick === 'JoyAnalog' ? '/control/xbox.svg' : ''
+                                                    selectedJoystick === 'JoyAnalog' ? '/control/xbox-controller.svg' : ''
                                     }
                                     alt="Joystick Select"
                                 />
@@ -1632,7 +1632,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                             }}
                                             className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
                                         >
-                                            <img width={'50px'} height={'50px'} src="/control/xbox.svg" alt="Xbox Joystick" />
+                                            <img width={'50px'} height={'50px'} src="/control/xbox-controller.svg" alt="Xbox Joystick" />
                                         </Button>
                                     </div>
                                 </div>
