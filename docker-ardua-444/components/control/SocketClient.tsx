@@ -1,5 +1,4 @@
 "use client"
-import styles from '@/components/webrtc/styles.module.css';
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -1603,80 +1602,76 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                 onClick={() => {
                                     setShowJoystickMenu(!showJoystickMenu);
                                 }}
-                                className={`bg-transparent hover:bg-gray-700/30 border ${isVirtualBoxActive ? 'border-green-500' : 'border-gray-600'} p-2 rounded-full transition-all flex items-center`}
+                                className={`bg-transparent hover:bg-gray-700/30 border ${isVirtualBoxActive ? 'border-green-500' : 'border-gray-600'} p-0 rounded-full transition-all flex items-center`} // Изменено: p-2 → p-0
                                 title={showJoystickMenu ? 'Скрыть выбор джойстика' : 'Показать выбор джойстика'}
                             >
                                 <img
-                                    width={'25px'}
-                                    height={'25px'}
+                                    width={'40px'} // Увеличено с 25px до 40px
+                                    height={'40px'} // Увеличено с 25px до 40px
+                                    className="object-contain" // Добавлено: сохранение пропорций без сжатия
                                     src={
                                         selectedJoystick === 'JoystickTurn' ? '/control/arrows-turn.svg' :
                                             selectedJoystick === 'Joystick' ? '/control/arrows-down.svg' :
                                                 selectedJoystick === 'JoystickUp' ? '/control/arrows-up.svg' :
                                                     selectedJoystick === 'JoyAnalog' ? '/control/xbox-controller.svg' :
-                                                        '/control/arrows-turn.svg' // Дефолтный SVG, если VirtualBox активен, но не основной
+                                                        isVirtualBoxActive ? '/control/axis-arrow.svg' : '/control/axis-arrow.svg' // Добавлено: иконка для VirtualBox
                                     }
                                     alt="Joystick Select"
                                 />
                             </Button>
                             {showJoystickMenu && (
-                                <div className="absolute bottom-12 bg-black rounded-lg border border-gray-200 z-50">
-                                    <div className="flex flex-col items-center space-y-2">
+                                <div className="absolute bottom-12 bg-black rounded-lg border border-gray-200 z-150">
+                                    <div className="flex flex-col items-center"> {/* Добавлено: p-2 для небольшого отступа в меню */}
                                         <Button
                                             onClick={() => {
                                                 setSelectedJoystick('Joystick');
                                                 setShowJoystickMenu(false);
                                             }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155"  // Изменено: p-0
                                         >
-                                            <img width={'50px'} height={'50px'} src="/control/arrows-down.svg" alt="Down Joystick" />
+                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/arrows-down.svg" alt="Down Joystick" /> {/* Увеличено с 50px до 60px */}
                                         </Button>
                                         <Button
                                             onClick={() => {
                                                 setSelectedJoystick('JoystickUp');
                                                 setShowJoystickMenu(false);
                                             }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155" // Изменено: p-0
                                         >
-                                            <img width={'50px'} height={'50px'} src="/control/arrows-up.svg" alt="Up Joystick" />
+                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/arrows-up.svg" alt="Up Joystick" /> {/* Увеличено с 50px до 60px */}
                                         </Button>
                                         <Button
                                             onClick={() => {
                                                 setSelectedJoystick('JoystickTurn');
                                                 setShowJoystickMenu(false);
                                             }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155" // Изменено: p-0
                                         >
-                                            <img width={'50px'} height={'50px'} src="/control/arrows-turn.svg" alt="Turn Joystick" />
+                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/arrows-turn.svg" alt="Turn Joystick" /> {/* Увеличено с 50px до 60px */}
                                         </Button>
                                         <Button
                                             onClick={() => {
                                                 setSelectedJoystick('JoyAnalog');
                                                 setShowJoystickMenu(false);
                                             }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155" // Изменено: p-0
                                         >
-                                            <img width={'50px'} height={'50px'} src="/control/xbox-controller.svg" alt="Xbox Joystick" />
+                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/xbox-controller.svg" alt="Xbox Joystick" /> {/* Увеличено с 50px до 60px */}
                                         </Button>
                                         {isDeviceOrientationSupported && (
                                             <Button
                                                 onClick={() => {
-                                                    setIsVirtualBoxActive((prev) => !prev); // Просто переключаем активность VirtualBox
+                                                    setIsVirtualBoxActive((prev) => !prev); // Переключаем VirtualBox
                                                     setShowJoystickMenu(false);
                                                 }}
-                                                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center ${isVirtualBoxActive ? 'border-2 border-green-500' : ''}`}
+                                                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${isVirtualBoxActive ? 'border-2 border-green-500' : ''}`} // Изменено: p-0
                                             >
                                                 <img
-                                                    width={'50px'}
-                                                    height={'50px'}
-                                                    src={
-                                                        selectedJoystick === 'JoystickTurn' ? '/control/arrows-turn.svg' :
-                                                            selectedJoystick === 'Joystick' ? '/control/arrows-down.svg' :
-                                                                selectedJoystick === 'JoystickUp' ? '/control/arrows-up.svg' :
-                                                                    selectedJoystick === 'JoyAnalog' ? '/control/xbox-controller.svg' :
-                                                                        '/control/arrows-turn.svg'
-                                                    }
-                                                    alt="Joystick Select"
+                                                    width={'60px'} // Увеличено с 50px до 60px
+                                                    height={'60px'} // Увеличено с 50px до 60px
+                                                    className="object-contain" // Добавлено: сохранение пропорций
+                                                    src="/control/axis-arrow.svg" // Новая иконка для VirtualBox
+                                                    alt="Gyroscope"
                                                 />
                                             </Button>
                                         )}
