@@ -102,9 +102,10 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [showServos, setShowServos] = useState<boolean | null>(null)
     const [activeTab, setActiveTab] = useState<'esp' | 'controls' | 'joystickControl' | null>('esp')
     const [showJoystickMenu, setShowJoystickMenu] = useState(false)
-    const [selectedJoystick, setSelectedJoystick] = useState<'JoystickTurn' | 'Joystick' | 'JoystickUp' | 'JoyAnalog' | 'VirtualBox'>(
-        (typeof window !== 'undefined' && localStorage.getItem('selectedJoystick') as 'Joystick' | 'JoystickTurn' | 'JoystickUp' | 'JoyAnalog' | 'VirtualBox') || 'JoystickTurn'
+    const [selectedJoystick, setSelectedJoystick] = useState<'JoystickTurn' | 'Joystick' | 'JoystickUp' | 'JoyAnalog'>(
+        (typeof window !== 'undefined' && localStorage.getItem('selectedJoystick') as 'Joystick' | 'JoystickTurn' | 'JoystickUp' | 'JoyAnalog') || 'JoystickTurn'
     );
+    const [isVirtualBoxActive, setIsVirtualBoxActive] = useState(false);
 
     const lastHeartbeatLogTime = useRef<number>(0);
     const reconnectAttemptRef = useRef(0)
@@ -126,7 +127,6 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [telegramToken, setTelegramToken] = useState<string | null>(null);
     const [telegramTokenInput, setTelegramTokenInput] = useState('');
     const [telegramIdInput, setTelegramIdInput] = useState('');
-    const [isVirtualBoxActive, setIsVirtualBoxActive] = useState(false);
     const [isDeviceOrientationSupported, setIsDeviceOrientationSupported] = useState(false);
 
     const [isProxy, setIsProxy] = useState(false);
@@ -1438,22 +1438,12 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         onServoChange={adjustServo}
                         disabled={!isConnected}
                     />
-                ) : selectedJoystick === 'VirtualBox' ? (
+                ) : null}
+                {isDeviceOrientationSupported && isVirtualBoxActive && (
                     <VirtualBox
                         onChange={({ x, y }) => {
                             handleMotorAControl(x);
                             handleMotorBControl(y);
-                        }}
-                        disabled={!isConnected}
-                    />
-                ) : null}
-                {isDeviceOrientationSupported && (
-                    <VirtualBox
-                        onChange={({ x, y }) => {
-                            if (isVirtualBoxActive) {
-                                handleMotorAControl(x);
-                                handleMotorBControl(y);
-                            }
                         }}
                         disabled={!isConnected}
                     />
@@ -1623,7 +1613,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                             selectedJoystick === 'Joystick' ? '/control/arrows-down.svg' :
                                                 selectedJoystick === 'JoystickUp' ? '/control/arrows-up.svg' :
                                                     selectedJoystick === 'JoyAnalog' ? '/control/xbox-controller.svg' :
-                                                        selectedJoystick === 'VirtualBox' ? '/control/gyroscope.svg' : ''
+                                                        '/control/arrows-turn.svg' // Дефолтный SVG, если VirtualBox активен, но не основной
                                     }
                                     alt="Joystick Select"
                                 />
@@ -1670,13 +1660,23 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                         {isDeviceOrientationSupported && (
                                             <Button
                                                 onClick={() => {
-                                                    setIsVirtualBoxActive((prev) => !prev);
-                                                    setSelectedJoystick('VirtualBox');
+                                                    setIsVirtualBoxActive((prev) => !prev); // Просто переключаем активность VirtualBox
                                                     setShowJoystickMenu(false);
                                                 }}
-                                                className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center"
+                                                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center ${isVirtualBoxActive ? 'border-2 border-green-500' : ''}`}
                                             >
-                                                <img width={'50px'} height={'50px'} src="/control/gyroscope.svg" alt="Gyroscope Joystick" />
+                                                <img
+                                                    width={'50px'}
+                                                    height={'50px'}
+                                                    src={
+                                                        selectedJoystick === 'JoystickTurn' ? '/control/arrows-turn.svg' :
+                                                            selectedJoystick === 'Joystick' ? '/control/arrows-down.svg' :
+                                                                selectedJoystick === 'JoystickUp' ? '/control/arrows-up.svg' :
+                                                                    selectedJoystick === 'JoyAnalog' ? '/control/xbox-controller.svg' :
+                                                                        '/control/arrows-turn.svg'
+                                                    }
+                                                    alt="Joystick Select"
+                                                />
                                             </Button>
                                         )}
                                     </div>
