@@ -127,6 +127,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [telegramTokenInput, setTelegramTokenInput] = useState('');
     const [telegramIdInput, setTelegramIdInput] = useState('');
     const [isDeviceOrientationSupported, setIsDeviceOrientationSupported] = useState(false);
+    const virtualBoxRef = useRef<{ handleRequestPermissions: () => void } | null>(null);
 
     const [isProxy, setIsProxy] = useState(false);
 
@@ -1439,6 +1440,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                 ) : null}
                 {isDeviceOrientationSupported && isVirtualBoxActive && (
                     <VirtualBox
+                        ref={virtualBoxRef}
                         onServoChange={adjustServo}
                         disabled={!isConnected}
                         isVirtualBoxActive={isVirtualBoxActive}
@@ -1654,11 +1656,15 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                         >
                                             <img width={'60px'} height={'60px'} className="object-contain" src="/control/xbox-controller.svg" alt="Xbox Joystick" /> {/* Увеличено с 50px до 60px */}
                                         </Button>
+
                                         {isDeviceOrientationSupported && (
                                             <Button
                                                 onClick={() => {
-                                                    setIsVirtualBoxActive((prev) => !prev); // Переключаем VirtualBox
+                                                    setIsVirtualBoxActive((prev) => !prev);
                                                     setShowJoystickMenu(false);
+                                                    if (virtualBoxRef.current) {
+                                                        virtualBoxRef.current.handleRequestPermissions();
+                                                    }
                                                 }}
                                                 className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${isVirtualBoxActive ? 'border-2 border-green-500' : ''}`}
                                             >
