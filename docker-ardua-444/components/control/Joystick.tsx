@@ -1,13 +1,13 @@
 "use client"
 import { useCallback, useRef, useEffect, useState } from 'react'
 
-type JoystickProps = {
-    mo: 'A' | 'B' // motor → mo
-    onChange: (value: number) => void
-    direction: 'forward' | 'backward' | 'stop'
-    sp: number // speed → sp
-    className?: string
-    disabled?: boolean // Новый пропс
+interface JoystickProps {
+    mo: 'A' | 'B';
+    onChange: (value: number) => void;
+    direction: 'forward' | 'backward' | 'stop';
+    sp: number;
+    className?: string;
+    disabled?: boolean;
 }
 
 const Joystick = ({ mo, onChange, direction, sp, disabled, className }: JoystickProps) => { // motor → mo, speed → sp

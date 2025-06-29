@@ -3,10 +3,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { Joystick } from 'react-joystick-component'
 import styles from './JoystickStyles.module.css'
 
-type JoystickHorizontalProps = {
-    onChange: (value: { x: number; y: number }) => void
-    disabled?: boolean
-    className?: string
+interface JoystickHorizontalProps {
+    onChange: ({ x, y }: { x: number; y: number }) => void;
+    disabled?: boolean;
+    className?: string;
 }
 
 const JoystickHorizontal = ({ onChange, disabled, className }: JoystickHorizontalProps) => {

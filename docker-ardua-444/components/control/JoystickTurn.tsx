@@ -3,15 +3,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { Joystick } from 'react-joystick-component'
 import styles from './JoystickStyles.module.css'
 
-type JoystickProps = {
-    onChange: (value: { x: number; y: number }) => void
-    direction: 'forward' | 'backward' | 'stop'
-    sp: number
-    className?: string
-    disabled?: boolean
+interface JoystickTurnProps {
+    onChange: ({ x, y }: { x: number; y: number }) => void;
+    direction: 'forward' | 'backward' | 'stop';
+    sp: number;
+    className?: string;
+    disabled?: boolean;
 }
 
-const JoystickTurn = ({ onChange, direction, sp, disabled, className }: JoystickProps) => {
+const JoystickTurn = ({ onChange, direction, sp, disabled, className }: JoystickTurnProps) => {
     const [isLandscape, setIsLandscape] = useState(false)
 
     useEffect(() => {

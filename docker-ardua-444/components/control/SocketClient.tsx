@@ -1105,15 +1105,19 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
         setShowJoystickMenu(false);
     };
 
-    const joystickComponents = {
+    const singleValueJoystickComponents = {
         Joystick: Joystick,
-        JoystickTurn: JoystickTurn,
         JoystickUp: JoystickUp,
+    };
+
+    const dualValueJoystickComponents = {
+        JoystickTurn: JoystickTurn,
         JoystickHorizontal: JoystickHorizontal,
         JoyAnalog: JoyAnalog,
         VirtualBox: VirtualBox,
     };
-    const ActiveJoystick = joystickComponents[selectedJoystick]
+
+    const ActiveJoystick = singleValueJoystickComponents[selectedJoystick as keyof typeof singleValueJoystickComponents] || dualValueJoystickComponents[selectedJoystick as keyof typeof dualValueJoystickComponents];
 
     return (
         <div className="flex flex-col items-center min-h-[calc(100vh-3rem)] p-4 overflow-hidden relative">
@@ -1389,7 +1393,24 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
             )}
 
             <div className={`mt-24 ${activeTab === 'controls' ? 'opacity-50' : ''}`}>
-                {selectedJoystick === 'JoystickTurn' ? (
+                {selectedJoystick === 'Joystick' || selectedJoystick === 'JoystickUp' ? (
+                    <>
+                        <ActiveJoystick
+                            mo="A"
+                            onChange={handleMotorAControl}
+                            direction={motorADirection}
+                            sp={motorASpeed}
+                            disabled={!isConnected}
+                        />
+                        <ActiveJoystick
+                            mo="B"
+                            onChange={handleMotorBControl}
+                            direction={motorBDirection}
+                            sp={motorBSpeed}
+                            disabled={!isConnected}
+                        />
+                    </>
+                ) : selectedJoystick === 'JoystickTurn' ? (
                     <>
                         <JoystickTurn
                             onChange={({ x, y }) => {
@@ -1425,24 +1446,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         }}
                         disabled={!isConnected}
                     />
-                ) : (
-                    <>
-                        <ActiveJoystick
-                            mo="A"
-                            onChange={handleMotorAControl}
-                            direction={motorADirection}
-                            sp={motorASpeed}
-                            disabled={!isConnected}
-                        />
-                        <ActiveJoystick
-                            mo="B"
-                            onChange={handleMotorBControl}
-                            direction={motorBDirection}
-                            sp={motorBSpeed}
-                            disabled={!isConnected}
-                        />
-                    </>
-                )}
+                ) : null}
                 {isDeviceOrientationSupported && (
                     <VirtualBox
                         onChange={({ x, y }) => {

@@ -2,11 +2,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./JoystickStyles.module.css";
 
-type JoyAnalogProps = {
+interface JoyAnalogProps {
     onChange: ({ x, y }: { x: number; y: number }) => void;
     onServoChange: (servoId: "1" | "2", value: number, isAbsolute: boolean) => void;
     disabled?: boolean;
-};
+}
 
 const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
     const [gamepadConnected, setGamepadConnected] = useState(false);

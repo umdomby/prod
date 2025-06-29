@@ -1,10 +1,10 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type VirtualBoxProps = {
+interface VirtualBoxProps {
     onChange: ({ x, y }: { x: number; y: number }) => void;
     disabled?: boolean;
-};
+}
 
 const VirtualBox = ({ onChange, disabled }: VirtualBoxProps) => {
     const [isActive, setIsActive] = useState(false);

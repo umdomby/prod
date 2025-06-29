@@ -1,16 +1,16 @@
 "use client"
 import { useCallback, useRef, useEffect, useState } from 'react'
 
-type JoystickProps = {
-    mo: 'A' | 'B' // motor → mo
-    onChange: (value: number) => void
-    direction: 'forward' | 'backward' | 'stop'
-    sp: number // speed → sp
-    className?: string
-    disabled?: boolean
+interface JoystickUpProps {
+    mo: 'A' | 'B';
+    onChange: (value: number) => void;
+    direction: 'forward' | 'backward' | 'stop';
+    sp: number;
+    className?: string;
+    disabled?: boolean;
 }
 
-const JoystickUp = ({ mo, onChange, direction, sp, disabled, className }: JoystickProps) => {
+const JoystickUp = ({ mo, onChange, direction, sp, disabled, className }: JoystickUpProps) => {
     const containerRef = useRef<HTMLDivElement>(null)
     const knobRef = useRef<HTMLDivElement>(null)
     const isDragging = useRef(false)
