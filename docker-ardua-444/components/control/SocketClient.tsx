@@ -1445,6 +1445,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                             handleMotorAControl(x);
                             handleMotorBControl(y);
                         }}
+                        onServoChange={adjustServo}
                         disabled={!isConnected}
                     />
                 )}
