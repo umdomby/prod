@@ -185,36 +185,6 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
 
     return (
         <div></div>
-        // <div
-        //     className={`${styles.joyAnalogContainer} ${disabled ? "opacity-50" : ""}`}
-        //     style={{
-        //         position: "absolute",
-        //         width: "100px",
-        //         height: "100px",
-        //         bottom: "10px",
-        //         left: "50%",
-        //         transform: "translateX(-50%)",
-        //         backgroundColor: gamepadConnected ? "rgba(0, 255, 0, 0.2)" : "rgba(255, 0, 0, 0.2)",
-        //         borderRadius: "50%",
-        //         display: "flex",
-        //         justifyContent: "center",
-        //         alignItems: "center",
-        //         touchAction: "none",
-        //         userSelect: "none",
-        //         zIndex: 1001,
-        //     }}
-        // >
-        //     <div
-        //         style={{
-        //             position: "absolute",
-        //             width: "40px",
-        //             height: "40px",
-        //             borderRadius: "50%",
-        //             backgroundColor: gamepadConnected ? "rgba(0, 255, 0, 0.7)" : "rgba(255, 0, 0, 0.7)",
-        //             boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-        //         }}
-        //     />
-        // </div>
     );
 };
 
