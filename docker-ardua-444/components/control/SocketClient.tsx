@@ -8,7 +8,7 @@ import { ChevronDown, ChevronUp, X } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import Joystick from '@/components/control/Joystick'
-import JoystickTurn from '@/components/control/JoystickTurn'
+import JoystickVertical from '@/components/control/JoystickVertical'
 import JoystickHorizontal from '@/components/control/JoystickHorizontal' // Добавляем новый компонент
 import { useServo } from '@/components/ServoContext';
 import {
@@ -1111,7 +1111,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     };
 
     const dualValueJoystickComponents = {
-        JoystickTurn: JoystickTurn,
+        JoystickTurn: JoystickVertical,
         JoystickHorizontal: JoystickHorizontal,
         JoyAnalog: JoyAnalog,
         VirtualBox: VirtualBox,
@@ -1412,7 +1412,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                     </>
                 ) : selectedJoystick === 'JoystickTurn' ? (
                     <>
-                        <JoystickTurn
+                        <JoystickVertical
                             onChange={({ x, y }) => {
                                 handleMotorAControl(x);
                                 handleMotorBControl(y);

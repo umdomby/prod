@@ -11,7 +11,7 @@ interface JoystickTurnProps {
     disabled?: boolean;
 }
 
-const JoystickTurn = ({ onChange, direction, sp, disabled, className }: JoystickTurnProps) => {
+const JoystickVertical = ({ onChange, direction, sp, disabled, className }: JoystickTurnProps) => {
     const [isLandscape, setIsLandscape] = useState(false)
 
     useEffect(() => {
@@ -111,7 +111,7 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
                 width: '150px',
                 height: '150px',
                 left: isLandscape ? '85%' : '82%',
-                top: isLandscape ? '65%' : '55%',
+                top: isLandscape ? '65%' : '45%',
                 transform: 'translate(-50%, -50%)',
                 touchAction: 'none',
                 userSelect: 'none',
@@ -139,4 +139,4 @@ const JoystickTurn = ({ onChange, direction, sp, disabled, className }: Joystick
     )
 }
 
-export default JoystickTurn
+export default JoystickVertical
