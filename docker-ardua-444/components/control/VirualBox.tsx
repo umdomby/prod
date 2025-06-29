@@ -2,13 +2,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface VirtualBoxProps {
-    onChange: ({ x, y }: { x: number; y: number }) => void; // Для моторов
     onServoChange: (servoId: "1" | "2", value: number, isAbsolute: boolean) => void; // Для сервоприводов
     disabled?: boolean; // Оставляем для блокировки при отсутствии соединения
     isVirtualBoxActive: boolean; // Новое свойство для управления активностью
 }
 
-const VirtualBox = ({ onChange, onServoChange, disabled, isVirtualBoxActive }: VirtualBoxProps) => {
+const VirtualBox = ({ onServoChange, disabled, isVirtualBoxActive }: VirtualBoxProps) => {
     const [hasOrientationPermission, setHasOrientationPermission] = useState(false);
     const [hasMotionPermission, setHasMotionPermission] = useState(false);
     const [isOrientationSupported, setIsOrientationSupported] = useState(false);
@@ -120,14 +119,8 @@ const VirtualBox = ({ onChange, onServoChange, disabled, isVirtualBoxActive }: V
 
             // Обновление предыдущего состояния
             prevOrientationState.current = { beta: normalizedBeta, gamma: normalizedGamma };
-
-            // Управление моторами
-            const motorX = Math.round(normalizedGamma * 255); // X: вправо → 255, влево → 0
-            const motorY = Math.round(normalizedBeta * 255); // Y: вперед → 255, назад → 0
-            onChange({ x: motorX, y: motorY });
-            log(`Моторы: x=${motorX}, y=${motorY}`, "info");
         },
-        [disabled, isVirtualBoxActive, hasOrientationPermission, onChange, onServoChange, log]
+        [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, log]
     );
 
     // Обработка данных акселерометра
@@ -180,16 +173,8 @@ const VirtualBox = ({ onChange, onServoChange, disabled, isVirtualBoxActive }: V
 
             // Обновление предыдущего состояния
             prevAccelerationState.current = { x: normalizedX, y: normalizedY };
-
-            // Управление моторами (если ориентация недоступна)
-            if (!isOrientationSupported) {
-                const motorX = Math.round(((normalizedX + 1) / 2) * 255); // X: вправо → 255, влево → 0
-                const motorY = Math.round(((normalizedY + 1) / 2) * 255); // Y: вперед → 255, назад → 0
-                onChange({ x: motorX, y: motorY });
-                log(`Моторы (Motion): x=${motorX}, y=${motorY}`, "info");
-            }
         },
-        [disabled, isVirtualBoxActive, hasMotionPermission, isOrientationSupported, onChange, onServoChange, log]
+        [disabled, isVirtualBoxActive, hasMotionPermission, onServoChange, log]
     );
 
     // Запуск обработки событий ориентации и акселерометра

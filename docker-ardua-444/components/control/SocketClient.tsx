@@ -1439,13 +1439,9 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                 ) : null}
                 {isDeviceOrientationSupported && isVirtualBoxActive && (
                     <VirtualBox
-                        onChange={({ x, y }) => {
-                            handleMotorAControl(x);
-                            handleMotorBControl(y);
-                        }}
                         onServoChange={adjustServo}
                         disabled={!isConnected}
-                        isVirtualBoxActive={isVirtualBoxActive} // Передаем пропс
+                        isVirtualBoxActive={isVirtualBoxActive}
                     />
                 )}
 
