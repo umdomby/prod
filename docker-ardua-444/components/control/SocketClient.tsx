@@ -1113,7 +1113,6 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
         JoystickTurn: JoystickVertical,
         JoystickHorizontal: JoystickHorizontal,
         JoyAnalog: JoyAnalog,
-        VirtualBox: VirtualBox,
     };
 
     const ActiveJoystick = singleValueJoystickComponents[selectedJoystick as keyof typeof singleValueJoystickComponents] || dualValueJoystickComponents[selectedJoystick as keyof typeof dualValueJoystickComponents];
@@ -1446,6 +1445,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         }}
                         onServoChange={adjustServo}
                         disabled={!isConnected}
+                        isVirtualBoxActive={isVirtualBoxActive} // Передаем пропс
                     />
                 )}
 
@@ -1664,13 +1664,13 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                     setIsVirtualBoxActive((prev) => !prev); // Переключаем VirtualBox
                                                     setShowJoystickMenu(false);
                                                 }}
-                                                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${isVirtualBoxActive ? 'border-2 border-green-500' : ''}`} // Изменено: p-0
+                                                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${isVirtualBoxActive ? 'border-2 border-green-500' : ''}`}
                                             >
                                                 <img
-                                                    width={'60px'} // Увеличено с 50px до 60px
-                                                    height={'60px'} // Увеличено с 50px до 60px
-                                                    className="object-contain" // Добавлено: сохранение пропорций
-                                                    src="/control/axis-arrow.svg" // Новая иконка для VirtualBox
+                                                    width={'60px'}
+                                                    height={'60px'}
+                                                    className="object-contain"
+                                                    src="/control/axis-arrow.svg"
                                                     alt="Gyroscope"
                                                 />
                                             </Button>

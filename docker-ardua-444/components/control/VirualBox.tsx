@@ -4,11 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 interface VirtualBoxProps {
     onChange: ({ x, y }: { x: number; y: number }) => void; // Для моторов
     onServoChange: (servoId: "1" | "2", value: number, isAbsolute: boolean) => void; // Для сервоприводов
-    disabled?: boolean;
+    disabled?: boolean; // Оставляем для блокировки при отсутствии соединения
+    isVirtualBoxActive: boolean; // Новое свойство для управления активностью
 }
 
-const VirtualBox = ({ onChange, onServoChange, disabled }: VirtualBoxProps) => {
-    const [isActive, setIsActive] = useState(false);
+const VirtualBox = ({ onChange, onServoChange, disabled, isVirtualBoxActive }: VirtualBoxProps) => {
     const [hasOrientationPermission, setHasOrientationPermission] = useState(false);
     const [hasMotionPermission, setHasMotionPermission] = useState(false);
     const [isOrientationSupported, setIsOrientationSupported] = useState(false);
@@ -74,7 +74,7 @@ const VirtualBox = ({ onChange, onServoChange, disabled }: VirtualBoxProps) => {
     // Обработка данных ориентации (гироскоп)
     const handleDeviceOrientation = useCallback(
         (event: DeviceOrientationEvent) => {
-            if (disabled || !isActive || !hasOrientationPermission) {
+            if (disabled || !isVirtualBoxActive || !hasOrientationPermission) {
                 log("Обработка ориентации отключена: disabled, неактивно или нет разрешения", "info");
                 return;
             }
@@ -127,13 +127,13 @@ const VirtualBox = ({ onChange, onServoChange, disabled }: VirtualBoxProps) => {
             onChange({ x: motorX, y: motorY });
             log(`Моторы: x=${motorX}, y=${motorY}`, "info");
         },
-        [disabled, isActive, hasOrientationPermission, onChange, onServoChange, log]
+        [disabled, isVirtualBoxActive, hasOrientationPermission, onChange, onServoChange, log]
     );
 
     // Обработка данных акселерометра
     const handleDeviceMotion = useCallback(
         (event: DeviceMotionEvent) => {
-            if (disabled || !isActive || !hasMotionPermission) {
+            if (disabled || !isVirtualBoxActive || !hasMotionPermission) {
                 log("Обработка акселерометра отключена: disabled, неактивно или нет разрешения", "info");
                 return;
             }
@@ -189,24 +189,12 @@ const VirtualBox = ({ onChange, onServoChange, disabled }: VirtualBoxProps) => {
                 log(`Моторы (Motion): x=${motorX}, y=${motorY}`, "info");
             }
         },
-        [disabled, isActive, hasMotionPermission, isOrientationSupported, onChange, onServoChange, log]
+        [disabled, isVirtualBoxActive, hasMotionPermission, isOrientationSupported, onChange, onServoChange, log]
     );
-
-    // Включение/выключение обработки
-    const toggleActive = useCallback(() => {
-        setIsActive((prev) => {
-            const newState = !prev;
-            if (newState && (!hasOrientationPermission || !hasMotionPermission)) {
-                requestPermissions();
-            }
-            log(`Активность VirtualBox: ${newState}`, "info");
-            return newState;
-        });
-    }, [hasOrientationPermission, hasMotionPermission, requestPermissions, log]);
 
     // Запуск обработки событий ориентации и акселерометра
     useEffect(() => {
-        if (isActive && (hasOrientationPermission || hasMotionPermission)) {
+        if (isVirtualBoxActive && (hasOrientationPermission || hasMotionPermission)) {
             if (isOrientationSupported && hasOrientationPermission) {
                 window.addEventListener("deviceorientation", handleDeviceOrientation);
                 log("Обработчик DeviceOrientationEvent добавлен", "success");
@@ -238,7 +226,7 @@ const VirtualBox = ({ onChange, onServoChange, disabled }: VirtualBoxProps) => {
             };
         }
     }, [
-        isActive,
+        isVirtualBoxActive,
         hasOrientationPermission,
         hasMotionPermission,
         isOrientationSupported,
@@ -248,16 +236,16 @@ const VirtualBox = ({ onChange, onServoChange, disabled }: VirtualBoxProps) => {
         log,
     ]);
 
-    // Автоматический запрос разрешений при монтировании
+    // Автоматический запрос разрешений при активации
     useEffect(() => {
-        if (isOrientationSupported || isMotionSupported) {
-            toggleActive(); // Активируем VirtualBox автоматически
+        if ((isOrientationSupported || isMotionSupported) && isVirtualBoxActive) {
+            requestPermissions();
         }
-    }, [isOrientationSupported, isMotionSupported, toggleActive]);
+    }, [isOrientationSupported, isMotionSupported, isVirtualBoxActive, requestPermissions]);
 
     return (
         <div
-            data-is-active={isActive}
+            data-is-active={isVirtualBoxActive}
             data-orientation-supported={isOrientationSupported}
             data-motion-supported={isMotionSupported}
             style={{ display: "none" }}
