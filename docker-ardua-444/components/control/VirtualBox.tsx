@@ -4,18 +4,18 @@ import { logVirtualBoxEvent } from "@/app/actionsVirtualBoxLog";
 
 interface VirtualBoxProps {
     onServoChange: (servoId: "1" | "2", value: number, isAbsolute: boolean) => void;
-    onOrientationChange?: (beta: number, gamma: number, alpha: number) => void; // Добавляем alpha
+    onOrientationChange?: (beta: number, gamma: number, alpha: number) => void;
     disabled?: boolean;
     isVirtualBoxActive: boolean;
+    onPermissionChange?: (orientation: boolean, motion: boolean) => void; // Добавлено
 }
 
 const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualBoxProps>(
-    ({ onServoChange, onOrientationChange, disabled, isVirtualBoxActive }, ref) => {
+    ({ onServoChange, onOrientationChange, disabled, isVirtualBoxActive, onPermissionChange }, ref) => {
         const [hasOrientationPermission, setHasOrientationPermission] = useState(false);
         const [hasMotionPermission, setHasMotionPermission] = useState(false);
         const [isOrientationSupported, setIsOrientationSupported] = useState(false);
         const [isMotionSupported, setIsMotionSupported] = useState(false);
-        const [centerGamma, setCenterGamma] = useState<number | null>(null);
         const animationFrameRef = useRef<number | null>(null);
         const prevOrientationState = useRef({ beta: 0, gamma: 0 });
         const prevAccelerationState = useRef({ x: 0, y: 0 });
@@ -23,6 +23,7 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
         const smoothedServo2 = useRef(90);
         const smoothingFactor = 0.2;
         const hasRequestedPermissions = useRef(false);
+        const [centerGamma, setCenterGamma] = useState<number>(0);
 
         const log = useCallback(async (message: string, type: "info" | "error" | "success" = "info") => {
             try {
@@ -42,7 +43,7 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
 
             const userAgent = navigator.userAgent;
             const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-            const iOSVersion = isIOS ? userAgent.match(/OS (\d+)_/i)?.[1] : 'unknown';
+            const iOSVersion = isIOS ? parseInt(userAgent.match(/OS (\d+)_/i)?.[1] || '0', 10) : 0;
             log(
                 `Информация об устройстве: iOS=${isIOS}, версия=${iOSVersion}, UserAgent=${userAgent}`,
                 "info"
@@ -52,11 +53,15 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                 "info"
             );
 
-            if (orientationSupported && !orientationPermissionSupported) {
+            if (isIOS && iOSVersion >= 13 && orientationPermissionSupported) {
+                log("iOS 13+ обнаружен, требуется запрос разрешений для ориентации", "info");
+            } else if (orientationSupported && !orientationPermissionSupported) {
                 setHasOrientationPermission(true);
                 log("Разрешение DeviceOrientationEvent не требуется", "info");
             }
-            if (motionSupported && !motionPermissionSupported) {
+            if (isIOS && iOSVersion >= 13 && motionPermissionSupported) {
+                log("iOS 13+ обнаружен, требуется запрос разрешений для акселерометра", "info");
+            } else if (motionSupported && !motionPermissionSupported) {
                 setHasMotionPermission(true);
                 log("Разрешение DeviceMotionEvent не требуется", "info");
             }
@@ -79,22 +84,31 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     typeof (DeviceMotionEvent as any).requestPermission === "function"
                 ) {
                     await log("Запрос разрешений для DeviceOrientationEvent и DeviceMotionEvent", "info");
-                    const [orientationPermission, motionPermission] = await Promise.all([
-                        (DeviceOrientationEvent as any).requestPermission(),
-                        (DeviceMotionEvent as any).requestPermission(),
-                    ]);
+                    try {
+                        const [orientationPermission, motionPermission] = await Promise.all([
+                            (DeviceOrientationEvent as any).requestPermission(),
+                            (DeviceMotionEvent as any).requestPermission(),
+                        ]);
 
-                    setHasOrientationPermission(orientationPermission === "granted");
-                    await log(
-                        `Разрешение DeviceOrientationEvent: ${orientationPermission}`,
-                        orientationPermission === "granted" ? "success" : "error"
-                    );
+                        setHasOrientationPermission(orientationPermission === "granted");
+                        await log(
+                            `Разрешение DeviceOrientationEvent: ${orientationPermission}`,
+                            orientationPermission === "granted" ? "success" : "error"
+                        );
 
-                    setHasMotionPermission(motionPermission === "granted");
-                    await log(
-                        `Разрешение DeviceMotionEvent: ${motionPermission}`,
-                        motionPermission === "granted" ? "success" : "error"
-                    );
+                        setHasMotionPermission(motionPermission === "granted");
+                        await log(
+                            `Разрешение DeviceMotionEvent: ${motionPermission}`,
+                            motionPermission === "granted" ? "success" : "error"
+                        );
+                    } catch (error) {
+                        await log(`Ошибка запроса разрешений: ${String(error)}`, "error");
+                        if (String(error).includes("NotAllowedError")) {
+                            alert("Пожалуйста, разрешите доступ к датчикам устройства в появившемся окне.");
+                        }
+                        setHasOrientationPermission(false);
+                        setHasMotionPermission(false);
+                    }
                 } else if (isOrientationSupported) {
                     setHasOrientationPermission(true);
                     await log("Разрешение DeviceOrientationEvent не требуется", "info");
@@ -110,6 +124,9 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                 }
             } catch (error) {
                 await log(`Ошибка запроса разрешений: ${String(error)}`, "error");
+                if (String(error).includes("NotAllowedError")) {
+                    alert("Пожалуйста, разрешите доступ к датчикам устройства в появившемся окне.");
+                }
                 setHasOrientationPermission(false);
                 setHasMotionPermission(false);
             } finally {
@@ -123,10 +140,10 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
 
         useEffect(() => {
             if (isVirtualBoxActive) {
-                log("Автоматический вызов requestPermissions при активации VirtualBox", "info");
-                requestPermissions();
+                log("VirtualBox активирован, ожидается пользовательский запрос разрешений", "info");
+                onPermissionChange?.(hasOrientationPermission, hasMotionPermission);
             }
-        }, [isVirtualBoxActive, requestPermissions, log]);
+        }, [isVirtualBoxActive, hasOrientationPermission, hasMotionPermission, log, onPermissionChange]);
 
         useEffect(() => {
             if (isVirtualBoxActive && hasOrientationPermission) {
@@ -152,15 +169,15 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                 }
 
                 const { beta, gamma, alpha } = event;
-                if (beta === null || gamma === null || alpha === null || centerGamma === null) {
-                    log("Данные ориентации недоступны или центр не зафиксирован", "error");
+                if (beta === null || gamma === null || alpha === null) {
+                    log("Данные ориентации недоступны", "error");
                     return;
                 }
 
                 log(`Данные ориентации: beta=${beta.toFixed(2)}, gamma=${gamma.toFixed(2)}, alpha=${alpha.toFixed(2)}`, "info");
 
                 if (onOrientationChange) {
-                    onOrientationChange(beta, gamma, alpha); // Передаем alpha
+                    onOrientationChange(beta, gamma, alpha);
                 }
 
                 const deadZone = 0.15;
@@ -281,11 +298,6 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     log("Обработчик DeviceMotionEvent добавлен", "success");
                 }
 
-                const loop = () => {
-                    animationFrameRef.current = requestAnimationFrame(loop);
-                };
-                animationFrameRef.current = requestAnimationFrame(loop);
-
                 return () => {
                     if (isOrientationSupported && hasOrientationPermission) {
                         window.removeEventListener("deviceorientation", handleDeviceOrientation);
@@ -294,10 +306,6 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     if (isMotionSupported && hasMotionPermission) {
                         window.removeEventListener("devicemotion", handleDeviceMotion);
                         log("Обработчик DeviceMotionEvent удален", "info");
-                    }
-                    if (animationFrameRef.current) {
-                        cancelAnimationFrame(animationFrameRef.current);
-                        log("requestAnimationFrame остановлен", "info");
                     }
                 };
             }
@@ -311,13 +319,13 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
             handleDeviceMotion,
             log,
         ]);
-
         return (
             <button
                 onClick={requestPermissions}
-                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-2 ${
+                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-2 mt-[100px] ${
                     isVirtualBoxActive ? 'border-2 border-green-500' : 'border border-gray-600'
                 }`}
+                title="Нажмите, чтобы запросить доступ к датчикам устройства"
             >
                 <img
                     width="40px"

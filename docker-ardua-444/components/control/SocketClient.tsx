@@ -128,6 +128,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [telegramIdInput, setTelegramIdInput] = useState('');
     const [isDeviceOrientationSupported, setIsDeviceOrientationSupported] = useState(false);
     const virtualBoxRef = useRef<{ handleRequestPermissions: () => void } | null>(null);
+    const [hasOrientationPermission, setHasOrientationPermission] = useState(false);
+    const [hasMotionPermission, setHasMotionPermission] = useState(false);
 
     const [isProxy, setIsProxy] = useState(false);
 
@@ -360,8 +362,15 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
             } else {
                 setIsLandscape(window.innerWidth > window.innerHeight);
             }
-            // Проверка поддержки DeviceOrientationEvent
-            setIsDeviceOrientationSupported(typeof window.DeviceOrientationEvent !== "undefined");
+            const orientationSupported = typeof window.DeviceOrientationEvent !== "undefined";
+            setIsDeviceOrientationSupported(orientationSupported);
+            if (orientationSupported && typeof (DeviceOrientationEvent as any).requestPermission === "function") {
+                addLog("DeviceOrientationEvent поддерживается, требуется запрос разрешения", "info");
+            } else if (orientationSupported) {
+                addLog("DeviceOrientationEvent поддерживается, разрешение не требуется", "info");
+            } else {
+                addLog("DeviceOrientationEvent не поддерживается", "error");
+            }
         };
 
         checkOrientation();
@@ -379,7 +388,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                 window.removeEventListener('resize', checkOrientation);
             }
         };
-    }, []);
+    }, [addLog]);
 
     useEffect(() => {
         currentDeRef.current = inputDe
@@ -1457,6 +1466,10 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         ref={virtualBoxRef}
                         onServoChange={adjustServo}
                         onOrientationChange={handleOrientationChange}
+                        onPermissionChange={(orientation, motion) => {
+                            setHasOrientationPermission(orientation);
+                            setHasMotionPermission(motion);
+                        }}
                         disabled={!isConnected}
                         isVirtualBoxActive={isVirtualBoxActive}
                     />
@@ -1678,6 +1691,9 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                     setIsVirtualBoxActive((prev) => {
                                                         const newState = !prev;
                                                         addLog(`VirtualBox ${newState ? 'активирован' : 'деактивирован'}`, 'info');
+                                                        if (newState && virtualBoxRef.current) {
+                                                            virtualBoxRef.current.handleRequestPermissions();
+                                                        }
                                                         return newState;
                                                     });
                                                     setShowJoystickMenu(false);
@@ -1699,10 +1715,21 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         </div>
                     </div>
                     {/* Новый элемент для отображения данных ориентации */}
-                    {isVirtualBoxActive && orientationData.beta !== null && orientationData.gamma !== null && orientationData.alpha !== null && (
+                    {isVirtualBoxActive && (
+                        <div className="fixed bottom-16 right-4 flex items-center justify-center z-50">
+                            <span className="text-sm font-medium text-yellow-300 bg-black/50 px-2 py-1 rounded">
+                                VirtualBox: {isVirtualBoxActive ? 'Активен' : 'Неактивен'},
+                                Orientation: {hasOrientationPermission ? 'Разрешено' : 'Запрещено'},
+                                Motion: {hasMotionPermission ? 'Разрешено' : 'Запрещено'}
+                            </span>
+                        </div>
+                    )}
+                    {isVirtualBoxActive && (
                         <div className="fixed bottom-3 right-4 flex items-center justify-center z-50">
                             <span className="text-sm font-medium text-green-300 bg-black/50 px-2 py-1 rounded">
-                                X: {orientationData.beta.toFixed(2)}° Y: {orientationData.gamma.toFixed(2)}° Z: {orientationData.alpha.toFixed(2)}°
+                                X: {orientationData.beta !== null ? orientationData.beta.toFixed(2) : 'N/A'}°
+                                Y: {orientationData.gamma !== null ? orientationData.gamma.toFixed(2) : 'N/A'}°
+                                Z: {orientationData.alpha !== null ? orientationData.alpha.toFixed(2) : 'N/A'}°
                             </span>
                         </div>
                     )}
