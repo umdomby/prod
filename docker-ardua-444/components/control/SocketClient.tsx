@@ -1710,14 +1710,13 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                         addLog('Сервоприводы 1 и 2 установлены в центральное положение (90°)', 'info');
                                                         // Сбрасываем данные ориентации
                                                         setOrientationData({ beta: null, gamma: null, alpha: null });
-                                                        // Вызываем метод очистки в VirtualBox, если он доступен
+                                                        // Вызываем метод очистки в VirtualBox
                                                         if (virtualBoxRef.current?.handleRequestPermissions) {
                                                             virtualBoxRef.current.handleRequestPermissions();
                                                         }
                                                     }
 
                                                     if (newState) {
-                                                        // Логика запроса разрешений (оставляем как есть)
                                                         const userAgent = navigator.userAgent;
                                                         const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
                                                         const iOSVersion = isIOS ? parseInt(userAgent.match(/OS (\d+)_/i)?.[1] || '0', 10) : 0;
@@ -1745,7 +1744,10 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                                 })
                                                                 .then((result) => {
                                                                     orientationPermission = result;
-                                                                    addLog(`Разрешение DeviceOrientationEvent: ${orientationPermission}`, orientationPermission === "granted" ? "success" : "error");
+                                                                    addLog(
+                                                                        `Разрешение DeviceOrientationEvent: ${orientationPermission}`,
+                                                                        orientationPermission === "granted" ? "success" : "error"
+                                                                    );
                                                                     if (typeof (DeviceMotionEvent as any).requestPermission === "function") {
                                                                         addLog("Запрос DeviceMotionEvent", "info");
                                                                         return (DeviceMotionEvent as any).requestPermission();
@@ -1759,12 +1761,21 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                                 })
                                                                 .then((result) => {
                                                                     motionPermission = result;
-                                                                    addLog(`Разрешение DeviceMotionEvent: ${motionPermission}`, motionPermission === "granted" ? "success" : "error");
+                                                                    addLog(
+                                                                        `Разрешение DeviceMotionEvent: ${motionPermission}`,
+                                                                        motionPermission === "granted" ? "success" : "error"
+                                                                    );
 
                                                                     const orientationGranted = orientationPermission === "granted";
                                                                     const motionGranted = motionPermission === "granted";
                                                                     setHasOrientationPermission(orientationGranted);
                                                                     setHasMotionPermission(motionGranted);
+
+                                                                    // Если разрешения не получены, отключаем VirtualBox
+                                                                    if (!orientationGranted || !motionGranted) {
+                                                                        setIsVirtualBoxActive(false);
+                                                                        addLog("VirtualBox деактивирован из-за отсутствия разрешений", "error");
+                                                                    }
                                                                 })
                                                                 .catch((error) => {
                                                                     addLog(`Ошибка запроса разрешений: ${String(error)}`, "error");
@@ -1773,6 +1784,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                                     }
                                                                     setHasOrientationPermission(false);
                                                                     setHasMotionPermission(false);
+                                                                    setIsVirtualBoxActive(false);
+                                                                    addLog("VirtualBox деактивирован из-за ошибки разрешений", "error");
                                                                 })
                                                                 .finally(() => {
                                                                     hasRequestedPermissions.current = false;
@@ -1786,16 +1799,24 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                                 `Разрешения для Android: Orientation=${orientationSupported ? "granted" : "denied"}, Motion=${motionSupported ? "granted" : "denied"}`,
                                                                 orientationSupported && motionSupported ? "success" : "error"
                                                             );
+                                                            if (!orientationSupported || !motionSupported) {
+                                                                setIsVirtualBoxActive(false);
+                                                                addLog("VirtualBox деактивирован из-за неподдержки сенсоров", "error");
+                                                            }
                                                         }
                                                     }
                                                 }}
                                                 className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${
                                                     isVirtualBoxActive && hasOrientationPermission && hasMotionPermission ? 'border-2 border-green-500' : 'border border-gray-600'
                                                 }`}
-                                                title={hasOrientationPermission && hasMotionPermission
-                                                    ? "Разрешения получены"
-                                                    : "Нажмите, чтобы запросить доступ к датчикам устройства"}
-                                                disabled={hasOrientationPermission && hasMotionPermission && isVirtualBoxActive}
+                                                title={
+                                                    hasOrientationPermission && hasMotionPermission
+                                                        ? isVirtualBoxActive
+                                                            ? "VirtualBox активен, нажмите для деактивации"
+                                                            : "VirtualBox неактивен, нажмите для активации"
+                                                        : "Нажмите, чтобы запросить доступ к датчикам устройства"
+                                                }
+                                                disabled={false} // Убираем блокировку кнопки
                                             >
                                                 <img
                                                     width={'60px'}
