@@ -99,7 +99,10 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [isLandscape, setIsLandscape] = useState(false)
     const [button1State, setButton1State] = useState<boolean | null>(null)
     const [button2State, setButton2State] = useState<boolean | null>(null)
-    const [showServos, setShowServos] = useState<boolean | null>(null)
+    const [showServos, setShowServos] = useState<boolean | null>(() => {
+        const savedShowServos = localStorage.getItem('showServos');
+        return savedShowServos !== null ? JSON.parse(savedShowServos) : false;
+    });
     const [activeTab, setActiveTab] = useState<'esp' | 'controls' | 'joystickControl' | null>('esp')
     const [showJoystickMenu, setShowJoystickMenu] = useState(false)
     const [selectedJoystick, setSelectedJoystick] = useState<'JoystickTurn' | 'Joystick' | 'JoystickUp' | 'JoyAnalog'>(
@@ -191,7 +194,6 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         setServo2MaxAngle(settings.servo2MaxAngle || 180);
                         setButton1State(settings.b1 ?? false);
                         setButton2State(settings.b2 ?? false);
-                        setShowServos(settings.servoView ?? true);
                         setServo1MinInput((settings.servo1MinAngle || 0).toString());
                         setServo1MaxInput((settings.servo1MaxAngle || 180).toString());
                         setServo2MinInput((settings.servo2MinAngle || 0).toString());
@@ -230,7 +232,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                     setNoDevices(true);
                     setInputDe('');
                     setDe('');
-                    setShowServos(true);
+                    setShowServos(false);
                     setServo1MinInput('0');
                     setServo1MaxInput('180');
                     setServo2MinInput('0');
@@ -614,8 +616,9 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
 
     const toggleServosVisibility = useCallback(async () => {
         try {
-            setShowServos(prev => !prev);
             const newState = !showServos;
+            setShowServos(newState);
+            localStorage.setItem('showServos', JSON.stringify(newState)); // Сохраняем в localStorage
             if (socketRef.current?.readyState === WebSocket.OPEN) {
                 socketRef.current.send(JSON.stringify({
                     co: 'SET_SERVO_VIEW',
@@ -628,7 +631,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
             await updateServoSettings(inputDe, { servoView: newState });
             addLog(`Видимость сервоприводов: ${newState ? 'включена' : 'выключена'}`, 'success');
         } catch (error: unknown) {
-            setShowServos(prev => !prev);
+            setShowServos(showServos); // Откатываем значение при ошибке
             const errorMessage = error instanceof Error ? error.message : String(error);
             addLog(`Ошибка servoView: ${errorMessage}`, 'error');
         }
