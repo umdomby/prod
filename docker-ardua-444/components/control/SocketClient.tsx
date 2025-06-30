@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/accordion";
 import JoystickUp from "@/components/control/JoystickUp";
 import JoyAnalog from '@/components/control/JoyAnalog';
-import VirtualBox from "@/components/control/VirualBox";
+import VirtualBox from "@/components/control/VirtualBox";
 
 
 type MessageType = {
