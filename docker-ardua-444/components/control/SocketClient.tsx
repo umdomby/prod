@@ -132,16 +132,16 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [isProxy, setIsProxy] = useState(false);
 
     // Новое состояние для данных ориентации
-    const [orientationData, setOrientationData] = useState<{ beta: number | null; gamma: number | null }>({
+    const [orientationData, setOrientationData] = useState<{ beta: number | null; gamma: number | null; alpha: number | null }>({
         beta: null,
         gamma: null,
+        alpha: null,
     });
 
     // Callback для обработки данных ориентации
-    const handleOrientationChange = useCallback((beta: number, gamma: number) => {
-        setOrientationData({ beta, gamma });
-        // Добавляем отладочный лог в SocketClient
-        addLog(`Данные ориентации от VirtualBox: beta=${beta.toFixed(2)}, gamma=${gamma.toFixed(2)}`, "info");
+    const handleOrientationChange = useCallback((beta: number, gamma: number, alpha: number) => {
+        setOrientationData({ beta, gamma, alpha });
+        addLog(`Данные ориентации от VirtualBox: beta=${beta.toFixed(2)}, gamma=${gamma.toFixed(2)}, alpha=${alpha.toFixed(2)}`, "info");
     }, []);
 
 
@@ -1699,11 +1699,11 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         </div>
                     </div>
                     {/* Новый элемент для отображения данных ориентации */}
-                    {isVirtualBoxActive && orientationData.beta !== null && orientationData.gamma !== null && (
+                    {isVirtualBoxActive && orientationData.beta !== null && orientationData.gamma !== null && orientationData.alpha !== null && (
                         <div className="fixed bottom-3 right-4 flex items-center justify-center z-50">
-                        <span className="text-sm font-medium text-green-300 bg-black/50 px-2 py-1 rounded">
-                            X: {orientationData.beta.toFixed(2)}° Y: {orientationData.gamma.toFixed(2)}°
-                        </span>
+                            <span className="text-sm font-medium text-green-300 bg-black/50 px-2 py-1 rounded">
+                                X: {orientationData.beta.toFixed(2)}° Y: {orientationData.gamma.toFixed(2)}° Z: {orientationData.alpha.toFixed(2)}°
+                            </span>
                         </div>
                     )}
                 </div>

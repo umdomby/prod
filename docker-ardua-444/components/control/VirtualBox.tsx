@@ -4,7 +4,7 @@ import { logVirtualBoxEvent } from "@/app/actionsVirtualBoxLog";
 
 interface VirtualBoxProps {
     onServoChange: (servoId: "1" | "2", value: number, isAbsolute: boolean) => void;
-    onOrientationChange?: (beta: number, gamma: number) => void;
+    onOrientationChange?: (beta: number, gamma: number, alpha: number) => void; // Добавляем alpha
     disabled?: boolean;
     isVirtualBoxActive: boolean;
 }
@@ -151,16 +151,16 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     return;
                 }
 
-                const { beta, gamma } = event;
-                if (beta === null || gamma === null || centerGamma === null) {
+                const { beta, gamma, alpha } = event;
+                if (beta === null || gamma === null || alpha === null || centerGamma === null) {
                     log("Данные ориентации недоступны или центр не зафиксирован", "error");
                     return;
                 }
 
-                log(`Данные ориентации: beta=${beta.toFixed(2)}, gamma=${gamma.toFixed(2)}`, "info");
+                log(`Данные ориентации: beta=${beta.toFixed(2)}, gamma=${gamma.toFixed(2)}, alpha=${alpha.toFixed(2)}`, "info");
 
                 if (onOrientationChange) {
-                    onOrientationChange(beta, gamma);
+                    onOrientationChange(beta, gamma, alpha); // Передаем alpha
                 }
 
                 const deadZone = 0.15;
