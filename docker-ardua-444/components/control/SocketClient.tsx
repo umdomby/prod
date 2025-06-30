@@ -1568,6 +1568,13 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                         </>
                     )}
                     <div className="flex items-center justify-center space-x-2">
+                        {isVirtualBoxActive && (
+                            <span className="text-sm font-medium text-green-300 bg-black/50 px-2 py-1 rounded">
+                                X: {orientationData.beta !== null ? orientationData.beta.toFixed(2) : 'N/A'}°
+                                Y: {orientationData.gamma !== null ? orientationData.gamma.toFixed(2) : 'N/A'}°
+                                Z: {orientationData.alpha !== null ? orientationData.alpha.toFixed(2) : 'N/A'}°
+                            </span>
+                        )}
                         {inputVoltage !== null && button2State ? (
                             <span className="text-xl font-medium text-green-600 bg-transparent rounded-full flex items-center justify-center">
                                 {inputVoltage.toFixed(2)}
@@ -1835,25 +1842,15 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                             )}
                         </div>
                     </div>
-                    {/* Новый элемент для отображения данных ориентации */}
-                    {isVirtualBoxActive && (
-                        <div className="fixed bottom-16 right-4 flex items-center justify-center z-50">
-                            <span className="text-sm font-medium text-yellow-300 bg-black/50 px-2 py-1 rounded">
-                                VirtualBox: {isVirtualBoxActive ? 'Активен' : 'Неактивен'},
-                                Orientation: {hasOrientationPermission ? 'Разрешено' : 'Запрещено'},
-                                Motion: {hasMotionPermission ? 'Разрешено' : 'Запрещено'}
-                            </span>
-                        </div>
-                    )}
-                    {isVirtualBoxActive && (
-                        <div className="fixed bottom-3 right-4 flex items-center justify-center z-50">
-                            <span className="text-sm font-medium text-green-300 bg-black/50 px-2 py-1 rounded">
-                                X: {orientationData.beta !== null ? orientationData.beta.toFixed(2) : 'N/A'}°
-                                Y: {orientationData.gamma !== null ? orientationData.gamma.toFixed(2) : 'N/A'}°
-                                Z: {orientationData.alpha !== null ? orientationData.alpha.toFixed(2) : 'N/A'}°
-                            </span>
-                        </div>
-                    )}
+                    {/*{isVirtualBoxActive && (*/}
+                    {/*    <div className="fixed bottom-16 right-4 flex items-center justify-center z-50">*/}
+                    {/*        <span className="text-sm font-medium text-yellow-300 bg-black/50 px-2 py-1 rounded">*/}
+                    {/*            VirtualBox: {isVirtualBoxActive ? 'Активен' : 'Неактивен'},*/}
+                    {/*            Orientation: {hasOrientationPermission ? 'Разрешено' : 'Запрещено'},*/}
+                    {/*            Motion: {hasMotionPermission ? 'Разрешено' : 'Запрещено'}*/}
+                    {/*        </span>*/}
+                    {/*    </div>*/}
+                    {/*)}*/}
                 </div>
             </div>
         </div>
