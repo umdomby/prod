@@ -30,7 +30,6 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
     const smoothedServo1 = useRef(90);
     const smoothedServo2 = useRef(90);
     const smoothingFactor = 0.2;
-    const [centerGamma, setCenterGamma] = useState<number>(0);
 
     const log = useCallback(async (message: string, type: "info" | "error" | "success" = "info") => {
         try {
