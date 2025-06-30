@@ -3,12 +3,13 @@ import { useCallback, useEffect, useRef, useState, forwardRef, useImperativeHand
 
 interface VirtualBoxProps {
     onServoChange: (servoId: "1" | "2", value: number, isAbsolute: boolean) => void;
+    onOrientationChange?: (beta: number, gamma: number) => void; // Новый проп для передачи данных ориентации
     disabled?: boolean;
     isVirtualBoxActive: boolean;
 }
 
 const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualBoxProps>(
-    ({ onServoChange, disabled, isVirtualBoxActive }, ref) => {
+    ({ onServoChange, onOrientationChange, disabled, isVirtualBoxActive }, ref) => {
         const [hasOrientationPermission, setHasOrientationPermission] = useState(false);
         const [hasMotionPermission, setHasMotionPermission] = useState(false);
         const [isOrientationSupported, setIsOrientationSupported] = useState(false);
@@ -51,11 +52,14 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
             }
             hasRequestedPermissions.current = true;
 
+            log("Начало запроса разрешений для DeviceOrientation и DeviceMotion", "info");
+
             try {
                 if (
                     isOrientationSupported &&
                     typeof (DeviceOrientationEvent as any).requestPermission === "function"
                 ) {
+                    log("Запрос разрешения для DeviceOrientationEvent", "info");
                     const permission = await (DeviceOrientationEvent as any).requestPermission();
                     setHasOrientationPermission(permission === "granted");
                     log(
@@ -71,6 +75,7 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     isMotionSupported &&
                     typeof (DeviceMotionEvent as any).requestPermission === "function"
                 ) {
+                    log("Запрос разрешения для DeviceMotionEvent", "info");
                     const permission = await (DeviceMotionEvent as any).requestPermission();
                     setHasMotionPermission(permission === "granted");
                     log(
@@ -121,6 +126,11 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     return;
                 }
 
+                // Передача данных ориентации через callback
+                if (onOrientationChange) {
+                    onOrientationChange(beta, gamma);
+                }
+
                 const deadZone = 0.15;
 
                 const normalizedBeta = (beta + 90) / 180;
@@ -168,7 +178,7 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
 
                 prevOrientationState.current = { beta: normalizedBeta, gamma: normalizedGamma };
             },
-            [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, log, centerGamma]
+            [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, onOrientationChange, log, centerGamma]
         );
 
         const handleDeviceMotion = useCallback(
@@ -269,12 +279,20 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
         ]);
 
         return (
-            <div
-                data-is-active={isVirtualBoxActive}
-                data-orientation-supported={isOrientationSupported}
-                data-motion-supported={isMotionSupported}
-                style={{ display: "none" }}
-            ></div>
+            <button
+                onClick={requestPermissions}
+                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-2 ${
+                    isVirtualBoxActive ? 'border-2 border-green-500' : 'border border-gray-600'
+                }`}
+            >
+                <img
+                    width="40px"
+                    height="40px"
+                    className="object-contain"
+                    src="/control/axis-arrow.svg"
+                    alt="Request Gyroscope Permissions"
+                />
+            </button>
         );
     }
 );

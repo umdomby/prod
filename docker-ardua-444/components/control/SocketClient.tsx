@@ -131,6 +131,18 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
 
     const [isProxy, setIsProxy] = useState(false);
 
+    // Новое состояние для данных ориентации
+    const [orientationData, setOrientationData] = useState<{ beta: number | null; gamma: number | null }>({
+        beta: null,
+        gamma: null,
+    });
+
+    // Callback для обработки данных ориентации
+    const handleOrientationChange = useCallback((beta: number, gamma: number) => {
+        setOrientationData({ beta, gamma });
+    }, []);
+
+
     useEffect(() => {
         setIsProxy(!!selectedDeviceId);
     }, [selectedDeviceId]);
@@ -1442,6 +1454,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                     <VirtualBox
                         ref={virtualBoxRef}
                         onServoChange={adjustServo}
+                        onOrientationChange={handleOrientationChange}
                         disabled={!isConnected}
                         isVirtualBoxActive={isVirtualBoxActive}
                     />
@@ -1600,61 +1613,61 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                 onClick={() => {
                                     setShowJoystickMenu(!showJoystickMenu);
                                 }}
-                                className={`bg-transparent hover:bg-gray-700/30 border ${isVirtualBoxActive ? 'border-green-500' : 'border-gray-600'} p-0 rounded-full transition-all flex items-center`} // Изменено: p-2 → p-0
+                                className={`bg-transparent hover:bg-gray-700/30 border ${isVirtualBoxActive ? 'border-green-500' : 'border-gray-600'} p-0 rounded-full transition-all flex items-center`}
                                 title={showJoystickMenu ? 'Скрыть выбор джойстика' : 'Показать выбор джойстика'}
                             >
                                 <img
-                                    width={'40px'} // Увеличено с 25px до 40px
-                                    height={'40px'} // Увеличено с 25px до 40px
-                                    className="object-contain" // Добавлено: сохранение пропорций без сжатия
+                                    width={'40px'}
+                                    height={'40px'}
+                                    className="object-contain"
                                     src={
                                         selectedJoystick === 'JoystickTurn' ? '/control/arrows-turn.svg' :
                                             selectedJoystick === 'Joystick' ? '/control/arrows-down.svg' :
                                                 selectedJoystick === 'JoystickUp' ? '/control/arrows-up.svg' :
                                                     selectedJoystick === 'JoyAnalog' ? '/control/xbox-controller.svg' :
-                                                        isVirtualBoxActive ? '/control/axis-arrow.svg' : '/control/axis-arrow.svg' // Добавлено: иконка для VirtualBox
+                                                        isVirtualBoxActive ? '/control/axis-arrow.svg' : '/control/axis-arrow.svg'
                                     }
                                     alt="Joystick Select"
                                 />
                             </Button>
                             {showJoystickMenu && (
                                 <div className="absolute bottom-12 bg-black rounded-lg border border-gray-200 z-150">
-                                    <div className="flex flex-col items-center"> {/* Добавлено: p-2 для небольшого отступа в меню */}
+                                    <div className="flex flex-col items-center">
                                         <Button
                                             onClick={() => {
                                                 setSelectedJoystick('Joystick');
                                                 setShowJoystickMenu(false);
                                             }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155"  // Изменено: p-0
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155"
                                         >
-                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/arrows-down.svg" alt="Down Joystick" /> {/* Увеличено с 50px до 60px */}
+                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/arrows-down.svg" alt="Down Joystick" />
                                         </Button>
                                         <Button
                                             onClick={() => {
                                                 setSelectedJoystick('JoystickUp');
                                                 setShowJoystickMenu(false);
                                             }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155" // Изменено: p-0
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155"
                                         >
-                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/arrows-up.svg" alt="Up Joystick" /> {/* Увеличено с 50px до 60px */}
+                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/arrows-up.svg" alt="Up Joystick" />
                                         </Button>
                                         <Button
                                             onClick={() => {
                                                 setSelectedJoystick('JoystickTurn');
                                                 setShowJoystickMenu(false);
                                             }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155" // Изменено: p-0
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155"
                                         >
-                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/arrows-turn.svg" alt="Turn Joystick" /> {/* Увеличено с 50px до 60px */}
+                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/arrows-turn.svg" alt="Turn Joystick" />
                                         </Button>
                                         <Button
                                             onClick={() => {
                                                 setSelectedJoystick('JoyAnalog');
                                                 setShowJoystickMenu(false);
                                             }}
-                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155" // Изменено: p-0
+                                            className="bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 z-155"
                                         >
-                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/xbox-controller.svg" alt="Xbox Joystick" /> {/* Увеличено с 50px до 60px */}
+                                            <img width={'60px'} height={'60px'} className="object-contain" src="/control/xbox-controller.svg" alt="Xbox Joystick" />
                                         </Button>
 
                                         {isDeviceOrientationSupported && (
@@ -1662,9 +1675,6 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                 onClick={() => {
                                                     setIsVirtualBoxActive((prev) => !prev);
                                                     setShowJoystickMenu(false);
-                                                    if (virtualBoxRef.current) {
-                                                        virtualBoxRef.current.handleRequestPermissions();
-                                                    }
                                                 }}
                                                 className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${isVirtualBoxActive ? 'border-2 border-green-500' : ''}`}
                                             >
@@ -1682,6 +1692,14 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                             )}
                         </div>
                     </div>
+                    {/* Новый элемент для отображения данных ориентации */}
+                    {isVirtualBoxActive && orientationData.beta !== null && orientationData.gamma !== null && (
+                        <div className="fixed bottom-3 right-4 flex items-center justify-center z-50">
+                        <span className="text-sm font-medium text-green-300 bg-black/50 px-2 py-1 rounded">
+                            X: {orientationData.beta.toFixed(2)}° Y: {orientationData.gamma.toFixed(2)}°
+                        </span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
