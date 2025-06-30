@@ -78,6 +78,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
         setServo2MinAngle,
         setServo2MaxAngle,
     } = useServo();
+    const hasRequestedPermissions = useRef(false);
     const [log, setLog] = useState<LogEntry[]>([])
     const [isConnected, setIsConnected] = useState(false)
     const [isIdentified, setIsIdentified] = useState(false)
@@ -127,6 +128,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     const [telegramTokenInput, setTelegramTokenInput] = useState('');
     const [telegramIdInput, setTelegramIdInput] = useState('');
     const [isDeviceOrientationSupported, setIsDeviceOrientationSupported] = useState(false);
+    const [isDeviceMotionSupported, setIsDeviceMotionSupported] = useState(false);
     const virtualBoxRef = useRef<{ handleRequestPermissions: () => void } | null>(null);
     const [hasOrientationPermission, setHasOrientationPermission] = useState(false);
     const [hasMotionPermission, setHasMotionPermission] = useState(false);
@@ -363,13 +365,22 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                 setIsLandscape(window.innerWidth > window.innerHeight);
             }
             const orientationSupported = typeof window.DeviceOrientationEvent !== "undefined";
+            const motionSupported = typeof window.DeviceMotionEvent !== "undefined";
             setIsDeviceOrientationSupported(orientationSupported);
+            setIsDeviceMotionSupported(motionSupported);
             if (orientationSupported && typeof (DeviceOrientationEvent as any).requestPermission === "function") {
                 addLog("DeviceOrientationEvent поддерживается, требуется запрос разрешения", "info");
             } else if (orientationSupported) {
                 addLog("DeviceOrientationEvent поддерживается, разрешение не требуется", "info");
             } else {
                 addLog("DeviceOrientationEvent не поддерживается", "error");
+            }
+            if (motionSupported && typeof (DeviceMotionEvent as any).requestPermission === "function") {
+                addLog("DeviceMotionEvent поддерживается, требуется запрос разрешения", "info");
+            } else if (motionSupported) {
+                addLog("DeviceMotionEvent поддерживается, разрешение не требуется", "info");
+            } else {
+                addLog("DeviceMotionEvent не поддерживается", "error");
             }
         };
 
@@ -1463,15 +1474,14 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                 ) : null}
                 {isDeviceOrientationSupported && isVirtualBoxActive && (
                     <VirtualBox
-                        ref={virtualBoxRef}
                         onServoChange={adjustServo}
                         onOrientationChange={handleOrientationChange}
-                        onPermissionChange={(orientation, motion) => {
-                            setHasOrientationPermission(orientation);
-                            setHasMotionPermission(motion);
-                        }}
                         disabled={!isConnected}
                         isVirtualBoxActive={isVirtualBoxActive}
+                        hasOrientationPermission={hasOrientationPermission}
+                        hasMotionPermission={hasMotionPermission}
+                        isOrientationSupported={isDeviceOrientationSupported}
+                        isMotionSupported={isDeviceMotionSupported}
                     />
                 )}
 
@@ -1692,11 +1702,87 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                     setIsVirtualBoxActive(newState);
                                                     addLog(`VirtualBox ${newState ? 'активирован' : 'деактивирован'}`, 'info');
                                                     setShowJoystickMenu(false);
-                                                    if (newState && virtualBoxRef.current) {
-                                                        virtualBoxRef.current.handleRequestPermissions();
+
+                                                    if (newState) {
+                                                        const userAgent = navigator.userAgent;
+                                                        const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+                                                        const iOSVersion = isIOS ? parseInt(userAgent.match(/OS (\d+)_/i)?.[1] || '0', 10) : 0;
+                                                        const isAppleDevice = isIOS && iOSVersion >= 13;
+
+                                                        if (isAppleDevice && !hasRequestedPermissions.current) {
+                                                            hasRequestedPermissions.current = true;
+                                                            addLog("Начало запроса разрешений для DeviceOrientation и DeviceMotion", "info");
+
+                                                            let orientationPermission = "denied";
+                                                            let motionPermission = "denied";
+
+                                                            Promise.resolve()
+                                                                .then(() => {
+                                                                    if (typeof (DeviceOrientationEvent as any).requestPermission === "function") {
+                                                                        addLog("Запрос DeviceOrientationEvent", "info");
+                                                                        return (DeviceOrientationEvent as any).requestPermission();
+                                                                    } else if (typeof window.DeviceOrientationEvent !== "undefined") {
+                                                                        addLog("Разрешение DeviceOrientationEvent не требуется", "info");
+                                                                        return "granted";
+                                                                    } else {
+                                                                        addLog("DeviceOrientationEvent не поддерживается", "error");
+                                                                        return "denied";
+                                                                    }
+                                                                })
+                                                                .then((result) => {
+                                                                    orientationPermission = result;
+                                                                    addLog(`Разрешение DeviceOrientationEvent: ${orientationPermission}`, orientationPermission === "granted" ? "success" : "error");
+                                                                    if (typeof (DeviceMotionEvent as any).requestPermission === "function") {
+                                                                        addLog("Запрос DeviceMotionEvent", "info");
+                                                                        return (DeviceMotionEvent as any).requestPermission();
+                                                                    } else if (typeof window.DeviceMotionEvent !== "undefined") {
+                                                                        addLog("Разрешение DeviceMotionEvent не требуется", "info");
+                                                                        return "granted";
+                                                                    } else {
+                                                                        addLog("DeviceMotionEvent не поддерживается", "error");
+                                                                        return "denied";
+                                                                    }
+                                                                })
+                                                                .then((result) => {
+                                                                    motionPermission = result;
+                                                                    addLog(`Разрешение DeviceMotionEvent: ${motionPermission}`, motionPermission === "granted" ? "success" : "error");
+
+                                                                    const orientationGranted = orientationPermission === "granted";
+                                                                    const motionGranted = motionPermission === "granted";
+                                                                    setHasOrientationPermission(orientationGranted);
+                                                                    setHasMotionPermission(motionGranted);
+                                                                })
+                                                                .catch((error) => {
+                                                                    addLog(`Ошибка запроса разрешений: ${String(error)}`, "error");
+                                                                    if (String(error).includes("NotAllowedError")) {
+                                                                        addLog("Запрос разрешений требует явного действия пользователя", "error");
+                                                                    }
+                                                                    setHasOrientationPermission(false);
+                                                                    setHasMotionPermission(false);
+                                                                })
+                                                                .finally(() => {
+                                                                    hasRequestedPermissions.current = false;
+                                                                });
+                                                        } else if (!isAppleDevice) {
+                                                            // Для Android и других устройств
+                                                            const orientationSupported = typeof window.DeviceOrientationEvent !== "undefined";
+                                                            const motionSupported = typeof window.DeviceMotionEvent !== "undefined";
+                                                            setHasOrientationPermission(orientationSupported);
+                                                            setHasMotionPermission(motionSupported);
+                                                            addLog(
+                                                                `Разрешения для Android: Orientation=${orientationSupported ? "granted" : "denied"}, Motion=${motionSupported ? "granted" : "denied"}`,
+                                                                orientationSupported && motionSupported ? "success" : "error"
+                                                            );
+                                                        }
                                                     }
                                                 }}
-                                                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${isVirtualBoxActive && hasOrientationPermission && hasMotionPermission ? 'border-2 border-green-500' : 'border border-gray-600'}`}
+                                                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${
+                                                    isVirtualBoxActive && hasOrientationPermission && hasMotionPermission ? 'border-2 border-green-500' : 'border border-gray-600'
+                                                }`}
+                                                title={hasOrientationPermission && hasMotionPermission
+                                                    ? "Разрешения получены"
+                                                    : "Нажмите, чтобы запросить доступ к датчикам устройства"}
+                                                disabled={hasOrientationPermission && hasMotionPermission}
                                             >
                                                 <img
                                                     width={'60px'}

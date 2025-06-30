@@ -183,9 +183,7 @@ const JoyAnalog = ({ onChange, onServoChange, disabled }: JoyAnalogProps) => {
         };
     }, [checkGamepad, handleGamepadInput]);
 
-    return (
-        <div></div>
-    );
+    return null;
 };
 
 export default JoyAnalog;
