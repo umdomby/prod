@@ -1688,17 +1688,15 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                         {isDeviceOrientationSupported && (
                                             <Button
                                                 onClick={() => {
-                                                    setIsVirtualBoxActive((prev) => {
-                                                        const newState = !prev;
-                                                        addLog(`VirtualBox ${newState ? 'активирован' : 'деактивирован'}`, 'info');
-                                                        if (newState && virtualBoxRef.current) {
-                                                            virtualBoxRef.current.handleRequestPermissions();
-                                                        }
-                                                        return newState;
-                                                    });
+                                                    const newState = !isVirtualBoxActive;
+                                                    setIsVirtualBoxActive(newState);
+                                                    addLog(`VirtualBox ${newState ? 'активирован' : 'деактивирован'}`, 'info');
                                                     setShowJoystickMenu(false);
+                                                    if (newState && virtualBoxRef.current) {
+                                                        virtualBoxRef.current.handleRequestPermissions();
+                                                    }
                                                 }}
-                                                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${isVirtualBoxActive ? 'border-2 border-green-500' : ''}`}
+                                                className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${isVirtualBoxActive && hasOrientationPermission && hasMotionPermission ? 'border-2 border-green-500' : 'border border-gray-600'}`}
                                             >
                                                 <img
                                                     width={'60px'}
