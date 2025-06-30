@@ -1,7 +1,8 @@
 "use client";
-import {useCallback, useEffect, useRef, useState} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { logVirtualBoxEvent } from "@/app/actionsVirtualBoxLog";
 
+// Интерфейс для пропсов
 interface VirtualBoxProps {
     onServoChange: (servoId: "1" | "2", value: number, isAbsolute: boolean) => void;
     onOrientationChange?: (beta: number, gamma: number, alpha: number) => void;
@@ -13,16 +14,16 @@ interface VirtualBoxProps {
     isMotionSupported: boolean;
 }
 
-const VirtualBox = ({
-                        onServoChange,
-                        onOrientationChange,
-                        disabled,
-                        isVirtualBoxActive,
-                        hasOrientationPermission,
-                        hasMotionPermission,
-                        isOrientationSupported,
-                        isMotionSupported
-                    }) => {
+const VirtualBox: React.FC<VirtualBoxProps> = ({
+                                                   onServoChange,
+                                                   onOrientationChange,
+                                                   disabled,
+                                                   isVirtualBoxActive,
+                                                   hasOrientationPermission,
+                                                   hasMotionPermission,
+                                                   isOrientationSupported,
+                                                   isMotionSupported,
+                                               }) => {
     const animationFrameRef = useRef<number | null>(null);
     const prevOrientationState = useRef({ beta: 0, gamma: 0 });
     const prevAccelerationState = useRef({ x: 0, y: 0 });
@@ -42,7 +43,7 @@ const VirtualBox = ({
     useEffect(() => {
         const userAgent = navigator.userAgent;
         const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-        const iOSVersion = isIOS ? parseInt(userAgent.match(/OS (\d+)_/i)?.[1] || '0', 10) : 0;
+        const iOSVersion = isIOS ? parseInt(userAgent.match(/OS (\d+)_/i)?.[1] || "0", 10) : 0;
         log(
             `Информация об устройстве: iOS=${isIOS}, версия=${iOSVersion}, UserAgent=${userAgent}`,
             "info"
@@ -65,7 +66,10 @@ const VirtualBox = ({
             const userAgent = navigator.userAgent;
             const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
             if (isIOS) {
-                log("Проверка настроек Safari: убедитесь, что 'Движение и ориентация' включены в Настройки > Safari", "info");
+                log(
+                    "Проверка настроек Safari: убедитесь, что 'Движение и ориентация' включены в Настройки > Safari",
+                    "info"
+                );
             }
         };
         checkSafariSettings();
@@ -76,8 +80,12 @@ const VirtualBox = ({
             log("VirtualBox активирован", "info");
         } else {
             log("VirtualBox деактивирован", "info");
+            // При деактивации сбрасываем значения сервоприводов
+            onServoChange("1", 90, true);
+            onServoChange("2", 90, true);
+            log("Сервоприводы 1 и 2 установлены в центральное положение (90°)", "info");
         }
-    }, [isVirtualBoxActive, log]);
+    }, [isVirtualBoxActive, log, onServoChange]);
 
     const handleDeviceOrientation = useCallback(
         (event: DeviceOrientationEvent) => {
@@ -92,14 +100,18 @@ const VirtualBox = ({
                 return;
             }
 
-            log(`Данные ориентации: beta=${beta.toFixed(2)}, gamma=${gamma.toFixed(2)}, alpha=${alpha.toFixed(2)}`, "info");
+            log(
+                `Данные ориентации: beta=${beta.toFixed(2)}, gamma=${gamma.toFixed(2)}, alpha=${alpha.toFixed(
+                    2
+                )}`,
+                "info"
+            );
 
             if (onOrientationChange) {
                 onOrientationChange(beta, gamma, alpha);
             }
 
             const deadZone = 0.15;
-
             const normalizedBeta = (beta + 90) / 180;
             const normalizedGamma = (gamma + 90) / 180;
 
@@ -153,7 +165,10 @@ const VirtualBox = ({
                 return;
             }
 
-            log(`Данные акселерометра: x=${acceleration.x.toFixed(2)}, y=${acceleration.y.toFixed(2)}`, "info");
+            log(
+                `Данные акселерометра: x=${acceleration.x.toFixed(2)}, y=${acceleration.y.toFixed(2)}`,
+                "info"
+            );
 
             const maxAcceleration = 10;
             const normalizedX = Math.max(-1, Math.min(1, acceleration.x / maxAcceleration));
@@ -197,6 +212,28 @@ const VirtualBox = ({
         [disabled, isVirtualBoxActive, hasMotionPermission, onServoChange, log]
     );
 
+    // Метод для обработки разрешений (для совместимости с SocketClient)
+    const handleRequestPermissions = useCallback(() => {
+        if (!isVirtualBoxActive) {
+            window.removeEventListener("deviceorientation", handleDeviceOrientation);
+            window.removeEventListener("devicemotion", handleDeviceMotion);
+            log("Обработчики событий ориентации и акселерометра удалены при деактивации", "info");
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
+            }
+        }
+    }, [isVirtualBoxActive, log]);
+
+    // Привязываем handleRequestPermissions к рефу для SocketClient
+    useEffect(() => {
+        const virtualBoxRef = (window as any).virtualBoxRef || { current: null };
+        virtualBoxRef.current = { handleRequestPermissions };
+        return () => {
+            virtualBoxRef.current = null;
+        };
+    }, [handleRequestPermissions]);
+
     useEffect(() => {
         if (isVirtualBoxActive && (hasOrientationPermission || hasMotionPermission)) {
             if (isOrientationSupported && hasOrientationPermission) {
@@ -212,6 +249,10 @@ const VirtualBox = ({
                 window.removeEventListener("deviceorientation", handleDeviceOrientation);
                 window.removeEventListener("devicemotion", handleDeviceMotion);
                 log("Обработчики DeviceOrientationEvent и DeviceMotionEvent удалены", "info");
+                if (animationFrameRef.current) {
+                    cancelAnimationFrame(animationFrameRef.current);
+                    animationFrameRef.current = null;
+                }
             };
         }
     }, [

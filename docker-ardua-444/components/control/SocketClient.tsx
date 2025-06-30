@@ -1703,7 +1703,21 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                     addLog(`VirtualBox ${newState ? 'активирован' : 'деактивирован'}`, 'info');
                                                     setShowJoystickMenu(false);
 
+                                                    if (!newState) {
+                                                        // При деактивации VirtualBox устанавливаем сервоприводы в центральное положение
+                                                        adjustServo('1', 90, true);
+                                                        adjustServo('2', 90, true);
+                                                        addLog('Сервоприводы 1 и 2 установлены в центральное положение (90°)', 'info');
+                                                        // Сбрасываем данные ориентации
+                                                        setOrientationData({ beta: null, gamma: null, alpha: null });
+                                                        // Вызываем метод очистки в VirtualBox, если он доступен
+                                                        if (virtualBoxRef.current?.handleRequestPermissions) {
+                                                            virtualBoxRef.current.handleRequestPermissions();
+                                                        }
+                                                    }
+
                                                     if (newState) {
+                                                        // Логика запроса разрешений (оставляем как есть)
                                                         const userAgent = navigator.userAgent;
                                                         const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
                                                         const iOSVersion = isIOS ? parseInt(userAgent.match(/OS (\d+)_/i)?.[1] || '0', 10) : 0;
@@ -1764,7 +1778,6 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                                     hasRequestedPermissions.current = false;
                                                                 });
                                                         } else if (!isAppleDevice) {
-                                                            // Для Android и других устройств
                                                             const orientationSupported = typeof window.DeviceOrientationEvent !== "undefined";
                                                             const motionSupported = typeof window.DeviceMotionEvent !== "undefined";
                                                             setHasOrientationPermission(orientationSupported);
@@ -1782,7 +1795,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                                 title={hasOrientationPermission && hasMotionPermission
                                                     ? "Разрешения получены"
                                                     : "Нажмите, чтобы запросить доступ к датчикам устройства"}
-                                                disabled={hasOrientationPermission && hasMotionPermission}
+                                                disabled={hasOrientationPermission && hasMotionPermission && isVirtualBoxActive}
                                             >
                                                 <img
                                                     width={'60px'}
