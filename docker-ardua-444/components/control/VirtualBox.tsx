@@ -1,9 +1,10 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
+import { logVirtualBoxEvent } from "@/app/actionsVirtualBoxLog";
 
 interface VirtualBoxProps {
     onServoChange: (servoId: "1" | "2", value: number, isAbsolute: boolean) => void;
-    onOrientationChange?: (beta: number, gamma: number) => void; // Новый проп для передачи данных ориентации
+    onOrientationChange?: (beta: number, gamma: number) => void;
     disabled?: boolean;
     isVirtualBoxActive: boolean;
 }
@@ -23,79 +24,109 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
         const smoothingFactor = 0.2;
         const hasRequestedPermissions = useRef(false);
 
-        const log = useCallback((message: string, type: "info" | "error" | "success" = "info") => {
-            console.log(`[VirtualBox] ${type.toUpperCase()}: ${message}`);
+        const log = useCallback(async (message: string, type: "info" | "error" | "success" = "info") => {
+            try {
+                await logVirtualBoxEvent(message, type);
+            } catch (error) {
+                console.error(`[VirtualBox Client] ERROR: Failed to send log - ${String(error)}`);
+            }
         }, []);
 
         useEffect(() => {
             const orientationSupported = typeof window.DeviceOrientationEvent !== "undefined";
             const motionSupported = typeof window.DeviceMotionEvent !== "undefined";
+            const orientationPermissionSupported = orientationSupported && typeof (DeviceOrientationEvent as any).requestPermission === "function";
+            const motionPermissionSupported = motionSupported && typeof (DeviceMotionEvent as any).requestPermission === "function";
             setIsOrientationSupported(orientationSupported);
             setIsMotionSupported(motionSupported);
+
+            const userAgent = navigator.userAgent;
+            const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+            const iOSVersion = isIOS ? userAgent.match(/OS (\d+)_/i)?.[1] : 'unknown';
             log(
-                `Поддержка сенсоров: Orientation=${orientationSupported}, Motion=${motionSupported}`,
+                `Информация об устройстве: iOS=${isIOS}, версия=${iOSVersion}, UserAgent=${userAgent}`,
+                "info"
+            );
+            log(
+                `Поддержка сенсоров: Orientation=${orientationSupported}, Motion=${motionSupported}, OrientationPermission=${orientationPermissionSupported}, MotionPermission=${motionPermissionSupported}`,
                 "info"
             );
 
-            if (orientationSupported && !("requestPermission" in DeviceOrientationEvent)) {
+            if (orientationSupported && !orientationPermissionSupported) {
                 setHasOrientationPermission(true);
+                log("Разрешение DeviceOrientationEvent не требуется", "info");
             }
-            if (motionSupported && !("requestPermission" in DeviceMotionEvent)) {
+            if (motionSupported && !motionPermissionSupported) {
                 setHasMotionPermission(true);
+                log("Разрешение DeviceMotionEvent не требуется", "info");
             }
         }, [log]);
 
         const requestPermissions = useCallback(async () => {
             if (hasRequestedPermissions.current) {
-                log("Повторный запрос разрешений предотвращен", "info");
+                await log("Повторный запрос разрешений предотвращен", "info");
                 return;
             }
             hasRequestedPermissions.current = true;
 
-            log("Начало запроса разрешений для DeviceOrientation и DeviceMotion", "info");
+            await log("Начало запроса разрешений для DeviceOrientation и DeviceMotion", "info");
 
             try {
                 if (
                     isOrientationSupported &&
-                    typeof (DeviceOrientationEvent as any).requestPermission === "function"
-                ) {
-                    log("Запрос разрешения для DeviceOrientationEvent", "info");
-                    const permission = await (DeviceOrientationEvent as any).requestPermission();
-                    setHasOrientationPermission(permission === "granted");
-                    log(
-                        `Разрешение DeviceOrientationEvent: ${permission}`,
-                        permission === "granted" ? "success" : "error"
-                    );
-                } else if (isOrientationSupported) {
-                    setHasOrientationPermission(true);
-                    log("Разрешение DeviceOrientationEvent не требуется", "info");
-                }
-
-                if (
+                    typeof (DeviceOrientationEvent as any).requestPermission === "function" &&
                     isMotionSupported &&
                     typeof (DeviceMotionEvent as any).requestPermission === "function"
                 ) {
-                    log("Запрос разрешения для DeviceMotionEvent", "info");
-                    const permission = await (DeviceMotionEvent as any).requestPermission();
-                    setHasMotionPermission(permission === "granted");
-                    log(
-                        `Разрешение DeviceMotionEvent: ${permission}`,
-                        permission === "granted" ? "success" : "error"
+                    await log("Запрос разрешений для DeviceOrientationEvent и DeviceMotionEvent", "info");
+                    const [orientationPermission, motionPermission] = await Promise.all([
+                        (DeviceOrientationEvent as any).requestPermission(),
+                        (DeviceMotionEvent as any).requestPermission(),
+                    ]);
+
+                    setHasOrientationPermission(orientationPermission === "granted");
+                    await log(
+                        `Разрешение DeviceOrientationEvent: ${orientationPermission}`,
+                        orientationPermission === "granted" ? "success" : "error"
                     );
-                } else if (isMotionSupported) {
+
+                    setHasMotionPermission(motionPermission === "granted");
+                    await log(
+                        `Разрешение DeviceMotionEvent: ${motionPermission}`,
+                        motionPermission === "granted" ? "success" : "error"
+                    );
+                } else if (isOrientationSupported) {
+                    setHasOrientationPermission(true);
+                    await log("Разрешение DeviceOrientationEvent не требуется", "info");
+                } else {
+                    await log("DeviceOrientationEvent не поддерживается", "error");
+                }
+
+                if (isMotionSupported && !hasMotionPermission) {
                     setHasMotionPermission(true);
-                    log("Разрешение DeviceMotionEvent не требуется", "info");
+                    await log("Разрешение DeviceMotionEvent не требуется", "info");
+                } else if (!isMotionSupported) {
+                    await log("DeviceMotionEvent не поддерживается", "error");
                 }
             } catch (error) {
-                log(`Ошибка запроса разрешений: ${String(error)}`, "error");
+                await log(`Ошибка запроса разрешений: ${String(error)}`, "error");
                 setHasOrientationPermission(false);
                 setHasMotionPermission(false);
+            } finally {
+                hasRequestedPermissions.current = false;
             }
         }, [isOrientationSupported, isMotionSupported, log]);
 
         useImperativeHandle(ref, () => ({
             handleRequestPermissions: requestPermissions,
         }));
+
+        useEffect(() => {
+            if (isVirtualBoxActive) {
+                log("Автоматический вызов requestPermissions при активации VirtualBox", "info");
+                requestPermissions();
+            }
+        }, [isVirtualBoxActive, requestPermissions, log]);
 
         useEffect(() => {
             if (isVirtualBoxActive && hasOrientationPermission) {
@@ -126,7 +157,8 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     return;
                 }
 
-                // Передача данных ориентации через callback
+                log(`Данные ориентации: beta=${beta.toFixed(2)}, gamma=${gamma.toFixed(2)}`, "info");
+
                 if (onOrientationChange) {
                     onOrientationChange(beta, gamma);
                 }
@@ -149,7 +181,7 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     smoothedServo1.current = smoothedServo1.current * (1 - smoothingFactor) + servo1Value * smoothingFactor;
                     servo1Value = Math.round(smoothedServo1.current);
                     onServoChange("1", servo1Value, true);
-                    log(`Servo1: ${servo1Value}° (beta=${beta})`, "info");
+                    log(`Servo1: ${servo1Value}° (beta=${beta.toFixed(2)})`, "info");
                 } else if (
                     Math.abs(normalizedBeta - 0.5) <= deadZone &&
                     Math.abs(prevOrientationState.current.beta - 0.5) > deadZone
@@ -165,7 +197,7 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     smoothedServo2.current = smoothedServo2.current * (1 - smoothingFactor) + servo2Value * smoothingFactor;
                     servo2Value = Math.round(smoothedServo2.current);
                     onServoChange("2", servo2Value, true);
-                    log(`Servo2: ${servo2Value}° (gamma=${gamma})`, "info");
+                    log(`Servo2: ${servo2Value}° (gamma=${gamma.toFixed(2)})`, "info");
                 } else if (
                     Math.abs(normalizedGamma - 0.5) <= deadZone &&
                     Math.abs(prevOrientationState.current.gamma - 0.5) > deadZone
@@ -194,6 +226,8 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     return;
                 }
 
+                log(`Данные акселерометра: x=${acceleration.x.toFixed(2)}, y=${acceleration.y.toFixed(2)}`, "info");
+
                 const maxAcceleration = 10;
                 const normalizedX = Math.max(-1, Math.min(1, acceleration.x / maxAcceleration));
                 const normalizedY = Math.max(-1, Math.min(1, acceleration.y / maxAcceleration));
@@ -204,7 +238,7 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     smoothedServo1.current = smoothedServo1.current * (1 - smoothingFactor) + servo1Value * smoothingFactor;
                     servo1Value = Math.round(smoothedServo1.current);
                     onServoChange("1", servo1Value, true);
-                    log(`Servo1 (Motion): ${servo1Value}° (accelY=${acceleration.y})`, "info");
+                    log(`Servo1 (Motion): ${servo1Value}° (accelY=${acceleration.y.toFixed(2)})`, "info");
                 } else if (
                     Math.abs(normalizedY) <= deadZone &&
                     Math.abs(prevAccelerationState.current.y) > deadZone
@@ -220,7 +254,7 @@ const VirtualBox = forwardRef<{ handleRequestPermissions: () => void }, VirtualB
                     smoothedServo2.current = smoothedServo2.current * (1 - smoothingFactor) + servo2Value * smoothingFactor;
                     servo2Value = Math.round(smoothedServo2.current);
                     onServoChange("2", servo2Value, true);
-                    log(`Servo2 (Motion): ${servo2Value}° (accelX=${acceleration.x})`, "info");
+                    log(`Servo2 (Motion): ${servo2Value}° (accelX=${acceleration.x.toFixed(2)})`, "info");
                 } else if (
                     Math.abs(normalizedX) <= deadZone &&
                     Math.abs(prevAccelerationState.current.x) > deadZone

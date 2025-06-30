@@ -140,6 +140,8 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
     // Callback для обработки данных ориентации
     const handleOrientationChange = useCallback((beta: number, gamma: number) => {
         setOrientationData({ beta, gamma });
+        // Добавляем отладочный лог в SocketClient
+        addLog(`Данные ориентации от VirtualBox: beta=${beta.toFixed(2)}, gamma=${gamma.toFixed(2)}`, "info");
     }, []);
 
 
@@ -1673,7 +1675,11 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                         {isDeviceOrientationSupported && (
                                             <Button
                                                 onClick={() => {
-                                                    setIsVirtualBoxActive((prev) => !prev);
+                                                    setIsVirtualBoxActive((prev) => {
+                                                        const newState = !prev;
+                                                        addLog(`VirtualBox ${newState ? 'активирован' : 'деактивирован'}`, 'info');
+                                                        return newState;
+                                                    });
                                                     setShowJoystickMenu(false);
                                                 }}
                                                 className={`bg-transparent hover:bg-gray-700/30 rounded-full transition-all flex items-center p-0 ${isVirtualBoxActive ? 'border-2 border-green-500' : ''}`}
