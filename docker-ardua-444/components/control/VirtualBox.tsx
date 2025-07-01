@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logVirtualBoxEvent } from "@/app/actionsVirtualBoxLog";
 
-// Интерфейс для пропсов
 interface VirtualBoxProps {
     onServoChange: (servoId: "1" | "2", value: number, isAbsolute: boolean) => void;
     onOrientationChange?: (beta: number, gamma: number, alpha: number) => void;
@@ -25,10 +24,8 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                                                    isMotionSupported,
                                                }) => {
     const animationFrameRef = useRef<number | null>(null);
-    const prevOrientationState = useRef({ beta: 0 });
-    const smoothedServo1 = useRef(90);
-    const smoothingFactor = 0.2;
-    const lastValidServo1 = useRef(90); // Для хранения последнего допустимого значения Servo1
+    const prevOrientationState = useRef({ gamma: 0 });
+    const lastValidServo1 = useRef(90);
 
     const [orientationData, setOrientationData] = useState<{
         beta: number | null;
@@ -48,14 +45,8 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         const userAgent = navigator.userAgent;
         const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
         const iOSVersion = isIOS ? parseInt(userAgent.match(/OS (\d+)_/i)?.[1] || "0", 10) : 0;
-        log(
-            `Информация об устройстве: iOS=${isIOS}, версия=${iOSVersion}, UserAgent=${userAgent}`,
-            "info"
-        );
-        log(
-            `Поддержка сенсоров: Orientation=${isOrientationSupported}, Motion=${isMotionSupported}`,
-            "info"
-        );
+        log(`Информация об устройстве: iOS=${isIOS}, версия=${iOSVersion}, UserAgent=${userAgent}`, "info");
+        log(`Поддержка сенсоров: Orientation=${isOrientationSupported}, Motion=${isMotionSupported}`, "info");
 
         if (isIOS && iOSVersion >= 13 && isOrientationSupported) {
             log("iOS 13+ обнаружен, требуется запрос разрешений для ориентации", "info");
@@ -70,10 +61,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             const userAgent = navigator.userAgent;
             const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
             if (isIOS) {
-                log(
-                    "Проверка настроек Safari: убедитесь, что 'Движение и ориентация' включены в Настройки > Safari",
-                    "info"
-                );
+                log("Проверка настроек Safari: убедитесь, что 'Движение и ориентация' включены в Настройки > Safari", "info");
             }
         };
         checkSafariSettings();
@@ -84,7 +72,6 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             log("VirtualBox активирован", "info");
         } else {
             log("VirtualBox деактивирован", "info");
-            // При деактивации сбрасываем значение сервопривода
             onServoChange("1", 90, true);
             log("Сервопривод 1 установлен в центральное положение (90°)", "info");
         }
@@ -103,73 +90,44 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                 return;
             }
 
-            log(
-                `Данные ориентации: beta=${beta.toFixed(2)}, gamma=${gamma.toFixed(2)}, alpha=${alpha.toFixed(
-                    2
-                )}`,
-                "info"
-            );
+            setOrientationData({ beta, gamma, alpha });
 
             if (onOrientationChange) {
                 onOrientationChange(beta, gamma, alpha);
             }
 
-            setOrientationData({ beta, gamma, alpha });
+            const y = gamma;
+            const prevY = prevOrientationState.current.gamma;
 
-            const deadZone = 0.15;
-            // Преобразуем beta из [-90, 90] в [0, 180] для Servo1
-            // beta = -90° (взгляд прямо) → Servo1 = 90°
-            // beta = 0° (взгляд вниз) → Servo1 = 0°
-            // beta = 90° (взгляд вверх) → Servo1 = 180°
-            const normalizedBeta = (beta + 90) / 180; // [0, 1]
-            let servo1Value = Math.round(normalizedBeta * 180); // [0, 180]
+            let servo1Value: number | null = null;
 
-            // Проверяем, находится ли beta в допустимом диапазоне [-90, 90]
-            if (beta >= -90 && beta <= 90) {
-                if (Math.abs(normalizedBeta - 0.5) > deadZone) {
-                    smoothedServo1.current = smoothedServo1.current * (1 - smoothingFactor) + servo1Value * smoothingFactor;
-                    servo1Value = Math.round(smoothedServo1.current);
-                    onServoChange("1", servo1Value, true);
-                    lastValidServo1.current = servo1Value; // Сохраняем последнее допустимое значение
-                    log(`Servo1: ${servo1Value}° (beta=${beta.toFixed(2)})`, "info");
-                } else if (
-                    Math.abs(normalizedBeta - 0.5) <= deadZone &&
-                    Math.abs(prevOrientationState.current.beta - 0.5) > deadZone
-                ) {
-                    servo1Value = 90;
-                    smoothedServo1.current = 90;
-                    onServoChange("1", 90, true);
-                    lastValidServo1.current = 90;
-                    log("Servo1: Возврат в центр (90°)", "info");
-                }
+            if (y === -90 || y === 90) {
+                servo1Value = 90;
+            } else if (y > -90 && y < 0) {
+                servo1Value = Math.round(90 + y);
+                if (y > -4) servo1Value = 0;
+            } else if (y > 0 && y < 90) {
+                servo1Value = Math.round(90 + y);
+                if (y < 4) servo1Value = 180;
             } else {
-                // Если beta выходит за пределы [-90, 90], используем последнее допустимое значение
-                servo1Value = lastValidServo1.current;
-                log(`Beta (${beta.toFixed(2)}) вне диапазона [-90, 90], используется последнее значение Servo1: ${servo1Value}°`, "info");
+                log(`Gamma (${y.toFixed(2)}) вне диапазона [-90, 90]`, "info");
+                return;
             }
 
-            prevOrientationState.current = { beta: normalizedBeta };
+            const isValidTransition =
+                (prevY <= 0 && y <= 0) ||
+                (prevY >= 0 && y >= 0) ||
+                y === 0;
 
-            // Закомментировано управление Servo2
-            /*
-            const normalizedGamma = (gamma + 90) / 180;
-            let servo2Value = Math.round((-normalizedGamma + 1) * 90);
-            if (Math.abs(normalizedGamma - 0.5) > deadZone) {
-                smoothedServo2.current = smoothedServo2.current * (1 - smoothingFactor) + servo2Value * smoothingFactor;
-                servo2Value = Math.round(smoothedServo2.current);
-                onServoChange("2", servo2Value, true);
-                log(`Servo2: ${servo2Value}° (gamma=${gamma.toFixed(2)})`, "info");
-            } else if (
-                Math.abs(normalizedGamma - 0.5) <= deadZone &&
-                Math.abs(prevOrientationState.current.gamma - 0.5) > deadZone
-            ) {
-                servo2Value = 90;
-                smoothedServo2.current = 90;
-                onServoChange("2", 90, true);
-                log("Servo2: Возврат в центр (90°)", "info");
+            if (servo1Value !== null && isValidTransition) {
+                onServoChange("1", servo1Value, true);
+                lastValidServo1.current = servo1Value;
+                log(`Servo1 (gamma Y): ${servo1Value}° (gamma=${y.toFixed(2)})`, "info");
+            } else if (!isValidTransition) {
+                log(`Переход через край Y (${prevY.toFixed(2)} → ${y.toFixed(2)}), используется последнее значение: ${lastValidServo1.current}°`, "info");
             }
-            prevOrientationState.current.gamma = normalizedGamma;
-            */
+
+            prevOrientationState.current.gamma = y;
         },
         [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, onOrientationChange, log]
     );
@@ -187,57 +145,11 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                 return;
             }
 
-            log(
-                `Данные акселерометра: x=${acceleration.x.toFixed(2)}, y=${acceleration.y.toFixed(2)}`,
-                "info"
-            );
-
-            // Закомментировано управление Servo1 и Servo2 через акселерометр
-            /*
-            const maxAcceleration = 10;
-            const normalizedX = Math.max(-1, Math.min(1, acceleration.x / maxAcceleration));
-            const normalizedY = Math.max(-1, Math.min(1, acceleration.y / maxAcceleration));
-            const deadZone = 0.15;
-
-            let servo1Value = Math.round((-normalizedY + 1) * 90);
-            if (Math.abs(normalizedY) > deadZone) {
-                smoothedServo1.current = smoothedServo1.current * (1 - smoothingFactor) + servo1Value * smoothingFactor;
-                servo1Value = Math.round(smoothedServo1.current);
-                onServoChange("1", servo1Value, true);
-                log(`Servo1 (Motion): ${servo1Value}° (accelY=${acceleration.y.toFixed(2)})`, "info");
-            } else if (
-                Math.abs(normalizedY) <= deadZone &&
-                Math.abs(prevAccelerationState.current.y) > deadZone
-            ) {
-                servo1Value = 90;
-                smoothedServo1.current = 90;
-                onServoChange("1", 90, true);
-                log("Servo1 (Motion): Возврат в центр (90°)", "info");
-            }
-
-            let servo2Value = Math.round((-normalizedX + 1) * 90);
-            if (Math.abs(normalizedX) > deadZone) {
-                smoothedServo2.current = smoothedServo2.current * (1 - smoothingFactor) + servo2Value * smoothingFactor;
-                servo2Value = Math.round(smoothedServo2.current);
-                onServoChange("2", servo2Value, true);
-                log(`Servo2 (Motion): ${servo2Value}° (accelX=${acceleration.x.toFixed(2)})`, "info");
-            } else if (
-                Math.abs(normalizedX) <= deadZone &&
-                Math.abs(prevAccelerationState.current.x) > deadZone
-            ) {
-                servo2Value = 90;
-                smoothedServo2.current = 90;
-                onServoChange("2", 90, true);
-                log("Servo2 (Motion): Возврат в центр (90°)", "info");
-            }
-
-            prevAccelerationState.current = { x: normalizedX, y: normalizedY };
-            */
+            log(`Данные акселерометра: x=${acceleration.x.toFixed(2)}, y=${acceleration.y.toFixed(2)}`, "info");
         },
         [disabled, isVirtualBoxActive, hasMotionPermission, onServoChange, log]
     );
 
-    // Метод для обработки разрешений (для совместимости с SocketClient)
     const handleRequestPermissions = useCallback(() => {
         if (!isVirtualBoxActive) {
             window.removeEventListener("deviceorientation", handleDeviceOrientation);
@@ -250,7 +162,6 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         }
     }, [isVirtualBoxActive, log]);
 
-    // Привязываем handleRequestPermissions к рефу для SocketClient
     useEffect(() => {
         const virtualBoxRef = (window as any).virtualBoxRef || { current: null };
         virtualBoxRef.current = { handleRequestPermissions };
@@ -262,11 +173,11 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
     useEffect(() => {
         if (isVirtualBoxActive && (hasOrientationPermission || hasMotionPermission)) {
             if (isOrientationSupported && hasOrientationPermission) {
-                window.addEventListener("deviceorientation", handleDeviceOrientation, { once: false });
+                window.addEventListener("deviceorientation", handleDeviceOrientation);
                 log("Обработчик DeviceOrientationEvent добавлен", "success");
             }
             if (isMotionSupported && hasMotionPermission) {
-                window.addEventListener("devicemotion", handleDeviceMotion, { once: false });
+                window.addEventListener("devicemotion", handleDeviceMotion);
                 log("Обработчик DeviceMotionEvent добавлен", "success");
             }
 
