@@ -24,8 +24,10 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                                                    isMotionSupported,
                                                }) => {
     const animationFrameRef = useRef<number | null>(null);
+    // prevOrientationState теперь нужен только для отслеживания последнего валидного гамма для логирования,
+    // а не для логики перехода
     const prevOrientationState = useRef({ gamma: 0 });
-    const lastValidServo1 = useRef(90);
+    const lastValidServo1 = useRef(90); // Сохраняем последнее отправленное значение сервопривода
 
     const [orientationData, setOrientationData] = useState<{
         beta: number | null;
@@ -61,7 +63,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             const userAgent = navigator.userAgent;
             const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
             if (isIOS) {
-                log("Проверка настроек Safari: убедитесь, что 'Движение и ориентация' включены в Настройки > Safari", "info");
+                log("Проверка настроек Safari: убедитесь, что 'Движение и ориентация' включены в Настройки > Safari > Конфиденциальность и безопасность", "info");
             }
         };
         checkSafariSettings();
@@ -72,7 +74,9 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             log("VirtualBox активирован", "info");
         } else {
             log("VirtualBox деактивирован", "info");
+            // Сбрасываем сервопривод в центральное положение при деактивации
             onServoChange("1", 90, true);
+            lastValidServo1.current = 90; // Обновляем последнее валидное значение
             log("Сервопривод 1 установлен в центральное положение (90°)", "info");
         }
     }, [isVirtualBoxActive, log, onServoChange]);
@@ -80,13 +84,17 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
     const handleDeviceOrientation = useCallback(
         (event: DeviceOrientationEvent) => {
             if (disabled || !isVirtualBoxActive || !hasOrientationPermission) {
-                log("Обработка ориентации отключена: disabled, неактивно или нет разрешения", "info");
+                // Log only if it's currently active but permissions are revoked or disabled externally
+                // This avoids excessive logging when VirtualBox is simply inactive.
+                if (isVirtualBoxActive && (!hasOrientationPermission || disabled)) {
+                    log("Обработка ориентации отключена: disabled, неактивно или нет разрешения", "info");
+                }
                 return;
             }
 
             const { beta, gamma, alpha } = event;
             if (beta === null || gamma === null || alpha === null) {
-                log("Данные ориентации недоступны", "error");
+                log("Данные ориентации недоступны (null значения)", "error");
                 return;
             }
 
@@ -97,34 +105,41 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             }
 
             const y = gamma;
-            const prevY = prevOrientationState.current.gamma;
+            let servo1Value: number;
 
-            let servo1Value: number | null = null;
+            // Определяем "мертвую зону" вокруг 0 градусов gamma
+            const deadZoneThreshold = 3; // Например, +/- 3 градуса от 0
+            const minGamma = -89;
+            const maxGamma = 89;
 
-            if (y === -90 || y === 90) {
+            if (y > -deadZoneThreshold && y < deadZoneThreshold) {
+                // Если gamma находится в мертвой зоне, устанавливаем сервопривод в центр
                 servo1Value = 90;
-            } else if (y > -90 && y < 0) {
-                servo1Value = Math.round(90 + y);
-                if (y > -4) servo1Value = 0;
-            } else if (y > 0 && y < 90) {
-                servo1Value = Math.round(90 + y);
-                if (y < 4) servo1Value = 180;
-            } else {
-                log(`Gamma (${y.toFixed(2)}) вне диапазона [-90, 90]`, "info");
-                return;
+            } else if (y >= deadZoneThreshold) {
+                // Голова наклоняется назад (Y положительный)
+                // Диапазон gamma: [deadZoneThreshold, 89] -> Диапазон servo: [90, 180]
+                const scaledY = Math.min(y, maxGamma); // Ограничиваем Y сверху
+                // Масштабирование: (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+                servo1Value = Math.round(
+                    (scaledY - deadZoneThreshold) * (180 - 90) / (maxGamma - deadZoneThreshold) + 90
+                );
+                servo1Value = Math.min(Math.max(servo1Value, 90), 180); // Ограничиваем диапазон серво
+            } else { // y <= -deadZoneThreshold
+                // Голова наклоняется вперед (Y отрицательный)
+                // Диапазон gamma: [-89, -deadZoneThreshold] -> Диапазон servo: [0, 90]
+                const scaledY = Math.max(y, minGamma); // Ограничиваем Y снизу
+                // Масштабирование: (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+                servo1Value = Math.round(
+                    (scaledY - minGamma) * (90 - 0) / (-deadZoneThreshold - minGamma) + 0
+                );
+                servo1Value = Math.min(Math.max(servo1Value, 0), 90); // Ограничиваем диапазон серво
             }
 
-            const isValidTransition =
-                (prevY <= 0 && y <= 0) ||
-                (prevY >= 0 && y >= 0) ||
-                y === 0;
-
-            if (servo1Value !== null && isValidTransition) {
+            // Обновляем серво только если значение изменилось
+            if (servo1Value !== lastValidServo1.current) {
                 onServoChange("1", servo1Value, true);
                 lastValidServo1.current = servo1Value;
                 log(`Servo1 (gamma Y): ${servo1Value}° (gamma=${y.toFixed(2)})`, "info");
-            } else if (!isValidTransition) {
-                log(`Переход через край Y (${prevY.toFixed(2)} → ${y.toFixed(2)}), используется последнее значение: ${lastValidServo1.current}°`, "info");
             }
 
             prevOrientationState.current.gamma = y;
@@ -135,19 +150,22 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
     const handleDeviceMotion = useCallback(
         (event: DeviceMotionEvent) => {
             if (disabled || !isVirtualBoxActive || !hasMotionPermission) {
-                log("Обработка акселерометра отключена: disabled, неактивно или нет разрешения", "info");
+                if (isVirtualBoxActive && (!hasMotionPermission || disabled)) {
+                    log("Обработка акселерометра отключена: disabled, неактивно или нет разрешения", "info");
+                }
                 return;
             }
 
             const { acceleration } = event;
-            if (!acceleration || acceleration.x === null || acceleration.y === null) {
-                log("Данные акселерометра недоступны", "error");
+            if (!acceleration || acceleration.x === null || acceleration.y === null || acceleration.z === null) {
+                log("Данные акселерометра недоступны (null значения)", "error");
                 return;
             }
 
-            log(`Данные акселерометра: x=${acceleration.x.toFixed(2)}, y=${acceleration.y.toFixed(2)}`, "info");
+            log(`Данные акселерометра: x=${acceleration.x.toFixed(2)}, y=${acceleration.y.toFixed(2)}, z=${acceleration.z.toFixed(2)}`, "info");
+            // В этой функции вы можете добавить логику для Servo2 (ось X) если это необходимо
         },
-        [disabled, isVirtualBoxActive, hasMotionPermission, onServoChange, log]
+        [disabled, isVirtualBoxActive, hasMotionPermission, log]
     );
 
     const handleRequestPermissions = useCallback(() => {
@@ -160,9 +178,10 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                 animationFrameRef.current = null;
             }
         }
-    }, [isVirtualBoxActive, log]);
+    }, [isVirtualBoxActive, log, handleDeviceOrientation, handleDeviceMotion]); // Добавил зависимости
 
     useEffect(() => {
+        // @ts-ignore
         const virtualBoxRef = (window as any).virtualBoxRef || { current: null };
         virtualBoxRef.current = { handleRequestPermissions };
         return () => {
