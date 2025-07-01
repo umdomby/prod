@@ -31,6 +31,12 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
     const smoothedServo2 = useRef(90);
     const smoothingFactor = 0.2;
 
+    const [orientationData, setOrientationData] = useState<{
+        beta: number | null;
+        gamma: number | null;
+        alpha: number | null;
+    }>({ beta: null, gamma: null, alpha: null });
+
     const log = useCallback(async (message: string, type: "info" | "error" | "success" = "info") => {
         try {
             await logVirtualBoxEvent(message, type);
@@ -110,19 +116,21 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                 onOrientationChange(beta, gamma, alpha);
             }
 
+            setOrientationData({ beta, gamma, alpha });
+
             const deadZone = 0.15;
             const normalizedBeta = (beta + 90) / 180;
             const normalizedGamma = (gamma + 90) / 180;
 
-            let servo1Value = Math.round((-normalizedBeta + 1) * 90);
-            if (Math.abs(normalizedBeta - 0.5) > deadZone) {
+            let servo1Value = Math.round((-normalizedGamma + 1) * 90);
+            if (Math.abs(normalizedGamma - 0.5) > deadZone) {
                 smoothedServo1.current = smoothedServo1.current * (1 - smoothingFactor) + servo1Value * smoothingFactor;
                 servo1Value = Math.round(smoothedServo1.current);
                 onServoChange("1", servo1Value, true);
-                log(`Servo1: ${servo1Value}° (beta=${beta.toFixed(2)})`, "info");
+                log(`Servo1: ${servo1Value}° (gamma=${gamma.toFixed(2)})`, "info");
             } else if (
-                Math.abs(normalizedBeta - 0.5) <= deadZone &&
-                Math.abs(prevOrientationState.current.beta - 0.5) > deadZone
+                Math.abs(normalizedGamma - 0.5) <= deadZone &&
+                Math.abs(prevOrientationState.current.gamma - 0.5) > deadZone
             ) {
                 servo1Value = 90;
                 smoothedServo1.current = 90;
@@ -130,15 +138,15 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                 log("Servo1: Возврат в центр (90°)", "info");
             }
 
-            let servo2Value = Math.round((-normalizedGamma + 1) * 90);
-            if (Math.abs(normalizedGamma - 0.5) > deadZone) {
+            let servo2Value = Math.round((-normalizedBeta + 1) * 90);
+            if (Math.abs(normalizedBeta - 0.5) > deadZone) {
                 smoothedServo2.current = smoothedServo2.current * (1 - smoothingFactor) + servo2Value * smoothingFactor;
                 servo2Value = Math.round(smoothedServo2.current);
                 onServoChange("2", servo2Value, true);
-                log(`Servo2: ${servo2Value}° (gamma=${gamma.toFixed(2)})`, "info");
+                log(`Servo2: ${servo2Value}° (beta=${beta.toFixed(2)})`, "info");
             } else if (
-                Math.abs(normalizedGamma - 0.5) <= deadZone &&
-                Math.abs(prevOrientationState.current.gamma - 0.5) > deadZone
+                Math.abs(normalizedBeta - 0.5) <= deadZone &&
+                Math.abs(prevOrientationState.current.beta - 0.5) > deadZone
             ) {
                 servo2Value = 90;
                 smoothedServo2.current = 90;
