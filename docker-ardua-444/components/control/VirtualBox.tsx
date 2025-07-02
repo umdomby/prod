@@ -101,31 +101,31 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                 onOrientationChange(beta, gamma, alpha);
             }
 
-            const y = gamma;
-            const prevY = prevOrientationState.current.gamma;
+            const y = gamma; // gamma - это угол по оси Y
 
-            // Определяем, происходит ли переход через -89/+89
-            const isTransition = (prevY <= -87 && y >= 87) || (prevY >= 87 && y <= -87);
-
-            if (isTransition) {
-                isValidTransition.current = !isValidTransition.current;
-                log(`Переход через -89/+89 обнаружен, isValidTransition=${isValidTransition.current}`, "info");
-            }
-
-            // Отправляем данные только в валидном диапазоне
-            if (isValidTransition.current && y >= -89 && y <= 89) {
+            // Проверяем, находится ли текущее значение gamma в рабочем диапазоне [-89, 89]
+            if (y >= -89 && y <= 89) {
                 // Масштабируем gamma: [-89, 89] -> [0, 180]
+                // Точка -89 соответствует 0 градусов на сервоприводе.
+                // Точка +89 соответствует 180 градусов на сервоприводе.
+                // Центр (0 градусов gamma) соответствует 90 градусам на сервоприводе.
                 const servo1Value = Math.round(((y + 89) / (89 + 89)) * 180);
+
                 if (servo1Value !== lastValidServo1.current) {
                     onServoChange("1", servo1Value, true);
                     lastValidServo1.current = servo1Value;
                     log(`Servo1 (gamma Y): ${servo1Value}° (gamma=${y.toFixed(2)})`, "info");
                 }
-            } else if (!isValidTransition.current) {
-                log(`Данные не отправлены на servo1, gamma=${y.toFixed(2)}, isValidTransition=${isValidTransition.current}`, "info");
+            } else {
+                // Если gamma выходит за пределы [-89, 89], данные на servo1 не отправляются.
+                // Это игнорирует все переходы, кроме желаемого (внутри [-89, 89]),
+                // включая переход через 0 (3,2,1,0 -> -0,-1,-2) который выходит за этот диапазон.
+                log(`Данные не отправлены на servo1, gamma=${y.toFixed(2)} (вне рабочего диапазона)`, "info");
             }
 
-            prevOrientationState.current.gamma = y;
+            // prevOrientationState больше не нужен для определения "валидного перехода"
+            // так как мы работаем только в определенном диапазоне.
+            // prevOrientationState.current.gamma = y; // Можно удалить, если не используется в других местах
         },
         [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, onOrientationChange, log]
     );
