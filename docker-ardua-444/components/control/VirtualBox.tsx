@@ -125,14 +125,9 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             const SERVO1_CENTER = 90; // Центральное значение сервопривода, соответствующее gamma = 0°
             // Отправляем данные только в валидном диапазоне и при валидном переходе
             if (isValidTransition.current && y >= -89 && y <= 89) {
-                // Масштабируем gamma: [-89, 89] -> [0, 180], где gamma = 0 соответствует servo1 = SERVO1_CENTER (90°)
-                // Формула: servo1Value = SERVO1_CENTER + (y / 89) * 90
-                // - При y = 0°, servo1Value = 90° (SERVO1_CENTER)
-                // - При y = -89°, servo1Value = 0°
-                // - При y = 89°, servo1Value = 180°
-                // Это обеспечивает линейное масштабирование gamma в диапазоне [-89, 89] на servo1 в [0, 180]
-                // Чтобы изменить центр, измените SERVO1_CENTER, например, на 80 или 100, сохраняя диапазон 0–180
-                const servo1Value = Math.round(SERVO1_CENTER + (y / 89) * 90);
+                // const servo1Value = Math.round(SERVO1_CENTER + (y / 89) * 90); // Конфигурируемый центр для сервопривода 1
+                // Масштабируем gamma: [-89, 89] -> [0, 180]
+                const servo1Value = Math.round(((y + 89) / (89 + 89)) * 180);
                 if (servo1Value !== lastValidServo1.current) {
                     onServoChange("1", servo1Value, true);
                     lastValidServo1.current = servo1Value;
