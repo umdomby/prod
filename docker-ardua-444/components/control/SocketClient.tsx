@@ -1540,7 +1540,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                         <img width={'25px'} height={'25px'} src="/arrow/twotone-keyboard-double-arrow-left.svg" />
                                     </Button>
                                     <Button
-                                        onClick={() => adjustServo('2', 15, false)}
+                                        onClick={() => adjustServo('2', 7, false)}
                                         className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/arrow-left-2.svg" alt="+15°" />
@@ -1552,7 +1552,7 @@ export default function SocketClient({ onConnectionStatusChange, selectedDeviceI
                                         <img width={'25px'} height={'25px'} src="/arrow/two-arrow-in-left-right.svg" />
                                     </Button>
                                     <Button
-                                        onClick={() => adjustServo('2', -15, false)}
+                                        onClick={() => adjustServo('2', -7, false)}
                                         className="bg-transparent hover:bg-gray-700/30 p-2 rounded-full transition-all flex items-center"
                                     >
                                         <img width={'25px'} height={'25px'} src="/arrow/arrow-right-2.svg" alt="-15°" />
