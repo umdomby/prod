@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logVirtualBoxEvent } from "@/app/actionsVirtualBoxLog";
 
+// Интерфейс пропсов компонента VirtualBox
 interface VirtualBoxProps {
     onServoChange: (servoId: "1" | "2", value: number, isAbsolute: boolean) => void;
     onOrientationChange?: (beta: number, gamma: number, alpha: number) => void;
@@ -13,6 +14,7 @@ interface VirtualBoxProps {
     isMotionSupported: boolean;
 }
 
+// Компонент VirtualBox для обработки данных ориентации и акселерометра
 const VirtualBox: React.FC<VirtualBoxProps> = ({
                                                    onServoChange,
                                                    onOrientationChange,
@@ -25,16 +27,17 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                                                }) => {
     const animationFrameRef = useRef<number | null>(null);
     const prevOrientationState = useRef({ gamma: 0 });
-    const lastValidServo1 = useRef(90); // Сохраняем последнее отправленное значение сервопривода
-    const isValidTransition = useRef<boolean>(false); // Флаг для отслеживания валидного перехода
+    const lastValidServo1 = useRef(90); // Последнее валидное значение сервопривода (по умолчанию 90°)
+    const isValidTransition = useRef<boolean>(false); // Флаг для отслеживания валидного перехода через мёртвую зону
 
+    // Состояние для хранения данных ориентации
     const [orientationData, setOrientationData] = useState<{
         beta: number | null;
         gamma: number | null;
         alpha: number | null;
     }>({ beta: null, gamma: null, alpha: null });
 
-    // Функция логирования событий с обработкой ошибок
+    // Функция логирования с обработкой ошибок
     const log = useCallback(async (message: string, type: "info" | "error" | "success" = "info") => {
         try {
             await logVirtualBoxEvent(message, type);
@@ -43,7 +46,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         }
     }, []);
 
-    // Проверка информации об устройстве и поддержке сенсоров при монтировании компонента
+    // Проверка информации об устройстве и поддержке сенсоров при монтировании
     useEffect(() => {
         const userAgent = navigator.userAgent;
         const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
@@ -59,7 +62,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         }
     }, [log, isOrientationSupported, isMotionSupported]);
 
-    // Проверка настроек Safari для iOS-устройств
+    // Проверка настроек Safari для iOS
     useEffect(() => {
         const checkSafariSettings = () => {
             const userAgent = navigator.userAgent;
@@ -77,17 +80,31 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             log("VirtualBox активирован", "info");
         } else {
             log("VirtualBox деактивирован", "info");
-            onServoChange("1", 90, true);
+            onServoChange("1", 90, true); // Возвращаем сервопривод в центральное положение
             lastValidServo1.current = 90;
             log("Сервопривод 1 установлен в центральное положение (90°)", "info");
-            isValidTransition.current = false; // Сбрасываем флаг при деактивации
+            isValidTransition.current = false; // Сбрасываем флаг перехода
         }
     }, [isVirtualBoxActive, log, onServoChange]);
+
+    // Функция для преобразования gamma в значение сервопривода (0...180)
+    const mapGammaToServo = (gamma: number): number => {
+        // gamma: [-89...89] -> servo: [90...0] или [90...180]
+        // -0 -> 0°, 0 -> 179-180°, 89 -> 90°, -89 -> 90°
+        if (gamma >= 0 && gamma <= 89) {
+            // Диапазон [0...89] -> [179...90]
+            return Math.round(179 - (gamma / 89) * (179 - 90));
+        } else if (gamma <= -0 && gamma >= -89) {
+            // Диапазон [-0...-89] -> [0...90]
+            return Math.round((Math.abs(gamma) / 89) * 90);
+        }
+        return lastValidServo1.current; // Возвращаем последнее валидное значение, если вне диапазона
+    };
 
     // Обработчик событий ориентации устройства
     const handleDeviceOrientation = useCallback(
         (event: DeviceOrientationEvent) => {
-            // Проверка условий для обработки ориентации
+            // Проверка условий для обработки
             if (disabled || !isVirtualBoxActive || !hasOrientationPermission) {
                 if (isVirtualBoxActive && (!hasOrientationPermission || disabled)) {
                     log("Обработка ориентации отключена: disabled, неактивно или нет разрешения", "info");
@@ -96,7 +113,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             }
 
             const { beta, gamma, alpha } = event;
-            // Проверка валидности данных ориентации
+            // Проверка валидности данных
             if (beta === null || gamma === null || alpha === null) {
                 log("Данные ориентации недоступны (null значения)", "error");
                 return;
@@ -105,7 +122,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             // Обновление состояния ориентации
             setOrientationData({ beta, gamma, alpha });
 
-            // Вызов callback для передачи данных ориентации, если он задан
+            // Передача данных ориентации, если callback задан
             if (onOrientationChange) {
                 onOrientationChange(beta, gamma, alpha);
             }
@@ -113,27 +130,33 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             const y = gamma;
             const prevY = prevOrientationState.current.gamma;
 
-            // Определяем переход через мёртвую зону (-89/+89)
-            const isTransition = (prevY <= -87 && y >= 87) || (prevY >= 87 && y <= -87);
+            // Определяем переход через мёртвую зону (-0...0)
+            const isTransition = (prevY <= 0 && y >= -0) || (prevY >= -0 && y <= 0);
 
             if (isTransition) {
                 isValidTransition.current = !isValidTransition.current;
-                log(`Переход через -89/+89 обнаружен, isValidTransition=${isValidTransition.current}`, "info");
+                log(`Переход через 0/-0 обнаружен, isValidTransition=${isValidTransition.current}`, "info");
             }
 
-            // Конфигурируемый центр для сервопривода 1
-            // const SERVO1_CENTER = 90; // Центральное значение сервопривода, соответствующее gamma = 0°
-            // Отправляем данные только в валидном диапазоне и при валидном переходе
-            if (isValidTransition.current && y >= -89 && y <= 89) {
-                // const servo1Value = Math.round(SERVO1_CENTER + (y / 89) * 90); // Конфигурируемый центр для сервопривода 1
-                // Масштабируем gamma: [-89, 89] -> [0, 180]
-                const servo1Value = Math.round(((y + 89) / (89 + 89)) * 180);
+            // Проверка мертвых зон
+            const isDeadZone = (lastValidServo1.current <= 90 && y >= -0 && y <= 3) ||
+                (lastValidServo1.current >= 90 && y <= 0 && y >= -3);
+
+            if (isDeadZone) {
+                log(`Мёртвая зона: gamma=${y.toFixed(2)}, servo1=${lastValidServo1.current}, данные не отправлены`, "info");
+                prevOrientationState.current.gamma = y;
+                return;
+            }
+
+            // Обработка данных, если переход валиден и не в мёртвой зоне
+            if (isValidTransition.current || (y >= -89 && y <= 89)) {
+                const servo1Value = mapGammaToServo(y);
                 if (servo1Value !== lastValidServo1.current) {
                     onServoChange("1", servo1Value, true);
                     lastValidServo1.current = servo1Value;
-                    log(`Servo1 (gamma Y): ${servo1Value}° (gamma=${y.toFixed(2)})`, "info");
+                    log(`Сервопривод 1 обновлён: gamma=${y.toFixed(2)} -> servo1=${servo1Value}`, "success");
                 }
-            } else if (!isValidTransition.current) {
+            } else {
                 log(`Данные не отправлены на servo1, gamma=${y.toFixed(2)}, isValidTransition=${isValidTransition.current}`, "info");
             }
 
@@ -186,7 +209,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         };
     }, [handleRequestPermissions]);
 
-    // Добавление и удаление обработчиков событий ориентации и акселерометра
+    // Добавление и удаление обработчиков событий
     useEffect(() => {
         if (isVirtualBoxActive && (hasOrientationPermission || hasMotionPermission)) {
             if (isOrientationSupported && hasOrientationPermission) {
