@@ -122,7 +122,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             }
 
             // Конфигурируемый центр для сервопривода 1
-            const SERVO1_CENTER = 90; // Центральное значение сервопривода, соответствующее gamma = 0°
+            // const SERVO1_CENTER = 90; // Центральное значение сервопривода, соответствующее gamma = 0°
             // Отправляем данные только в валидном диапазоне и при валидном переходе
             if (isValidTransition.current && y >= -89 && y <= 89) {
                 // const servo1Value = Math.round(SERVO1_CENTER + (y / 89) * 90); // Конфигурируемый центр для сервопривода 1
