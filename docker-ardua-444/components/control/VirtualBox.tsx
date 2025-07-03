@@ -26,9 +26,9 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                                                    isMotionSupported,
                                                }) => {
     const animationFrameRef = useRef<number | null>(null);
-    // lastValidServo1 теперь отражает последнее отправленное значение servo1,
-    // это важно для логики мёртвых зон и границ.
-    const lastValidServo1 = useRef(90);
+    const prevOrientationState = useRef({ gamma: 0 });
+    const lastValidServo1 = useRef(90); // Последнее валидное значение сервопривода (по умолчанию 90°)
+    const isValidTransition = useRef<boolean>(false); // Флаг для отслеживания валидного перехода через мёртвую зону
 
     // Состояние для хранения данных ориентации
     const [orientationData, setOrientationData] = useState<{
@@ -36,13 +36,6 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         gamma: number | null;
         alpha: number | null;
     }>({ beta: null, gamma: null, alpha: null });
-
-    // Флаг, который помогает отслеживать, был ли произведен "валидный" переход через 0/180
-    // Это предотвращает резкие скачки сервопривода при прохождении через 0 градусов.
-    // Если true, то система готова принимать новые значения gamma для пересчёта servo.
-    // Сбрасывается при прохождении gamma через "мёртвую зону перехода" вокруг 0.
-    const isGammaTrackingActive = useRef<boolean>(true);
-
 
     // Функция логирования с обработкой ошибок
     const log = useCallback(async (message: string, type: "info" | "error" | "success" = "info") => {
@@ -85,40 +78,28 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
     useEffect(() => {
         if (isVirtualBoxActive) {
             log("VirtualBox активирован", "info");
-            // При активации сбрасываем флаг, чтобы быть готовыми к первому корректному отсчёту
-            isGammaTrackingActive.current = true;
         } else {
             log("VirtualBox деактивирован", "info");
             onServoChange("1", 90, true); // Возвращаем сервопривод в центральное положение
             lastValidServo1.current = 90;
             log("Сервопривод 1 установлен в центральное положение (90°)", "info");
-            isGammaTrackingActive.current = true; // Сбрасываем флаг при деактивации
+            isValidTransition.current = false; // Сбрасываем флаг перехода
         }
     }, [isVirtualBoxActive, log, onServoChange]);
 
-    /**
-     * Функция для преобразования gamma в значение сервопривода (0...180).
-     * Gamma: [-89...89] -> Servo: [0...90...180]
-     * -89° (почти "вниз" от пользователя) -> 0° Servo
-     * 0° (прямо на пользователя)     -> 90° Servo
-     * 89° (почти "вверх" от пользователя) -> 180° Servo
-     */
-    const mapGammaToServo = useCallback((gamma: number): number => {
-        // Ограничиваем gamma для стабильности, хотя по спецификации она должна быть в пределах [-90, 90].
-        // Учтём небольшие отклонения, но основная логика остаётся для [-89, 89].
-        const clampedGamma = Math.max(-89, Math.min(89, gamma));
-
-        // Линейное преобразование:
-        // Диапазон gamma [-89, 89] имеет ширину 178.
-        // Диапазон servo [0, 180] имеет ширину 180.
-        // Масштабируем gamma к диапазону [0, 1]
-        const normalizedGamma = (clampedGamma + 89) / 178; // 0 для -89, 0.5 для 0, 1 для 89
-
-        // Преобразуем к диапазону сервопривода [0, 180]
-        const servoValue = normalizedGamma * 180;
-
-        return Math.round(servoValue);
-    }, []);
+    // Функция для преобразования gamma в значение сервопривода (0...180)
+    const mapGammaToServo = (gamma: number): number => {
+        // gamma: [-89...89] -> servo: [90...0] или [90...180]
+        // -0 -> 0°, 0 -> 179-180°, 89 -> 90°, -89 -> 90°
+        if (gamma >= 0 && gamma <= 89) {
+            // Диапазон [0...89] -> [179...90]
+            return Math.round(179 - (gamma / 89) * (179 - 90));
+        } else if (gamma <= -0 && gamma >= -89) {
+            // Диапазон [-0...-89] -> [0...90]
+            return Math.round((Math.abs(gamma) / 89) * 90);
+        }
+        return lastValidServo1.current; // Возвращаем последнее валидное значение, если вне диапазона
+    };
 
     // Обработчик событий ориентации устройства
     const handleDeviceOrientation = useCallback(
@@ -126,7 +107,6 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             // Проверка условий для обработки
             if (disabled || !isVirtualBoxActive || !hasOrientationPermission) {
                 if (isVirtualBoxActive && (!hasOrientationPermission || disabled)) {
-                    // Логируем только если VirtualBox активен, но есть проблемы с разрешениями/отключением
                     log("Обработка ориентации отключена: disabled, неактивно или нет разрешения", "info");
                 }
                 return;
@@ -139,7 +119,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                 return;
             }
 
-            // Обновление состояния ориентации для отображения (если необходимо)
+            // Обновление состояния ориентации
             setOrientationData({ beta, gamma, alpha });
 
             // Передача данных ориентации, если callback задан
@@ -147,71 +127,43 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                 onOrientationChange(beta, gamma, alpha);
             }
 
-            const currentGamma = gamma;
-            const previousServoValue = lastValidServo1.current;
-            const calculatedServoValue = mapGammaToServo(currentGamma);
+            const y = gamma;
+            const prevY = prevOrientationState.current.gamma;
 
-            // --- Логика "Мёртвых Зон" и "Границ Servo" ---
+            // Определяем переход через мёртвую зону (-0...0)
+            const isTransition = (prevY <= 0 && y >= -0) || (prevY >= -0 && y <= 0);
 
-            // 1. Мёртвая зона вокруг 0 для gamma (зона нечувствительности для предотвращения дребезга)
-            // Определяем "мёртвую зону перехода" вокруг 0.
-            // Если gamma находится в этом диапазоне, мы перестаём активно отслеживать её изменения
-            // до тех пор, пока она не выйдет за пределы этой зоны.
-            const DEAD_ZONE_RANGE = 3; // Например, от -3 до 3 градусов
-            const isInDeadZone = currentGamma >= -DEAD_ZONE_RANGE && currentGamma <= DEAD_ZONE_RANGE;
+            if (isTransition) {
+                isValidTransition.current = !isValidTransition.current;
+                log(`Переход через 0/-0 обнаружен, isValidTransition=${isValidTransition.current}`, "info");
+            }
 
-            if (isInDeadZone) {
-                // Если мы находимся в мёртвой зоне, прекращаем активное отслеживание gamma
-                // и не отправляем новых данных на сервопривод.
-                // Это предотвращает постоянные микро-обновления сервопривода, когда gamma колеблется около 0.
-                isGammaTrackingActive.current = false;
-                log(`В мёртвой зоне: gamma=${currentGamma.toFixed(2)}, Servo1=${previousServoValue}, данные не отправлены. Ожидание выхода.`, "info");
+            // Проверка мертвых зон
+            const isDeadZone = (lastValidServo1.current <= 90 && y >= -0 && y <= 3) ||
+                (lastValidServo1.current >= 90 && y <= 0 && y >= -3);
+
+            if (isDeadZone) {
+                log(`Мёртвая зона: gamma=${y.toFixed(2)}, servo1=${lastValidServo1.current}, данные не отправлены`, "info");
+                prevOrientationState.current.gamma = y;
                 return;
-            } else {
-                // Если мы вышли из мёртвой зоны, возобновляем активное отслеживание gamma.
-                if (!isGammaTrackingActive.current) {
-                    log(`Выход из мёртвой зоны: gamma=${currentGamma.toFixed(2)}, возобновление отслеживания.`, "info");
-                    isGammaTrackingActive.current = true;
+            }
+
+            // Обработка данных, если переход валиден и не в мёртвой зоне
+            if (isValidTransition.current || (y >= -89 && y <= 89)) {
+                const servo1Value = mapGammaToServo(y);
+                if (servo1Value !== lastValidServo1.current) {
+                    onServoChange("1", servo1Value, true);
+                    lastValidServo1.current = servo1Value;
+                    log(`Сервопривод 1 обновлён: gamma=${y.toFixed(2)} -> servo1=${servo1Value}`, "success");
                 }
-            }
-
-            // Если isGammaTrackingActive.current теперь false (потому что мы в dead zone), то дальше не идём
-            if (!isGammaTrackingActive.current) {
-                return;
-            }
-
-            // 2. Обработка крайних границ Servo1 (0 и 180)
-            // Если servo1 достиг 0 и gamma продолжает двигаться в "отрицательную" сторону (уменьшается)
-            // (т.е. CalculatedServoValue, рассчитанный из текущей gamma, меньше или равен 0),
-            // то мы не отправляем новые данные, так как сервопривод уже на своей границе.
-            if (previousServoValue === 0 && calculatedServoValue <= 0) {
-                log(`Достигнута нижняя граница servo1=0. Gamma=${currentGamma.toFixed(2)}. Данные не отправлены.`, "info");
-                return;
-            }
-            // Если servo1 достиг 180 и gamma продолжает двигаться в "положительную" сторону (увеличивается)
-            // (т.е. CalculatedServoValue, рассчитанный из текущей gamma, больше или равен 180),
-            // то мы не отправляем новые данные, так как сервопривод уже на своей границе.
-            if (previousServoValue === 180 && calculatedServoValue >= 180) {
-                log(`Достигнута верхняя граница servo1=180. Gamma=${currentGamma.toFixed(2)}. Данные не отправлены.`, "info");
-                return;
-            }
-
-            // 3. Отправка данных на сервопривод
-            // Отправляем данные только если новое значение отличается от предыдущего
-            // и мы не находимся в одной из "блокирующих" ситуаций выше.
-            if (calculatedServoValue !== previousServoValue) {
-                // Ограничиваем значение в диапазоне [0...180] (хотя mapGammaToServo уже это делает)
-                const clampedServo1Value = Math.max(0, Math.min(180, calculatedServoValue));
-                onServoChange("1", clampedServo1Value, true);
-                lastValidServo1.current = clampedServo1Value;
-                log(`Сервопривод 1 обновлён: gamma=${currentGamma.toFixed(2)} -> servo1=${clampedServo1Value}`, "success");
             } else {
-                log(`Сервопривод 1: gamma=${currentGamma.toFixed(2)} -> servo1=${calculatedServoValue}, без изменений.`, "info");
+                log(`Данные не отправлены на servo1, gamma=${y.toFixed(2)}, isValidTransition=${isValidTransition.current}`, "info");
             }
-        },
-        [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, onOrientationChange, log, mapGammaToServo]
-    );
 
+            prevOrientationState.current.gamma = y;
+        },
+        [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, onOrientationChange, log]
+    );
 
     // Обработчик событий акселерометра
     const handleDeviceMotion = useCallback(
@@ -234,70 +186,41 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         [disabled, isVirtualBoxActive, hasMotionPermission, log]
     );
 
-    // Обработчик запроса разрешений (регистрируется вовне для вызова извне компонента)
+    // Обработчик запроса разрешений
     const handleRequestPermissions = useCallback(() => {
-        // Эта функция может быть вызвана из родительского компонента для запроса разрешений.
-        // Её содержимое будет зависеть от того, как вы реализуете запрос разрешений.
-        // Здесь мы просто логируем, что запрос был инициирован.
-        log("Запрос разрешений инициирован (место для вашей логики запроса DeviceOrientation/DeviceMotion)", "info");
-        // Пример (для iOS 13+ Safari, если разрешения не получены ранее):
-        // if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-        //     (DeviceOrientationEvent as any).requestPermission()
-        //         .then((state: 'granted' | 'denied') => {
-        //             if (state === 'granted') {
-        //                 log("Разрешение на DeviceOrientation получено", "success");
-        //                 // Возможно, здесь нужно триггернуть переактивацию обработчиков
-        //             } else {
-        //                 log("Разрешение на DeviceOrientation отклонено", "error");
-        //             }
-        //         })
-        //         .catch(console.error);
-        // }
-    }, [log]);
-
+        if (!isVirtualBoxActive) {
+            window.removeEventListener("deviceorientation", handleDeviceOrientation);
+            window.removeEventListener("devicemotion", handleDeviceMotion);
+            log("Обработчики событий ориентации и акселерометра удалены при деактивации", "info");
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
+            }
+        }
+    }, [isVirtualBoxActive, log, handleDeviceOrientation, handleDeviceMotion]);
 
     // Регистрация функции запроса разрешений
-    // Это позволяет родительскому компоненту вызвать handleRequestPermissions
-    // Например, через кнопку "Запросить разрешения"
     useEffect(() => {
         // @ts-ignore
-        // Создаем глобальный объект, если его нет, и привязываем к нему нашу функцию
-        if (!(window as any).virtualBoxRef) {
-            (window as any).virtualBoxRef = { current: null };
-        }
-        (window as any).virtualBoxRef.current = { handleRequestPermissions };
-
+        const virtualBoxRef = (window as any).virtualBoxRef || { current: null };
+        virtualBoxRef.current = { handleRequestPermissions };
         return () => {
-            // Очищаем ссылку при размонтировании компонента
-            if ((window as any).virtualBoxRef && (window as any).virtualBoxRef.current === handleRequestPermissions) {
-                (window as any).virtualBoxRef.current = null;
-            }
+            virtualBoxRef.current = null;
         };
     }, [handleRequestPermissions]);
 
-    // Добавление и удаление обработчиков событий DeviceOrientation и DeviceMotion
+    // Добавление и удаление обработчиков событий
     useEffect(() => {
-        if (isVirtualBoxActive) {
-            // Добавляем обработчики только если VirtualBox активен и есть соответствующие разрешения
+        if (isVirtualBoxActive && (hasOrientationPermission || hasMotionPermission)) {
             if (isOrientationSupported && hasOrientationPermission) {
                 window.addEventListener("deviceorientation", handleDeviceOrientation);
                 log("Обработчик DeviceOrientationEvent добавлен", "success");
-            } else if (isOrientationSupported && !hasOrientationPermission) {
-                log("DeviceOrientation поддерживается, но разрешение не предоставлено.", "info");
-            } else if (!isOrientationSupported) {
-                log("DeviceOrientation не поддерживается на этом устройстве.", "info");
             }
-
             if (isMotionSupported && hasMotionPermission) {
                 window.addEventListener("devicemotion", handleDeviceMotion);
                 log("Обработчик DeviceMotionEvent добавлен", "success");
-            } else if (isMotionSupported && !hasMotionPermission) {
-                log("DeviceMotion поддерживается, но разрешение не предоставлено.", "info");
-            } else if (!isMotionSupported) {
-                log("DeviceMotion не поддерживается на этом устройстве.", "info");
             }
 
-            // Функция очистки (выполняется при размонтировании или изменении зависимостей)
             return () => {
                 window.removeEventListener("deviceorientation", handleDeviceOrientation);
                 window.removeEventListener("devicemotion", handleDeviceMotion);
@@ -307,16 +230,6 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                     animationFrameRef.current = null;
                 }
             };
-        } else {
-            // Если VirtualBox неактивен, убедимся, что все обработчики удалены.
-            // Это важно, чтобы избежать утечек памяти и лишней работы.
-            window.removeEventListener("deviceorientation", handleDeviceOrientation);
-            window.removeEventListener("devicemotion", handleDeviceMotion);
-            log("VirtualBox неактивен, обработчики событий удалены.", "info");
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-                animationFrameRef.current = null;
-            }
         }
     }, [
         isVirtualBoxActive,
@@ -329,7 +242,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         log,
     ]);
 
-    return null; // Компонент не рендерит никакого UI
+    return null;
 };
 
 export default VirtualBox;
