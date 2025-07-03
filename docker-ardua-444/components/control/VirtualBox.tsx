@@ -25,16 +25,16 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                                                    isMotionSupported,
                                                }) => {
     const animationFrameRef = useRef<number | null>(null);
-    const prevOrientationState = useRef({ gamma: 0 });
     const lastValidServo1 = useRef(90); // Последнее валидное значение сервопривода (по умолчанию 90°)
     const isValidTransition = useRef<boolean>(false); // Флаг для отслеживания валидного перехода через мёртвую зону
-
+    const prevOrientationState = useRef({ gamma: 90 });
     // Состояние для хранения данных ориентации
     const [orientationData, setOrientationData] = useState<{
         beta: number | null;
         gamma: number | null;
         alpha: number | null;
     }>({ beta: null, gamma: null, alpha: null });
+    const [servo1ValueY, setServo1ValueY] = useState<number>(90);
 
     // Обработка активации/деактивации VirtualBox
     useEffect(() => {
@@ -82,25 +82,33 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             }
 
             const y = gamma;
-            const prevY = prevOrientationState.current.gamma;
+            setServo1ValueY(prevOrientationState.current.gamma);
 
-            // Определяем переход через мёртвую зону (-0...0)
-            const isTransition = (prevY <= 0 && y >= -0) || (prevY >= -0 && y <= 0);
+            //const isTransition = (servo1Value > 90 && y >= 0) && (servo1Value < 90 && y <= 0);
+            //const isTransitionUp = (servo1Value > 90 && y >= 0 && servo1Value <= 170) || (servo1Value < 90 && y <= 0 && servo1Value >= 10) ;
+            //const isTransitionDown = servo1Value < 90 && y <= 0;
+            // Обработка данных не в мёртвой зоне
+            // || (servo1ValueY <= 5 && y <= -87)
+            //const isTransition = (servo1ValueY >= 5 && y >= 5);
+            //const isTransition = (y > -89 && y < -5);
+            const isTransition = (servo1ValueY >= 5 || (y > -89 && y < -5));
 
             if (isTransition) {
-                isValidTransition.current = !isValidTransition.current;
-            }
-
-            // Обработка данных, если переход валиден и не в мёртвой зоне
-            if (isValidTransition.current || (y >= -89 && y <= 89)) {
                 const servo1Value = mapGammaToServo(y);
                 if (servo1Value !== lastValidServo1.current) {
                     onServoChange("1", servo1Value, true);
                     lastValidServo1.current = servo1Value;
+                    prevOrientationState.current.gamma = servo1Value;
                 }
             }
 
-            prevOrientationState.current.gamma = y;
+            // if (isTransitionDown) {
+            //     if (servo1Value !== lastValidServo1.current) {
+            //         onServoChange("1", servo1Value, true);
+            //         lastValidServo1.current = servo1Value;
+            //     }
+            // }
+
         },
         [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, onOrientationChange]
     );
@@ -171,7 +179,11 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         handleDeviceMotion,
     ]);
 
-    return null;
+    return (
+        <div>
+            {servo1ValueY}
+        </div>
+    );
 };
 
 export default VirtualBox;
