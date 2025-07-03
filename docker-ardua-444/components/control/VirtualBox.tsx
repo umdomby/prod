@@ -84,14 +84,8 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
             const y = gamma;
             setServo1ValueY(prevOrientationState.current.gamma);
 
-            //const isTransition = (servo1Value > 90 && y >= 0) && (servo1Value < 90 && y <= 0);
-            //const isTransitionUp = (servo1Value > 90 && y >= 0 && servo1Value <= 170) || (servo1Value < 90 && y <= 0 && servo1Value >= 10) ;
-            //const isTransitionDown = servo1Value < 90 && y <= 0;
             // Обработка данных не в мёртвой зоне
-            // || (servo1ValueY <= 5 && y <= -87)
-            //const isTransition = (servo1ValueY >= 5 && y >= 5);
-            //const isTransition = (y > -89 && y < -5);
-            const isTransition = (servo1ValueY >= 5 || (y > -89 && y < -5));
+            const isTransition = servo1ValueY >= 5 || (y > -87 && y < -5);
 
             if (isTransition) {
                 const servo1Value = mapGammaToServo(y);
@@ -101,13 +95,6 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                     prevOrientationState.current.gamma = servo1Value;
                 }
             }
-
-            // if (isTransitionDown) {
-            //     if (servo1Value !== lastValidServo1.current) {
-            //         onServoChange("1", servo1Value, true);
-            //         lastValidServo1.current = servo1Value;
-            //     }
-            // }
 
         },
         [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, onOrientationChange]
@@ -179,11 +166,7 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         handleDeviceMotion,
     ]);
 
-    return (
-        <div>
-            {servo1ValueY}
-        </div>
-    );
+    return null
 };
 
 export default VirtualBox;
