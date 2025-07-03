@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { logVirtualBoxEvent } from "@/app/actionsVirtualBoxLog";
 
 // Интерфейс пропсов компонента VirtualBox
 interface VirtualBoxProps {
@@ -37,55 +36,14 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         alpha: number | null;
     }>({ beta: null, gamma: null, alpha: null });
 
-    // Функция логирования с обработкой ошибок
-    const log = useCallback(async (message: string, type: "info" | "error" | "success" = "info") => {
-        try {
-            await logVirtualBoxEvent(message, type);
-        } catch (error) {
-            console.error(`[VirtualBox Client] ERROR: Failed to send log - ${String(error)}`);
-        }
-    }, []);
-
-    // Проверка информации об устройстве и поддержке сенсоров при монтировании
-    useEffect(() => {
-        const userAgent = navigator.userAgent;
-        const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-        const iOSVersion = isIOS ? parseInt(userAgent.match(/OS (\d+)_/i)?.[1] || "0", 10) : 0;
-        log(`Информация об устройстве: iOS=${isIOS}, версия=${iOSVersion}, UserAgent=${userAgent}`, "info");
-        log(`Поддержка сенсоров: Orientation=${isOrientationSupported}, Motion=${isMotionSupported}`, "info");
-
-        if (isIOS && iOSVersion >= 13 && isOrientationSupported) {
-            log("iOS 13+ обнаружен, требуется запрос разрешений для ориентации", "info");
-        }
-        if (isIOS && iOSVersion >= 13 && isMotionSupported) {
-            log("iOS 13+ обнаружен, требуется запрос разрешений для акселерометра", "info");
-        }
-    }, [log, isOrientationSupported, isMotionSupported]);
-
-    // Проверка настроек Safari для iOS
-    useEffect(() => {
-        const checkSafariSettings = () => {
-            const userAgent = navigator.userAgent;
-            const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-            if (isIOS) {
-                log("Проверка настроек Safari: убедитесь, что 'Движение и ориентация' включены в Настройки > Safari > Конфиденциальность и безопасность", "info");
-            }
-        };
-        checkSafariSettings();
-    }, [log]);
-
     // Обработка активации/деактивации VirtualBox
     useEffect(() => {
-        if (isVirtualBoxActive) {
-            log("VirtualBox активирован", "info");
-        } else {
-            log("VirtualBox деактивирован", "info");
+        if (!isVirtualBoxActive) {
             onServoChange("1", 90, true); // Возвращаем сервопривод в центральное положение
             lastValidServo1.current = 90;
-            log("Сервопривод 1 установлен в центральное положение (90°)", "info");
             isValidTransition.current = false; // Сбрасываем флаг перехода
         }
-    }, [isVirtualBoxActive, log, onServoChange]);
+    }, [isVirtualBoxActive, onServoChange]);
 
     // Функция для преобразования gamma в значение сервопривода (0...180)
     const mapGammaToServo = (gamma: number): number => {
@@ -106,16 +64,12 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         (event: DeviceOrientationEvent) => {
             // Проверка условий для обработки
             if (disabled || !isVirtualBoxActive || !hasOrientationPermission) {
-                if (isVirtualBoxActive && (!hasOrientationPermission || disabled)) {
-                    log("Обработка ориентации отключена: disabled, неактивно или нет разрешения", "info");
-                }
                 return;
             }
 
             const { beta, gamma, alpha } = event;
             // Проверка валидности данных
             if (beta === null || gamma === null || alpha === null) {
-                log("Данные ориентации недоступны (null значения)", "error");
                 return;
             }
 
@@ -135,7 +89,6 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
 
             if (isTransition) {
                 isValidTransition.current = !isValidTransition.current;
-                log(`Переход через 0/-0 обнаружен, isValidTransition=${isValidTransition.current}`, "info");
             }
 
             // Обработка данных, если переход валиден и не в мёртвой зоне
@@ -144,36 +97,27 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                 if (servo1Value !== lastValidServo1.current) {
                     onServoChange("1", servo1Value, true);
                     lastValidServo1.current = servo1Value;
-                    log(`Сервопривод 1 обновлён: gamma=${y.toFixed(2)} -> servo1=${servo1Value}`, "success");
                 }
-            } else {
-                log(`Данные не отправлены на servo1, gamma=${y.toFixed(2)}, isValidTransition=${isValidTransition.current}`, "info");
             }
 
             prevOrientationState.current.gamma = y;
         },
-        [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, onOrientationChange, log]
+        [disabled, isVirtualBoxActive, hasOrientationPermission, onServoChange, onOrientationChange]
     );
 
     // Обработчик событий акселерометра
     const handleDeviceMotion = useCallback(
         (event: DeviceMotionEvent) => {
             if (disabled || !isVirtualBoxActive || !hasMotionPermission) {
-                if (isVirtualBoxActive && (!hasMotionPermission || disabled)) {
-                    log("Обработка акселерометра отключена: disabled, неактивно или нет разрешения", "info");
-                }
                 return;
             }
 
             const { acceleration } = event;
             if (!acceleration || acceleration.x === null || acceleration.y === null || acceleration.z === null) {
-                log("Данные акселерометра недоступны (null значения)", "error");
                 return;
             }
-
-            log(`Данные акселерометра: x=${acceleration.x.toFixed(2)}, y=${acceleration.y.toFixed(2)}, z=${acceleration.z.toFixed(2)}`, "info");
         },
-        [disabled, isVirtualBoxActive, hasMotionPermission, log]
+        [disabled, isVirtualBoxActive, hasMotionPermission]
     );
 
     // Обработчик запроса разрешений
@@ -181,13 +125,12 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         if (!isVirtualBoxActive) {
             window.removeEventListener("deviceorientation", handleDeviceOrientation);
             window.removeEventListener("devicemotion", handleDeviceMotion);
-            log("Обработчики событий ориентации и акселерометра удалены при деактивации", "info");
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
                 animationFrameRef.current = null;
             }
         }
-    }, [isVirtualBoxActive, log, handleDeviceOrientation, handleDeviceMotion]);
+    }, [isVirtualBoxActive, handleDeviceOrientation, handleDeviceMotion]);
 
     // Регистрация функции запроса разрешений
     useEffect(() => {
@@ -204,17 +147,14 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         if (isVirtualBoxActive && (hasOrientationPermission || hasMotionPermission)) {
             if (isOrientationSupported && hasOrientationPermission) {
                 window.addEventListener("deviceorientation", handleDeviceOrientation);
-                log("Обработчик DeviceOrientationEvent добавлен", "success");
             }
             if (isMotionSupported && hasMotionPermission) {
                 window.addEventListener("devicemotion", handleDeviceMotion);
-                log("Обработчик DeviceMotionEvent добавлен", "success");
             }
 
             return () => {
                 window.removeEventListener("deviceorientation", handleDeviceOrientation);
                 window.removeEventListener("devicemotion", handleDeviceMotion);
-                log("Обработчики DeviceOrientationEvent и DeviceMotionEvent удалены", "info");
                 if (animationFrameRef.current) {
                     cancelAnimationFrame(animationFrameRef.current);
                     animationFrameRef.current = null;
@@ -229,7 +169,6 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         isMotionSupported,
         handleDeviceOrientation,
         handleDeviceMotion,
-        log,
     ]);
 
     return null;
