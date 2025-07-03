@@ -138,16 +138,6 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
                 log(`Переход через 0/-0 обнаружен, isValidTransition=${isValidTransition.current}`, "info");
             }
 
-            // Проверка мертвых зон
-            const isDeadZone = (lastValidServo1.current <= 90 && y >= -0 && y <= 3) ||
-                (lastValidServo1.current >= 90 && y <= 0 && y >= -3);
-
-            if (isDeadZone) {
-                log(`Мёртвая зона: gamma=${y.toFixed(2)}, servo1=${lastValidServo1.current}, данные не отправлены`, "info");
-                prevOrientationState.current.gamma = y;
-                return;
-            }
-
             // Обработка данных, если переход валиден и не в мёртвой зоне
             if (isValidTransition.current || (y >= -89 && y <= 89)) {
                 const servo1Value = mapGammaToServo(y);
