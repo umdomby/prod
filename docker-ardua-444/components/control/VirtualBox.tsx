@@ -81,21 +81,21 @@ const VirtualBox: React.FC<VirtualBoxProps> = ({
         // Оставлена исходная логика с screen.orientation?.type (если она вам нужна после основной коррекции)
         // Но при коррекции по beta, эти смещения могут стать избыточными или неверными.
         // Рекомендуется тщательно протестировать, нужны ли они вам.
-        const orientation = screen.orientation?.type || "";
-        switch (orientation) {
-            case "landscape-primary":
-                // return (alpha + 90) % 360; // Возможно, требуется смещение
-                break;
-            case "landscape-secondary":
-                // return (alpha + 270) % 360; // Возможно, требуется смещение
-                break;
-            case "portrait-secondary":
-                // return (alpha + 180) % 360; // Возможно, требуется смещение
-                break;
-            case "portrait-primary":
-            default:
-                break;
-        }
+        // const orientation = screen.orientation?.type || "";
+        // switch (orientation) {
+        //     case "landscape-primary":
+        //         // return (alpha + 90) % 360; // Возможно, требуется смещение
+        //         break;
+        //     case "landscape-secondary":
+        //         // return (alpha + 270) % 360; // Возможно, требуется смещение
+        //         break;
+        //     case "portrait-secondary":
+        //         // return (alpha + 180) % 360; // Возможно, требуется смещение
+        //         break;
+        //     case "portrait-primary":
+        //     default:
+        //         break;
+        // }
 
         return alpha;
     }, []);
